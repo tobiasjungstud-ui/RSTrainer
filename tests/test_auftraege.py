@@ -1,0 +1,213 @@
+"""Tests des Prompt-/Ergebnis-Kreislaufs."""
+
+from __future__ import annotations
+
+import string
+
+import pytest
+
+from rstrainer import auftraege
+from rstrainer import prompt_templates as pt
+
+
+# --- Auftragsnummern --------------------------------------------------------
+
+def test_auftragsnummer_hat_typpraefix():
+    assert auftraege.auftrag_code("diktat").startswith("RST-DIK-")
+    assert auftraege.auftrag_code("uebungsblatt").startswith("RST-UEB-")
+    assert auftraege.auftrag_code("minitest").startswith("RST-TST-")
+
+
+def test_auftragsnummern_sind_verschieden():
+    codes = {auftraege.auftrag_code("diktat") for _ in range(200)}
+    assert len(codes) > 190
+
+
+# --- Vorlagen ---------------------------------------------------------------
+
+@pytest.mark.parametrize("typ", sorted(pt.VORLAGEN))
+def test_vorlage_hat_alle_pflichtplatzhalter(typ):
+    felder = {f for _, f, _, _ in string.Formatter().parse(pt.VORLAGEN[typ]) if f}
+    assert pt.PFLICHTPLATZHALTER[typ] <= felder
+
+
+def test_kategorienblock_nennt_nummer_name_und_beschreibung(liste):
+    block = auftraege.kategorienblock(["07", "27"], liste)
+    assert "07 – Doppelkonsonant fehlt" in block
+    assert "27 – Auslautverhärtung" in block
+    assert "Kürzemarkierung" in block          # Kurzbeschreibung
+    assert "*komen → kommen" in block          # Beispiel
+
+
+def test_kategorienblock_meldet_unbekannte_nummer(liste):
+    assert "nicht in der Liste" in auftraege.kategorienblock(["99"], liste)
+
+
+def test_kategorienblock_ohne_auswahl(liste):
+    assert "keine Kategorie" in auftraege.kategorienblock([], liste)
+
+
+def test_diktatprompt_enthaelt_alle_parameter(liste):
+    code, prompt = auftraege.prompt_bauen("diktat", {
+        "kategorien": ["07"], "klassenstufe": "5. Klasse", "wortzahl": 95,
+        "textsorte": "Erzählung", "thema": "Im Zirkus", "schwierigkeit": "mittel",
+        "treffer_pro_kategorie": 4,
+    }, liste)
+    assert code in prompt
+    assert "95 Wörter" in prompt
+    assert "Im Zirkus" in prompt
+    assert "5. Klasse" in prompt
+    assert "07 – Doppelkonsonant fehlt" in prompt
+    assert pt.MARKE_ANFANG in prompt and pt.MARKE_ENDE in prompt
+
+
+def test_schweizer_variante_ist_voreingestellt(liste):
+    _, prompt = auftraege.prompt_bauen("diktat", _diktatparameter(), liste)
+    assert "KEIN ß" in prompt
+
+
+def test_deutsche_variante_waehlbar(liste):
+    _, prompt = auftraege.prompt_bauen(
+        "diktat", _diktatparameter(), liste,
+        rechtschreibvariante="deutschland_oesterreich")
+    assert "Straße" in prompt
+
+
+def test_uebungsblattprompt_verbietet_loesungen_auf_der_aufgabenseite(liste):
+    _, prompt = auftraege.prompt_bauen("uebungsblatt", {
+        "kategorien": ["07", "11"], "klassenstufe": "5. Klasse",
+        "bearbeitungszeit": "20 Minuten", "aufgaben_pro_kategorie": 3,
+        "test_aufgaben": 6,
+    }, liste)
+    assert "KEINE Lösungen" in prompt or "KEINE Lösungen" in prompt.replace("\n", " ")
+    assert pt.MARKE_UEBUNG in prompt
+    assert pt.MARKE_TEST in prompt
+    assert pt.MARKE_LOESUNG in prompt
+
+
+def test_unbekannter_typ_wird_abgelehnt(liste):
+    with pytest.raises(ValueError):
+        auftraege.prompt_bauen("gibtsnicht", {}, liste)
+
+
+def test_fehlender_platzhalter_liefert_klare_meldung(liste):
+    with pytest.raises(KeyError, match="prompt_templates.py"):
+        auftraege.prompt_bauen("diktat", {"kategorien": ["07"]}, liste)
+
+
+def test_vorgegebener_code_wird_uebernommen(liste):
+    code, prompt = auftraege.prompt_bauen(
+        "diktat", _diktatparameter(), liste, code="RST-DIK-ABCDEF")
+    assert code == "RST-DIK-ABCDEF"
+    assert "RST-DIK-ABCDEF" in prompt
+
+
+def _diktatparameter() -> dict:
+    return {
+        "kategorien": ["07"], "klassenstufe": "5. Klasse", "wortzahl": 90,
+        "textsorte": "Erzählung", "thema": "Wald", "schwierigkeit": "mittel",
+        "treffer_pro_kategorie": 4,
+    }
+
+
+# --- Ergebnis zurücklesen ---------------------------------------------------
+
+DIKTAT_ANTWORT = """Gerne! Hier ist dein Diktat:
+
+===RSTRAINER-ANFANG===
+AUFTRAG: RST-DIK-ABC123
+TYP: diktat
+TITEL: Ein Tag im Wald
+WOERTER: 64
+ZIELWOERTER: 07: kommen, rennen
+---
+Am Morgen kommen die Kinder in den Wald und rennen über den Boden.
+===RSTRAINER-ENDE===
+
+Sag Bescheid, wenn du etwas ändern möchtest!"""
+
+
+def test_diktatantwort_wird_zerlegt():
+    e = auftraege.ergebnis_lesen(DIKTAT_ANTWORT, "RST-DIK-ABC123", "diktat")
+    assert e.strukturiert
+    assert e.auftrag_code == "RST-DIK-ABC123"
+    assert e.typ == "diktat"
+    assert e.titel == "Ein Tag im Wald"
+    assert e.haupttext.startswith("Am Morgen kommen")
+    assert "Gerne!" not in e.haupttext          # Geplauder bleibt draussen
+    assert "Sag Bescheid" not in e.haupttext
+    assert e.kopf["ZIELWOERTER"].startswith("07:")
+    assert e.hinweise == []
+
+
+def test_falsche_auftragsnummer_wird_gemeldet():
+    e = auftraege.ergebnis_lesen(DIKTAT_ANTWORT, "RST-DIK-ANDERS", "diktat")
+    assert any("RST-DIK-ABC123" in h for h in e.hinweise)
+    assert e.haupttext                          # der Text geht trotzdem nicht verloren
+
+
+def test_falscher_typ_wird_gemeldet():
+    e = auftraege.ergebnis_lesen(DIKTAT_ANTWORT, "RST-DIK-ABC123", "uebungsblatt")
+    assert any("diktat" in h for h in e.hinweise)
+
+
+def test_fehlende_markierungen_fallen_auf_fliesstext_zurueck():
+    """Wichtig: Auch ohne Markierungen darf nichts verloren gehen."""
+    e = auftraege.ergebnis_lesen("Einfach nur ein Text ohne alles.")
+    assert not e.strukturiert
+    assert e.haupttext == "Einfach nur ein Text ohne alles."
+    assert any("Markierungen" in h for h in e.hinweise)
+
+
+def test_fehlende_auftragsnummer_wird_gemeldet():
+    e = auftraege.ergebnis_lesen("Nur Text", erwarteter_code="RST-DIK-ABC123")
+    assert any("keine Auftragsnummer" in h for h in e.hinweise)
+
+
+def test_leere_eingabe():
+    e = auftraege.ergebnis_lesen("")
+    assert e.ist_leer
+    assert e.hinweise
+
+
+UEBUNGSBLATT_ANTWORT = """===RSTRAINER-ANFANG===
+AUFTRAG: RST-UEB-ABC123
+TYP: uebungsblatt
+TITEL: Doppelkonsonanten üben
+---UEBUNGSBLATT---
+Aufgabe 1 (Kategorie 07): Ergänze ko___en.
+---MINITEST---
+Test 1: Schreibe die Wörter richtig.
+---LOESUNGEN---
+1. kommen
+===RSTRAINER-ENDE==="""
+
+
+def test_uebungsblattantwort_wird_in_drei_teile_zerlegt():
+    e = auftraege.ergebnis_lesen(UEBUNGSBLATT_ANTWORT, "RST-UEB-ABC123", "uebungsblatt")
+    assert e.titel == "Doppelkonsonanten üben"
+    assert "Ergänze ko___en." in e.uebungsteil
+    assert "Schreibe die Wörter richtig." in e.testteil
+    assert "1. kommen" in e.loesungen
+    assert e.hinweise == []
+
+
+def test_loesungen_landen_nicht_im_uebungsteil():
+    e = auftraege.ergebnis_lesen(UEBUNGSBLATT_ANTWORT)
+    assert "kommen" not in e.uebungsteil
+    assert "kommen" not in e.testteil
+
+
+def test_fehlender_loesungsabschnitt_ist_kein_absturz():
+    antwort = UEBUNGSBLATT_ANTWORT.split("---LOESUNGEN---")[0] + "===RSTRAINER-ENDE==="
+    e = auftraege.ergebnis_lesen(antwort)
+    assert e.uebungsteil and e.testteil
+    assert e.loesungen == ""
+
+
+def test_kopfzeilen_ohne_trenner_werden_erkannt():
+    antwort = ("===RSTRAINER-ANFANG===\nAUFTRAG: RST-DIK-1\nTYP: diktat\n"
+               "TITEL: Kurz\n\nDer eigentliche Text.\n===RSTRAINER-ENDE===")
+    e = auftraege.ergebnis_lesen(antwort)
+    assert e.titel == "Kurz"
+    assert e.haupttext == "Der eigentliche Text."
