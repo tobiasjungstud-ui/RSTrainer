@@ -38,16 +38,16 @@ def test_wortzahl_innerhalb_toleranz(liste):
 
 def test_passende_kategorie_wird_bestaetigt(liste):
     befunde = validation.diktat_pruefen(DIKTATTEXT, 40, ["07"], liste)
-    treffer = _finde(befunde, "Doppelkonsonant")[0]
+    treffer = _finde(befunde, "Konsonantenverdoppelung")[0]
     assert treffer.stufe == OK
     assert "rannte" in treffer.text or "nasse" in treffer.text
 
 
 def test_unpassende_kategorie_warnt(liste):
-    """Ein Text ohne ß/ss-Stellen kann Kategorie 18 nicht üben."""
+    """Ein Text ohne ß kann die Kategorie 15 (ss für ß) nicht üben."""
     text = "Am Morgen kam der Hund. Er lief davon."
-    befunde = validation.diktat_pruefen(text, 9, ["18"], liste)
-    assert _finde(befunde, "ss/ß")[0].stufe == WARNUNG
+    befunde = validation.diktat_pruefen(text, 9, ["15"], liste)
+    assert _finde(befunde, "ss für ß")[0].stufe == WARNUNG
 
 
 def test_leerer_text_warnt(liste):
@@ -62,14 +62,14 @@ def test_korrekturlese_hinweis_erscheint_immer(liste):
 
 def test_warnungen_stehen_oben(liste):
     text = "Am Morgen kam der Hund."
-    befunde = validation.diktat_pruefen(text, 5, ["18", "07"], liste)
+    befunde = validation.diktat_pruefen(text, 5, ["15", "07"], liste)
     stufen = [b.stufe for b in befunde]
     assert stufen == sorted(stufen, key=lambda s: {WARNUNG: 0, HINWEIS: 1, OK: 2}[s])
 
 
 def test_pruefungen_blockieren_nie(liste):
     """Grundsatz: Prüfungen melden, sie verhindern nichts."""
-    befunde = validation.diktat_pruefen("Kurz.", 500, ["18", "33"], liste)
+    befunde = validation.diktat_pruefen("Kurz.", 500, ["15", "33"], liste)
     assert befunde  # es gibt Befunde …
     assert all(hasattr(b, "stufe") for b in befunde)  # … aber keine Ausnahme
 
@@ -96,7 +96,7 @@ def test_genannte_kategorienummer_wird_bestaetigt(liste):
 
 def test_fehlende_kategoriezuordnung_warnt(liste):
     befunde = validation.blatt_pruefen(
-        "Male ein Bild.", "Zeichne etwas.", "", ["33"], liste)
+        "Male ein Bild.", "Zeichne etwas.", "", ["15"], liste)
     assert _finde(befunde, "Zuordnung")[0].stufe == WARNUNG
 
 

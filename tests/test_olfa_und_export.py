@@ -13,7 +13,7 @@ from rstrainer import analysis, config, db, demo_data, export, olfa
 
 def test_mitgelieferte_liste_ist_lesbar(liste):
     assert len(liste) == 37
-    assert liste.get("01").name.startswith("Kleinschreibung")
+    assert liste.get("01").name == "Klein- für Großschreibung"
 
 
 def test_kategorienummern_sind_eindeutig(liste):
@@ -28,20 +28,34 @@ def test_jede_kategorie_ist_vollstaendig(liste):
         assert k.bereich, f"Kategorie {k.nr} ohne Bereich"
 
 
-def test_mitgelieferte_liste_ist_als_ungeprueft_markiert(liste):
-    """Die Vorlage darf sich nicht als fachlich geprüft ausgeben."""
-    assert liste.anzahl_ungeprueft == len(liste)
-    assert not liste.alle_geprueft
+def test_liste_ist_als_geprueft_markiert(liste):
+    """Die Liste stammt aus dem Fachmaterial der Lehrperson."""
+    assert liste.alle_geprueft
+    assert liste.anzahl_ungeprueft == 0
 
 
-def test_herkunftshinweis_ist_hinterlegt(liste):
-    hinweise = " ".join(liste.meta.get("wichtiger_hinweis", []))
-    assert "NICHT die offizielle OLFA-Fehlerliste" in hinweise
-    assert "37" in hinweise
+def test_herkunft_und_offene_punkte_sind_dokumentiert(liste):
+    herkunft = " ".join(liste.meta.get("herkunft", []))
+    assert "Lehrperson" in herkunft
+    offen = " ".join(liste.meta.get("offene_punkte", []))
+    assert "GRUPPENZUORDNUNG" in offen
+
+
+def test_gruppenzuordnung_ist_bewusst_leer(liste):
+    """Die Gruppen I/II/III lagen nicht vor und wurden nicht geraten."""
+    assert all(k.gruppe is None for k in liste)
+
+
+def test_unbesetzte_nummern_bleiben_erhalten(liste):
+    """21 und 22 sind im Original unbesetzt – die Nummerierung muss
+    trotzdem mit dem Auswertungsbogen übereinstimmen."""
+    assert liste.get("21").name == "unbesetzt"
+    assert liste.get("22").name == "unbesetzt"
+    assert liste.get("21").heuristik == ()
 
 
 def test_label_format(liste):
-    assert liste.label("07") == "07 – Doppelkonsonant fehlt"
+    assert liste.label("07") == "07 – Einfachschreibung für Konsonantenverdoppelung"
 
 
 def test_label_fuer_unbekannte_nummer(liste):
@@ -50,19 +64,35 @@ def test_label_fuer_unbekannte_nummer(liste):
 
 def test_gruppierung_nach_bereich(liste):
     bereiche = liste.nach_bereich()
-    assert "Kürzemarkierung" in bereiche
+    assert "s-Schreibung" in bereiche
     assert sum(len(v) for v in bereiche.values()) == len(liste)
 
 
-def test_heuristikmarker_sind_eindeutig_zugeordnet(liste):
-    """Jeder Marker soll auf genau eine Kategorie zeigen – sonst wäre der
-    Vorschlag beim Abgleich mehrdeutig."""
-    marker: dict[str, list[str]] = {}
-    for k in liste:
-        for m in k.heuristik:
-            marker.setdefault(m, []).append(k.nr)
-    mehrdeutig = {m: nrs for m, nrs in marker.items() if len(nrs) > 1}
-    assert not mehrdeutig, f"Mehrdeutige Marker: {mehrdeutig}"
+def test_jeder_diff_marker_findet_eine_kategorie(liste):
+    """Jeder Marker, den der Abgleich erzeugen kann, muss mindestens eine
+    Kategorie treffen – sonst bliebe die Abweichung ohne Vorschlag."""
+    from rstrainer import diffing
+
+    paare = [
+        ("Haus", "haus"), ("kalt", "Kalt"), ("kommen", "komen"),
+        ("Zucker", "Zuker"), ("Katze", "Kazze"), ("hat", "hatt"),
+        ("Zahn", "Zan"), ("Boot", "Bot"), ("Wiese", "Wise"),
+        ("Tur", "Tuhr"), ("Tisch", "Tiesch"), ("Fuß", "Fus"),
+        ("las", "laß"), ("Straße", "Strasse"), ("dass", "daß"),
+        ("Bären", "Beren"), ("Berg", "Bärg"), ("Hund", "Hunt"),
+        ("Vater", "Fater"), ("Fisch", "Visch"), ("Vase", "Wase"),
+        ("Wasser", "Vasser"), ("wenig", "wenich"), ("mich", "mig"),
+        ("Schule", "Sule"), ("Blumen", "Blmen"), ("Kinder", "Kinider"),
+        ("Ball", "Pall"), ("Fenster", "Finster"), ("Brot", "Bort"),
+        ("Bücher", "Bucher"), ("Haus", ""),
+    ]
+    ohne = []
+    for richtig, falsch in paare:
+        marker = diffing.marker_bestimmen(richtig, falsch)
+        for m in marker:
+            if not liste.mit_heuristik(m):
+                ohne.append((richtig, falsch, m))
+    assert not ohne, f"Marker ohne Kategorie: {ohne}"
 
 
 def test_speichern_und_wieder_laden(tmp_path, liste):
@@ -157,7 +187,7 @@ def test_fehler_csv_hat_kopfzeile_und_kategorienamen(con, schueler_id, liste):
     zeilen = list(csv.DictReader(io.StringIO(text), delimiter=";"))
     assert len(zeilen) == 1
     assert zeilen[0]["kategorie_nr"] == "07"
-    assert zeilen[0]["kategorie_name"] == "Doppelkonsonant fehlt"
+    assert zeilen[0]["kategorie_name"] == "Einfachschreibung für Konsonantenverdoppelung"
     assert zeilen[0]["diktat_titel"] == "Wald"
     assert zeilen[0]["wort_schueler"] == "komen"
 

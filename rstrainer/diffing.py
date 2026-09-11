@@ -104,9 +104,7 @@ def _marker_loeschung(orig: str, i1: int, i2: int) -> str:
     if teil == "t" and danach == "z":
         return "tz"
     if len(teil) == 1 and teil == davor:
-        return "doppelvokal" if _ist_vokal(teil) else "doppelkonsonant_fehlt"
-    if teil in MEHRGRAPHEME or any(teil in mg for mg in MEHRGRAPHEME if len(teil) > 1):
-        return "mehrgraphem"
+        return "doppelvokal_fehlt" if _ist_vokal(teil) else "doppelkonsonant_fehlt"
     return "vokal_fehlt" if _ist_vokal(teil) else "konsonant_fehlt"
 
 
@@ -123,46 +121,82 @@ def _marker_einfuegung(schueler: str, j1: int, j2: int) -> str:
     if teil == "i" and danach == "e":
         return "ie_zuviel"
     if len(teil) == 1 and teil == davor:
-        return "doppelvokal" if _ist_vokal(teil) else "doppelkonsonant_zuviel"
+        return "doppelvokal_zuviel" if _ist_vokal(teil) else "doppelkonsonant_zuviel"
     return "vokal_zuviel" if _ist_vokal(teil) else "konsonant_zuviel"
 
 
 def _marker_ersetzung(orig: str, schueler: str, i1: int, i2: int,
                       j1: int, j2: int) -> str:
+    """An dieser Stelle steht im Schülertext etwas anderes.
+
+    ``a`` ist die richtige Schreibung, ``b`` die des Schülers. Die
+    OLFA-Kategorien sind nach dem Muster «X für Y» benannt, also
+    «geschrieben wurde X, richtig wäre Y» – die Richtung wird hier deshalb
+    konsequent unterschieden.
+    """
     a = orig[i1:i2]
     b = schueler[j1:j2]
     danach_a = orig[i2] if i2 < len(orig) else ""
+    # Näherung: OLFA spricht vom Silbenrand bzw. Silbenende. Ohne
+    # Silbentrennung prüfen wir das Wortende – der häufigste Fall.
     am_wortende = i2 == len(orig)
 
-    paar = {a, b}
-    if paar == {"äu", "eu"}:
-        return "aeu_eu"
-    if paar == {"ä", "e"}:
-        return "ae_e"
+    # Umlautableitung ä/e und äu/eu (Kategorien 17 und 18)
+    if a == "äu" and b == "eu":
+        return "eu_statt_aeu"
+    if a == "eu" and b == "äu":
+        return "aeu_statt_eu"
+    if a == "ä" and b == "e":
+        return "e_statt_ae"
+    if a == "e" and b == "ä":
+        return "ae_statt_e"
+
+    # Fehlende oder falsche Umlautbezeichnung (Kategorie 36)
     if a in UMLAUT_GRUNDFORM and b == UMLAUT_GRUNDFORM[a]:
         return "umlaut_fehlt"
     if b in UMLAUT_GRUNDFORM and a == UMLAUT_GRUNDFORM[b]:
         return "umlaut_fehlt"
-    if "ck" in (a, b) or (a == "k" and b in {"kk", "ck"}) or (b == "k" and a == "ck"):
-        return "ck"
-    if "tz" in (a, b) or (a == "t" and danach_a == "z") or (a == "z" and b == "tz"):
-        return "tz"
-    if paar in ({"ss", "s"}, {"ss", "z"}):
-        return "s_statt_ss"
-    if "ß" in paar:
+
+    # s-Schreibung – vier getrennte Kategorien (13 bis 16)
+    if a == "ß" and b == "s":
+        return "s_statt_sz"
+    if a == "s" and b == "ß":
+        return "sz_statt_s"
+    if a == "ß" and b == "ss":
         return "ss_statt_sz"
-    if a == "s" or b == "s":
-        return "s_stimmhaft"
+    if a == "ss" and b == "ß":
+        return "sz_statt_ss"
+
+    # Kürzemarkierung mit ck und tz (Kategorie 07)
+    if "ck" in (a, b) or (a == "k" and b == "kk"):
+        return "ck"
+    if "tz" in (a, b) or (a == "t" and danach_a == "z"):
+        return "tz"
+
+    # Silbenrand: Auslautverhärtung in beide Richtungen (19 und 20)
     if am_wortende and a in {"b", "d", "g"} and b in {"p", "t", "k"}:
         return "auslautverhaertung"
-    if a in {"v", "f"} and b in {"f", "v", "w"}:
-        return "stamm_sonstige"
-    if am_wortende and {a, b} in ({"er", "a"}, {"en", "n"}, {"ig", "ich"}, {"g", "ch"}):
-        return "endung"
+    if am_wortende and a in {"p", "t", "k"} and b in {"b", "d", "g"}:
+        return "stimmhaft_statt_stimmlos"
+
+    # v-, f- und w-Schreibung (23 bis 26)
+    if a == "v" and b == "f":
+        return "f_statt_v"
+    if a == "f" and b == "v":
+        return "v_statt_f"
+    if a == "v" and b == "w":
+        return "w_statt_v"
+    if a == "w" and b == "v":
+        return "v_statt_w"
+
+    # ch- und g-Schreibung im Silbenende (27 und 28)
+    if a == "g" and b == "ch":
+        return "ch_statt_g"
+    if a == "ch" and b == "g":
+        return "g_statt_ch"
+
     if len(a) == 1 and len(b) == 1 and _aehnliche_konsonanten(a, b):
         return "konsonant_verwechselt"
-    if a in MEHRGRAPHEME or b in MEHRGRAPHEME:
-        return "mehrgraphem"
     if _ist_vokal(a) and _ist_vokal(b):
         return "vokal_verwechselt"
     if len(a) == 1 and len(b) == 1:

@@ -12,39 +12,55 @@ nimmt das Ergebnis kontrolliert wieder entgegen.
 
 ---
 
-## ⚠️ Zuerst lesen: die OLFA-Kategorienliste ist ein Platzhalter
+## Die OLFA-Kategorienliste
 
-Die Recherche ergab Folgendes:
+Unter [`data/olfa_kategorien.json`](data/olfa_kategorien.json) liegen die **37
+Fehlerkategorien der Oldenburger Fehleranalyse**, wie sie die Lehrperson aus
+ihrem Fachmaterial übernommen hat. Alle Einträge sind als `"geprueft": true`
+markiert.
 
-* Die Oldenburger Fehleranalyse **OLFA 3–9** (Günther Thomé / Dorothea Thomé,
-  isb-Verlag Oldenburg) arbeitet mit **37 Fehlerkategorien** – nicht mit rund
-  30, wie ursprünglich angenommen.
-* Jede Kategorie gehört zusätzlich zu einer von **drei entwicklungsbezogenen
-  Gruppen (I / II / III)**.
-* Online gesichert belegbar waren nur: diese Gesamtzahl, das Gruppenprinzip
-  und die Kategorien **01** (Kleinbuchstabe statt Grossbuchstabe, `*haus` für
-  *Haus*) und **02** (Grossbuchstabe statt Kleinbuchstabe, `*Kalt` für *kalt*).
-* Die vollständige, wörtliche Kategorienliste steht ausschliesslich im
-  kostenpflichtigen OLFA-Handbuch bzw. auf dem Auswertungsbogen und ist
-  urheberrechtlich geschützt. Die Volltext-Quellen (isb-oldenburg.de,
-  olfaonline.de, Universitätsserver) waren aus der Entwicklungsumgebung nicht
-  abrufbar.
+Die Bezeichnungen folgen dem Muster **«X für Y»**: geschrieben wurde X, richtig
+wäre Y. «Klein- für Großschreibung» heißt also *kleingeschrieben, obwohl groß
+richtig wäre*.
 
-**Deshalb wurde nichts erfunden und nichts rekonstruiert.** Mitgeliefert ist
-unter [`data/olfa_kategorien.json`](data/olfa_kategorien.json) eine fachlich
-eigenständig formulierte **Arbeitsliste mit 37 Kategorien**, die sich an den
-bei OLFA abgedeckten Rechtschreibbereichen orientiert. Jeder Eintrag trägt
-`"geprueft": false`, und die App weist in der Seitenleiste dauerhaft darauf
-hin, solange das so ist.
+Die Nummern **21 und 22 sind im Original unbesetzt** und bleiben es auch hier,
+damit die Nummerierung mit dem Auswertungsbogen übereinstimmt.
 
-**Was Sie tun sollten:** Gleichen Sie die Liste einmal gegen Ihr Fachmaterial
-ab (Einstellungen → OLFA-Kategorien), korrigieren Sie Nummern und
-Bezeichnungen und setzen Sie die Häkchen. Die App funktioniert mit **jeder**
-Kategorienliste – Anzahl, Nummern und Namen sind frei änderbar.
+### Zwei offene Punkte
 
-> Ein technisches Detail beim Bearbeiten: Die Spalte `heuristik` steuert die
-> automatischen Kategorie-Vorschläge beim Textabgleich. Beim Umbenennen einer
-> Kategorie bitte stehen lassen, beim Umnummerieren mitnehmen.
+**1. Die Gruppenzuordnung I / II / III fehlt.** OLFA ordnet jede Kategorie
+zusätzlich einer von drei entwicklungsbezogenen Gruppen zu, erkennbar an der
+roten, gelben bzw. grünen Markierung der Kategorienummer auf dem
+Auswertungsbogen. Diese Angabe war in der übermittelten Tabelle nicht
+enthalten und wurde **nicht erraten** – das Feld `gruppe` ist überall `null`.
+Nachtragen lässt sie sich unter *Einstellungen → OLFA-Kategorien*. Die App
+funktioniert auch ohne; es fehlt lediglich die Gruppierung nach
+Entwicklungsphase.
+
+**2. Zwei der vier ß-Kategorien greifen in der Schweiz nicht.** Die App ist
+auf die **Schweizer Rechtschreibung** eingestellt – in den Chat-Prompts
+entsteht also nie ein ß. Damit gilt für die Kategorien 13–16:
+
+| Nr. | Kategorie | In der Schweiz |
+|---|---|---|
+| 13 | s für ß | **nicht anwendbar** – die Schreibung ohne ß ist hier richtig |
+| 14 | ß für s | **relevant** – erfasst ein fälschlich gesetztes ß |
+| 15 | ss für ß | **nicht anwendbar** – ss ist hier die korrekte Schreibung |
+| 16 | ß für ss | **relevant** – etwa `*daß` statt `dass` |
+
+Die vier Nummern bleiben trotzdem erhalten, damit die Nummerierung mit dem
+Auswertungsbogen übereinstimmt. Wer mit ß unterrichtet, stellt die Variante
+unter *Einstellungen* um; dann sind alle vier anwendbar.
+
+### Eigene Änderungen
+
+Die Liste ist frei editierbar – Nummern, Namen und Anzahl. Ein technisches
+Detail: Die Spalte `heuristik` steuert die automatischen Kategorie-Vorschläge
+beim Textabgleich. Beim Umbenennen einer Kategorie bitte stehen lassen, beim
+Umnummerieren mitnehmen. Ein Marker darf auf **mehrere** Kategorien zeigen;
+dann schlägt die App beide vor – so geschieht es bei `doppelkonsonant_zuviel`,
+das zu Kategorie 08 *und* 11 passt, weil das Werkzeug die Vokallänge nicht
+kennt.
 
 ---
 
@@ -168,13 +184,20 @@ Beispiele für die Kategorie-Vorschläge:
 
 | Original | Geschrieben | Vorschlag |
 |---|---|---|
-| Haus | haus | 01 – Kleinschreibung statt Grossschreibung |
-| kommen | komen | 07 – Doppelkonsonant fehlt |
-| Zahn | Zan | 11 – Dehnungs-h fehlt |
-| Wiese | Wise | 13 – ie fehlt |
-| Hund | Hunt | 27 – Auslautverhärtung |
-| Brot | Bort | 29 – Buchstaben vertauscht |
-| Mutter | Mutta | 34 – Wortendung falsch |
+| Haus | haus | 01 – Klein- für Großschreibung |
+| kommen | komen | 07 – Einfachschreibung für Konsonantenverdoppelung |
+| hat | hatt | 08 / 11 – Verdoppelung an falscher Stelle |
+| Zahn | Zan | 09 – markierte Länge fehlt |
+| dass | daß | 16 – ß für ss |
+| Bären | Beren | 17 – e für ä |
+| Hund | Hunt | 19 – p, t, k für b, d, g |
+| Vater | Fater | 23 – f für v |
+| wenig | wenich | 27 – ch für g im Silbenende |
+| Schule | Sule | 29 – Konsonantenzeichen fehlt |
+| Brot | Bort | 35 – Zeichenumstellung |
+| Bücher | Bucher | 36 – Umlautbezeichnung |
+
+Ein Test prüft jedes dieser Paare gegen die Kategorienliste.
 
 ---
 
@@ -234,6 +257,14 @@ damit sie nicht stillschweigend gelten:
   Sie sind nach Plausibilität sortiert; die Entscheidung trifft die Lehrperson.
 * Ein erkannter Buchstabendreher erklärt das ganze Wort; weitere Marker werden
   dann unterdrückt, weil sie nur Rauschen wären.
+* OLFA spricht bei den Kategorien 19/20 und 27/28 vom **Silbenrand bzw.
+  Silbenende**. Ohne Silbentrennung prüft das Werkzeug ersatzweise das
+  **Wortende** – den häufigsten Fall. Fehler im Silbenrand wortintern muss die
+  Lehrperson selbst zuordnen.
+* **Ohne automatische Erkennung** bleiben die Kategorien 03, 04, 05, 06 und 12
+  sowie Fremdwortfehler: Sie hängen an Wortbedeutung, Silbenstruktur oder
+  Vokallänge, nicht am Buchstabenvergleich. Diese Fehler werden wie bisher von
+  Hand erfasst.
 
 **Plausibilitätsprüfung** (`rstrainer/validation.py`)
 * Wortzahl-Abweichungen bis **20 %** lösen keinen Hinweis aus (der Prompt
@@ -290,7 +321,7 @@ zunehmend) sollen genau so in der Auswertung erscheinen – ein Test prüft das.
 python3 -m pytest tests/ -q
 ```
 
-**Stand: 197 Tests, alle grün.** Abgedeckt sind:
+**Stand: 208 Tests, alle grün.** Abgedeckt sind:
 
 | Datei | Prüft |
 |---|---|
@@ -300,7 +331,7 @@ python3 -m pytest tests/ -q
 | `test_auftraege.py` | Prompt-Aufbau, Auftragsnummern, Zerlegen der Chat-Antwort, Rückfall auf Fliesstext |
 | `test_validation.py` | Plausibilitätsprüfungen für Diktat und Blatt |
 | `test_db.py` | Datentrennung zwischen Profilen, Freigabe- und Korrekturlese-Nachweise |
-| `test_olfa_und_export.py` | Kategorienliste, Testmodus, CSV/JSON-Export, `.gitignore` |
+| `test_olfa_und_export.py` | Kategorienliste, unbesetzte Nummern 21/22, Testmodus, CSV/JSON-Export, `.gitignore` |
 | `test_charts.py` | Diagramme, feste Farbreihenfolge, Serienbegrenzung |
 
 Zusätzlich wurde die Oberfläche im Browser durchgespielt: alle sechs Bereiche
@@ -309,8 +340,7 @@ Ergebnis einfügen → Prüfung → Freigabe → Archiv) läuft durch. Dabei wur
 geprüft, dass der Speichern-Knopf ohne Freigabe tatsächlich gesperrt bleibt.
 
 **Noch offen / bewusst nicht gebaut:**
-* Die OLFA-Liste ist fachlich ungeprüft (siehe oben) – der wichtigste offene
-  Punkt.
+* Die Gruppenzuordnung I / II / III der Kategorien fehlt noch (siehe oben).
 * Die Oberfläche selbst hat keine automatisierten Tests; geprüft wurde sie
   von Hand im Browser.
 * Es gibt keine Mehrbenutzer-Funktion und keine Synchronisierung zwischen
@@ -322,7 +352,7 @@ geprüft, dass der Speichern-Knopf ohne Freigabe tatsächlich gesperrt bleibt.
 
 ```
 app.py                        Einstiegspunkt (Streamlit)
-data/olfa_kategorien.json     Referenzliste der Fehlerkategorien (editierbar)
+data/olfa_kategorien.json     Die 37 OLFA-Fehlerkategorien (editierbar)
 daten/                        Lokale Daten – NICHT im Repository
 rstrainer/
   config.py                   Pfade und fachliche Voreinstellungen

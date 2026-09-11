@@ -14,21 +14,29 @@ from rstrainer.diffing import ERSETZT, FEHLT, ZUSAETZLICH
     ("Haus", "haus", "klein_statt_gross"),
     ("kalt", "Kalt", "gross_statt_klein"),
     ("kommen", "komen", "doppelkonsonant_fehlt"),
-    ("Bahn", "Bahnn", "doppelkonsonant_zuviel"),
+    ("hat", "hatt", "doppelkonsonant_zuviel"),
     ("Zucker", "Zuker", "ck"),
     ("Katze", "Kazze", "tz"),
     ("Zahn", "Zan", "dehnungs_h_fehlt"),
     ("Tor", "Tohr", "dehnungs_h_zuviel"),
     ("Wiese", "Wise", "ie_fehlt"),
-    ("Boot", "Bot", "doppelvokal"),
+    ("Boot", "Bot", "doppelvokal_fehlt"),
     ("Hund", "Hunt", "auslautverhaertung"),
     ("Korb", "Korp", "auslautverhaertung"),
+    ("Fuß", "Fus", "s_statt_sz"),
+    ("las", "laß", "sz_statt_s"),
+    ("dass", "daß", "sz_statt_ss"),
+    ("Vater", "Fater", "f_statt_v"),
+    ("Fisch", "Visch", "v_statt_f"),
+    ("Vase", "Wase", "w_statt_v"),
+    ("Wasser", "Vasser", "v_statt_w"),
+    ("mich", "mig", "g_statt_ch"),
     ("Bücher", "Bucher", "umlaut_fehlt"),
-    ("Bären", "Beren", "ae_e"),
+    ("Bären", "Beren", "e_statt_ae"),
+    ("Berg", "Bärg", "ae_statt_e"),
     ("Brot", "Bort", "dreher"),
-    ("Schule", "Sule", "mehrgraphem"),
-    ("Mutter", "Mutta", "endung"),
-    ("wenig", "wenich", "endung"),
+    ("Schule", "Sule", "konsonant_fehlt"),
+    ("wenig", "wenich", "ch_statt_g"),
 ])
 def test_marker_wird_erkannt(original, schueler, erwartet):
     assert erwartet in diffing.marker_bestimmen(original, schueler)
@@ -117,8 +125,24 @@ def test_leerer_schuelertext_meldet_alle_woerter_als_fehlend():
 def test_vorschlaege_verweisen_auf_die_liste(liste):
     abw = diffing.vergleiche("Der Hund kommt", "Der Hunt komt", liste)
     nach_wort = {a.wort_original: a for a in abw}
-    assert nach_wort["Hund"].vorschlaege[0].nr == "27"
+    assert nach_wort["Hund"].vorschlaege[0].nr == "19"
     assert nach_wort["kommt"].vorschlaege[0].nr == "07"
+
+
+def test_faelschlich_gesetztes_sz_wird_erkannt(liste):
+    """Schweizer Fall: Im Originaltext kommt nie ein ß vor, ein Kind kann aber
+    trotzdem eines setzen. Kategorie 14 und 16 müssen das auffangen."""
+    assert diffing.kategorie_vorschlaege(
+        diffing.marker_bestimmen("dass", "daß"), liste)[0].nr == "16"
+    assert diffing.kategorie_vorschlaege(
+        diffing.marker_bestimmen("las", "laß"), liste)[0].nr == "14"
+
+
+def test_ein_marker_darf_mehrere_kategorien_vorschlagen(liste):
+    """08 und 11 unterscheiden sich durch die Vokallänge, die das Werkzeug
+    nicht kennt – dann werden beide vorgeschlagen."""
+    vorschlaege = diffing.kategorie_vorschlaege(("doppelkonsonant_zuviel",), liste)
+    assert [k.nr for k in vorschlaege] == ["08", "11"]
 
 
 def test_ohne_liste_keine_vorschlaege():

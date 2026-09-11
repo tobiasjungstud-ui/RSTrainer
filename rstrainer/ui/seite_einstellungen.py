@@ -77,6 +77,17 @@ def _olfa(con) -> None:
 
     liste = g.kategorienliste()
 
+    ohne_gruppe = sum(1 for k in liste if k.gruppe is None)
+    if ohne_gruppe:
+        st.info(
+            f"Bei {ohne_gruppe} von {len(liste)} Kategorien fehlt noch die "
+            "Entwicklungsgruppe **I / II / III**. Diese Angabe lag nicht vor "
+            "und wurde bewusst nicht geraten. Sie steht auf dem "
+            "Auswertungsbogen als Farbe der Kategorienummer (rot = I, "
+            "gelb = II, grün = III) und lässt sich unten in der Spalte "
+            "«Gruppe» nachtragen. Die App funktioniert auch ohne."
+        )
+
     if liste.anzahl_ungeprueft:
         st.error(
             f"**{liste.anzahl_ungeprueft} von {len(liste)} Kategorien sind noch "
@@ -88,11 +99,14 @@ def _olfa(con) -> None:
         st.success("Alle Kategorien sind als geprüft markiert.")
 
     with st.expander("Herkunft dieser Liste – bitte einmal lesen", expanded=False):
-        for zeile in liste.meta.get("wichtiger_hinweis", []):
+        for zeile in liste.meta.get("herkunft", []):
             st.markdown(f"- {zeile}")
-        st.markdown("**Entwicklungsgruppen**")
-        for schluessel, text in (liste.meta.get("gruppen") or {}).items():
-            st.markdown(f"- **{schluessel}**: {text}")
+        if liste.meta.get("lesehilfe"):
+            st.markdown(f"**Lesehilfe:** {liste.meta['lesehilfe']}")
+        if liste.meta.get("offene_punkte"):
+            st.markdown("**Offene Punkte**")
+            for zeile in liste.meta["offene_punkte"]:
+                st.markdown(f"- {zeile}")
 
     st.divider()
     st.subheader("Kategorien bearbeiten")
@@ -105,6 +119,8 @@ def _olfa(con) -> None:
 
     tabelle = pd.DataFrame([k.as_dict() for k in liste])
     tabelle["heuristik"] = tabelle["heuristik"].apply(lambda x: ", ".join(x))
+    # Leere Gruppen als leere Zelle zeigen, nicht als "None".
+    tabelle["gruppe"] = tabelle["gruppe"].fillna("")
     bearbeitet = st.data_editor(
         tabelle, hide_index=True, width="stretch", num_rows="dynamic",
         key="olfa_editor",
@@ -114,8 +130,10 @@ def _olfa(con) -> None:
             "kurzbeschreibung": st.column_config.TextColumn("Kurzbeschreibung",
                                                             width="large"),
             "beispiel": st.column_config.TextColumn("Beispiel"),
-            "gruppe": st.column_config.SelectboxColumn("Gruppe",
-                                                       options=["I", "II", "III"]),
+            "gruppe": st.column_config.SelectboxColumn(
+                "Gruppe", options=["", "I", "II", "III"],
+                help="Entwicklungsgruppe laut Auswertungsbogen (rot = I, "
+                     "gelb = II, grün = III). Noch nicht hinterlegt."),
             "bereich": st.column_config.TextColumn("Bereich"),
             "heuristik": st.column_config.TextColumn("heuristik (technisch)"),
             "geprueft": st.column_config.CheckboxColumn("geprüft"),
@@ -135,7 +153,8 @@ def _olfa(con) -> None:
                     name=str(zeile["name"] or "").strip(),
                     kurzbeschreibung=str(zeile["kurzbeschreibung"] or ""),
                     beispiel=str(zeile["beispiel"] or ""),
-                    gruppe=(str(zeile["gruppe"]) if zeile["gruppe"] else None),
+                    gruppe=(str(zeile["gruppe"]).strip() or None
+                            if zeile["gruppe"] else None),
                     bereich=str(zeile["bereich"] or "Sonstiges"),
                     heuristik=tuple(
                         t.strip() for t in str(zeile["heuristik"] or "").split(",")

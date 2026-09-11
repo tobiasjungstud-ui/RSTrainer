@@ -32,10 +32,10 @@ def test_vorlage_hat_alle_pflichtplatzhalter(typ):
 
 
 def test_kategorienblock_nennt_nummer_name_und_beschreibung(liste):
-    block = auftraege.kategorienblock(["07", "27"], liste)
-    assert "07 – Doppelkonsonant fehlt" in block
-    assert "27 – Auslautverhärtung" in block
-    assert "Kürzemarkierung" in block          # Kurzbeschreibung
+    block = auftraege.kategorienblock(["07", "19"], liste)
+    assert "07 – Einfachschreibung für Konsonantenverdoppelung" in block
+    assert "19 – p, t, k für b, d, g" in block
+    assert "nicht verdoppelt" in block         # Kurzbeschreibung
     assert "*komen → kommen" in block          # Beispiel
 
 
@@ -57,13 +57,15 @@ def test_diktatprompt_enthaelt_alle_parameter(liste):
     assert "95 Wörter" in prompt
     assert "Im Zirkus" in prompt
     assert "5. Klasse" in prompt
-    assert "07 – Doppelkonsonant fehlt" in prompt
+    assert "07 – Einfachschreibung für Konsonantenverdoppelung" in prompt
     assert pt.MARKE_ANFANG in prompt and pt.MARKE_ENDE in prompt
 
 
 def test_schweizer_variante_ist_voreingestellt(liste):
+    """In der Schweiz gibt es kein ß – der Prompt muss das verlangen."""
     _, prompt = auftraege.prompt_bauen("diktat", _diktatparameter(), liste)
     assert "KEIN ß" in prompt
+    assert "Strasse" in prompt
 
 
 def test_deutsche_variante_waehlbar(liste):

@@ -53,7 +53,7 @@ def test_uebungsblatt_enthaelt_name_datum_und_kategorie(tmp_path, liste):
     assert "TK" in text
     assert "05.03.2026" in text
     assert "Kürzemarkierung" in text
-    assert "07 – Doppelkonsonant fehlt" in text
+    assert "07 – Einfachschreibung für Konsonantenverdoppelung" in text
 
 
 def test_uebungsblatt_enthaelt_beide_inhalte(tmp_path, liste):
@@ -117,7 +117,7 @@ def test_verzeichnis_wird_bei_bedarf_angelegt(tmp_path, liste):
 
 def test_informationsblatt_listet_fehler_in_tabelle(tmp_path, liste):
     fehler = [
-        {"wort_original": "Hund", "wort_schueler": "Hunt", "kategorie_nr": "27",
+        {"wort_original": "Hund", "wort_schueler": "Hunt", "kategorie_nr": "19",
          "kontext": "der [Hund] lief"},
         {"wort_original": "kommen", "wort_schueler": "komen", "kategorie_nr": "07",
          "kontext": "sie [kommen] her"},
@@ -131,7 +131,7 @@ def test_informationsblatt_listet_fehler_in_tabelle(tmp_path, liste):
     assert len(fehlertabelle.rows) == 3          # Kopfzeile + 2 Fehler
     text = _volltext(dokument)
     assert "Hunt" in text and "komen" in text
-    assert "27 – Auslautverhärtung b/d/g nicht abgeleitet" in text
+    assert "19 – p, t, k für b, d, g im Silbenrand oder Silbenende" in text
     assert "Kurzkommentar hier." in text
     assert "2.2" in text
 

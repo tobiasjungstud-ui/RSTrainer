@@ -27,43 +27,63 @@ _RANG = {WARNUNG: 0, HINWEIS: 1, OK: 2}
 #: überhaupt Wörter enthält, an denen die Kategorie sichtbar werden kann.
 #: Bewusst grosszügig: ein Treffer heisst "könnte passen", nicht "passt".
 KATEGORIE_MUSTER: dict[str, re.Pattern] = {
+    # Groß- und Kleinschreibung
     "klein_statt_gross": re.compile(r"^[A-ZÄÖÜ]"),
     "gross_statt_klein": re.compile(r"^[a-zäöü]"),
+    "gross_im_wort": re.compile(r"^\w{2,}$"),
+    # Getrennt- und Zusammenschreibung
+    "getrennt_statt_zusammen": re.compile(r"^\w{9,}$"),
+    "zusammen_statt_getrennt": re.compile(r"^\w{5,}$"),
+    "wortgrenze": re.compile(r"^\w{6,}$"),
+    # Konsonantenverdoppelung
     "doppelkonsonant_fehlt": re.compile(r"([bdfgklmnprst])\1", re.I),
-    "doppelkonsonant_zuviel": re.compile(r"([bdfgklmnprst])\1", re.I),
     "ck": re.compile(r"ck", re.I),
     "tz": re.compile(r"tz", re.I),
-    "dehnungs_h_fehlt": re.compile(r"[aeiouäöü]h[bcdfgjklmnpqrstvwxzß]|[aeiouäöü]h$", re.I),
-    "dehnungs_h_zuviel": re.compile(r"[aeiouäöü]h", re.I),
+    "doppelkonsonant_zuviel": re.compile(
+        r"[aeiouäöü][bdfgklmnprst]([aeiouäöü]|$)", re.I),
+    # Vokallänge
+    "dehnungs_h_fehlt": re.compile(r"[aeiouäöü]h", re.I),
+    "doppelvokal_fehlt": re.compile(r"aa|ee|oo", re.I),
     "ie_fehlt": re.compile(r"ie", re.I),
-    "ie_zuviel": re.compile(r"ie", re.I),
-    "doppelvokal": re.compile(r"aa|ee|oo", re.I),
-    "s_statt_ss": re.compile(r"ss", re.I),
-    "ss_statt_sz": re.compile(r"ss|ß", re.I),
-    "s_stimmhaft": re.compile(r"s", re.I),
-    "ae_e": re.compile(r"ä", re.I),
-    "aeu_eu": re.compile(r"äu|eu", re.I),
+    "dehnungs_h_zuviel": re.compile(r"^\w{3,}$"),
+    "doppelvokal_zuviel": re.compile(r"[aeiouäöü]", re.I),
+    "ie_zuviel": re.compile(r"i(?!e)", re.I),
+    "laenge_bei_kurzvokal": re.compile(r"[aeiouäöü]", re.I),
+    # s-Schreibung
+    "s_statt_sz": re.compile(r"ß"),
+    "sz_statt_s": re.compile(r"s(?!s)", re.I),
+    "ss_statt_sz": re.compile(r"ß"),
+    "sz_statt_ss": re.compile(r"ss", re.I),
+    # Umlautschreibung
+    "e_statt_ae": re.compile(r"ä", re.I),
+    "eu_statt_aeu": re.compile(r"äu", re.I),
+    "ae_statt_e": re.compile(r"e", re.I),
+    "aeu_statt_eu": re.compile(r"eu", re.I),
     "umlaut_fehlt": re.compile(r"[äöü]", re.I),
+    # Silbenrand
     "auslautverhaertung": re.compile(r"[bdg]$", re.I),
-    "stamm_sonstige": re.compile(r"[vf]", re.I),
-    "mehrgraphem": re.compile(r"sch|ch|ng|nk|pf|qu", re.I),
-    "fremdwort": re.compile(r"ph|th|y|v|c[^hk]", re.I),
-    "endung": re.compile(r"(er|en|ig)$", re.I),
-    "flexion": re.compile(r"(te|est|end|ung)$", re.I),
-    "zusammen_statt_getrennt": re.compile(r"^\w{9,}$"),
-    "getrennt_statt_zusammen": re.compile(r"^\w{9,}$"),
-    "silbentrennung": re.compile(r"^\w{7,}$"),
-    "wortgrenze": re.compile(r"^\w{6,}$"),
+    "stimmhaft_statt_stimmlos": re.compile(r"[ptk]$", re.I),
+    # v-, f- und w-Schreibung
+    "f_statt_v": re.compile(r"v", re.I),
+    "v_statt_f": re.compile(r"f", re.I),
+    "w_statt_v": re.compile(r"v", re.I),
+    "v_statt_w": re.compile(r"w", re.I),
+    # ch- und g-Schreibung
+    "ch_statt_g": re.compile(r"g$|ig$", re.I),
+    "g_statt_ch": re.compile(r"ch$", re.I),
+    # Vollständigkeit des Wortes
+    "konsonant_fehlt": re.compile(r"[bcdfghjklmnpqrstvwxz]{2}", re.I),
+    "konsonant_zuviel": re.compile(r"[bcdfghjklmnpqrstvwxz]", re.I),
     "vokal_fehlt": re.compile(r"[aeiouäöü]", re.I),
     "vokal_zuviel": re.compile(r"[aeiouäöü]", re.I),
-    "konsonant_fehlt": re.compile(r"[bcdfghjklmnpqrstvwxz]{2}", re.I),
-    "konsonant_zuviel": re.compile(r"[bcdfghjklmnpqrstvwxz]{2}", re.I),
-    "konsonant_verwechselt": re.compile(r"[bpdtgkwfv]", re.I),
-    "vokal_verwechselt": re.compile(r"[aeiou]", re.I),
     "dreher": re.compile(r"^\w{4,}$"),
+    # Falsche Zeichen
+    "konsonant_verwechselt": re.compile(r"[bpdtgkwfvszmn]", re.I),
+    "vokal_verwechselt": re.compile(r"[aeiou]", re.I),
+    # Sonstiges
+    "fremdwort": re.compile(r"ph|th|y|v|c[^hk]", re.I),
     "wort_fehlt": re.compile(r"."),
     "sonstige": re.compile(r"."),
-    "laenge_sonstige": re.compile(r"ie|h|aa|ee|oo", re.I),
 }
 
 

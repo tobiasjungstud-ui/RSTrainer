@@ -22,21 +22,21 @@ DEMO_PRAEFIX = "DEMO – "
 DEMO_PROFILE = {
     "Lena B.": {
         "klasse": "5a",
-        "notiz": "Frei erfundenes Demoprofil. Schwerpunkt Kürze-/Längenmarkierung.",
-        "muster": {"07": (6, "abnehmend"), "11": (5, "stagnierend"),
-                    "01": (3, "zunehmend"), "27": (4, "stagnierend"),
-                    "13": (2, "abnehmend")},
+        "notiz": "Frei erfundenes Demoprofil. Schwerpunkt Vokallänge und Silbenrand.",
+        "muster": {"07": (6, "abnehmend"), "09": (5, "stagnierend"),
+                    "01": (3, "zunehmend"), "19": (6, "stagnierend"),
+                    "36": (5, "abnehmend")},
     },
     "Tim K.": {
         "klasse": "6b",
-        "notiz": "Frei erfundenes Demoprofil. Schwerpunkt Gross-/Kleinschreibung.",
-        "muster": {"01": (8, "stagnierend"), "02": (4, "stagnierend"),
-                    "34": (3, "zunehmend"), "07": (3, "abnehmend")},
+        "notiz": "Frei erfundenes Demoprofil. Schwerpunkt Groß-/Kleinschreibung.",
+        "muster": {"01": (8, "stagnierend"), "02": (6, "stagnierend"),
+                    "27": (4, "zunehmend"), "07": (3, "abnehmend")},
     },
     "Sara M.": {
         "klasse": "4c",
         "notiz": "Frei erfundenes Demoprofil. Wenige Diktate, noch keine Trendaussage.",
-        "muster": {"22": (4, "stagnierend"), "32": (3, "stagnierend")},
+        "muster": {"36": (4, "stagnierend"), "29": (4, "stagnierend")},
     },
 }
 
@@ -86,16 +86,15 @@ DEMO_FEHLERWOERTER = {
            ("Schule", "schule"), ("Strasse", "strasse")],
     "02": [("schnell", "Schnell"), ("alter", "Alter"), ("kühle", "Kühle")],
     "07": [("rannten", "ranten"), ("Sonne", "Sone"), ("schwammen", "schwamen"),
-           ("Schlitten", "Schliten"), ("klatschten", "klatschen")],
-    "11": [("Bahn", "Ban"), ("führte", "fürte"), ("Zahn", "Zan"),
-           ("Schuh", "Schu"), ("mehr", "mer")],
-    "13": [("Wiese", "Wise"), ("spielte", "spilte"), ("Ziel", "Zil")],
-    "22": [("Bäume", "Baume"), ("kühle", "kuhle"), ("Äste", "Aste"),
-           ("Rucksäcke", "Rucksacke")],
-    "27": [("Hund", "Hunt"), ("Wald", "Walt"), ("Korb", "Korp"),
+           ("Schlitten", "Schliten"), ("Wasser", "Waser")],
+    "09": [("Bahn", "Ban"), ("führte", "fürte"), ("Zahn", "Zan"),
+           ("Schuh", "Schu"), ("Wiese", "Wise"), ("Boot", "Bot")],
+    "19": [("Hund", "Hunt"), ("Wald", "Walt"), ("Korb", "Korp"),
            ("Weg", "Wek"), ("Abend", "Abent")],
-    "32": [("Schule", "Sule"), ("Pferde", "Ferde"), ("schwangen", "swangen")],
-    "34": [("Mutter", "Mutta"), ("wenig", "wenich"), ("Vater", "Vata")],
+    "27": [("wenig", "wenich"), ("ruhig", "ruhich"), ("richtig", "richtich")],
+    "29": [("Schule", "Sule"), ("Pferde", "Ferde"), ("schwangen", "swangen")],
+    "36": [("Bäume", "Baume"), ("kühle", "kuhle"), ("Äste", "Aste"),
+           ("Rucksäcke", "Rucksacke")],
 }
 
 _ENTWICKLUNG = {
@@ -124,6 +123,7 @@ def demodaten_anlegen(con: sqlite3.Connection, seed: int = 20260911) -> list[int
         angelegt.append(schueler_id)
 
         anzahl = 2 if name == "Sara M." else len(DEMO_DIKTATE)
+        uebertrag: dict[str, float] = {}
         for i, (titel, text) in enumerate(DEMO_DIKTATE[:anzahl]):
             datum = (heute - timedelta(days=7 * (anzahl - i))).isoformat()
             ziel = list(profil["muster"])[:3]
@@ -145,9 +145,14 @@ def demodaten_anlegen(con: sqlite3.Connection, seed: int = 20260911) -> list[int
                 # unterschiedlich lang; ohne diese Umrechnung würde ein kurzes
                 # Diktat fälschlich wie eine Verschlechterung aussehen.
                 erwartet = start * faktor * wortzahl / 100.0
-                # Wenig Streuung: Die Demodaten sollen die eingestellte Entwicklung
-                # sichtbar machen, nicht die Trendlogik mit Rauschen testen.
-                menge = max(0, int(round(erwartet + zufall.uniform(-0.35, 0.35))))
+                # Fehlerzahlen sind ganze Zahlen, die Sollrate ist es nicht.
+                # Würde jedes Diktat für sich gerundet, summierten sich die
+                # Rundungsfehler bei kurzen Texten zu einem Scheintrend. Der
+                # Rest wird deshalb ins nächste Diktat übertragen, sodass die
+                # tatsächliche Rate der eingestellten folgt.
+                rest = uebertrag.get(kategorie_nr, 0.0)
+                menge = max(0, int(erwartet + rest + 0.5))
+                uebertrag[kategorie_nr] = erwartet + rest - menge
                 woerter = DEMO_FEHLERWOERTER.get(kategorie_nr, [("Wort", "Wor")])
                 for _ in range(menge):
                     richtig, falsch = zufall.choice(woerter)
