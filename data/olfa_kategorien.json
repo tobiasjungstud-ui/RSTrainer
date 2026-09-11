@@ -1,0 +1,72 @@
+{
+  "_meta": {
+    "version": "0.1-vorlaeufig",
+    "stand": "2026-09-11",
+    "status": "UNGEPRÜFT – bitte gegen eigenes OLFA-Fachmaterial abgleichen!",
+    "rechtschreibvariante": "schweiz",
+    "wichtiger_hinweis": [
+      "Diese Liste ist NICHT die offizielle OLFA-Fehlerliste und gibt sie auch nicht wörtlich wieder.",
+      "Recherche-Ergebnis: Die Oldenburger Fehleranalyse OLFA 3–9 (Günther Thomé / Dorothea Thomé, isb-Verlag Oldenburg) arbeitet mit 37 Fehlerkategorien, nicht mit rund 30. Jede Kategorie ist zusätzlich einer von drei entwicklungsbezogenen Gruppen (I / II / III) zugeordnet.",
+      "Online gesichert belegbar waren nur: die Gesamtzahl 37, das Gruppenprinzip I/II/III sowie die Kategorien 01 (Kleinbuchstabe statt Grossbuchstabe, z. B. *haus für Haus) und 02 (Grossbuchstabe statt Kleinbuchstabe, z. B. *Kalt für kalt).",
+      "Die vollständige, wörtliche Kategorienliste steht ausschliesslich im kostenpflichtigen OLFA-Handbuch bzw. auf dem Auswertungsbogen und ist urheberrechtlich geschützt. Sie wurde hier bewusst NICHT erfunden und NICHT rekonstruiert.",
+      "Was hier steht, ist eine fachlich eigenständig formulierte Arbeitsliste zur deutschen Orthographie, die sich an den bei OLFA abgedeckten Rechtschreibbereichen orientiert. Sie ist als Platzhalter gedacht, damit das Tool sofort benutzbar ist.",
+      "BITTE ERSETZEN: Tragen Sie Ihre geprüften Kategorien in der App unter «Einstellungen → OLFA-Kategorien» ein oder bearbeiten Sie diese Datei direkt. Setzen Sie danach pro Eintrag 'geprueft': true.",
+      "Die App funktioniert mit jeder beliebigen Kategorienliste. Nummern, Namen und Anzahl dürfen frei geändert werden.",
+      "Schreibvariante: Diese Liste ist in Schweizer Rechtschreibung gehalten (ss statt ß). Für Deutschland/Österreich bitte Kategorie 18 und die Beispiele anpassen."
+    ],
+    "gruppen": {
+      "I": "Gruppe I – basale/alphabetische Ebene (Laut-Buchstaben-Zuordnung, Vollständigkeit des Wortes)",
+      "II": "Gruppe II – orthographische Regelebene (Markierungen, s-Schreibung, Stammprinzip)",
+      "III": "Gruppe III – fortgeschrittene morphematisch-syntaktische Ebene (Getrennt-/Zusammenschreibung, Flexion, Fremdwörter)"
+    },
+    "feld_erklaerung": {
+      "nr": "Zweistellige Kategorienummer, wie sie auf dem Auswertungsbogen steht.",
+      "name": "Kurzbezeichnung der Kategorie (erscheint in Auswahlmenüs und in den Chat-Prompts).",
+      "kurzbeschreibung": "Fachliche Erläuterung für die Lehrperson – wird wörtlich in die Prompts übernommen.",
+      "beispiel": "Fehlerbeispiel in der Form *falsch → richtig.",
+      "gruppe": "Entwicklungsgruppe I, II oder III (oder null).",
+      "bereich": "Übergeordneter Rechtschreibbereich zur Gruppierung in der Oberfläche.",
+      "heuristik": "Technische Marker für die automatische Kategorie-Vorschlagslogik beim Diff. Beim Umbenennen einer Kategorie bitte beibehalten.",
+      "geprueft": "false = von der Lehrperson noch nicht gegen Fachmaterial geprüft."
+    }
+  },
+  "kategorien": [
+    {"nr": "01", "name": "Kleinschreibung statt Grossschreibung", "kurzbeschreibung": "Ein Wort, das grossgeschrieben werden muss (Nomen, Satzanfang, Eigenname), wurde kleingeschrieben.", "beispiel": "*haus → Haus", "gruppe": "II", "bereich": "Gross- und Kleinschreibung", "heuristik": ["klein_statt_gross"], "geprueft": false},
+    {"nr": "02", "name": "Grossschreibung statt Kleinschreibung", "kurzbeschreibung": "Ein Wort, das kleingeschrieben werden muss (Verb, Adjektiv, Artikel), wurde grossgeschrieben.", "beispiel": "*Kalt → kalt", "gruppe": "II", "bereich": "Gross- und Kleinschreibung", "heuristik": ["gross_statt_klein"], "geprueft": false},
+    {"nr": "03", "name": "Zusammenschreibung statt Getrenntschreibung", "kurzbeschreibung": "Zwei eigenständige Wörter wurden zu einem zusammengezogen.", "beispiel": "*radfahren → Rad fahren", "gruppe": "III", "bereich": "Getrennt- und Zusammenschreibung", "heuristik": ["zusammen_statt_getrennt"], "geprueft": false},
+    {"nr": "04", "name": "Getrenntschreibung statt Zusammenschreibung", "kurzbeschreibung": "Ein Kompositum oder eine feste Fügung wurde auseinandergeschrieben.", "beispiel": "*Haus tür → Haustür", "gruppe": "III", "bereich": "Getrennt- und Zusammenschreibung", "heuristik": ["getrennt_statt_zusammen"], "geprueft": false},
+    {"nr": "05", "name": "Falsche Wortgrenze", "kurzbeschreibung": "Die Grenze zwischen zwei Wörtern wurde an der falschen Stelle gesetzt.", "beispiel": "*imm erwieder → immer wieder", "gruppe": "I", "bereich": "Getrennt- und Zusammenschreibung", "heuristik": ["wortgrenze"], "geprueft": false},
+    {"nr": "06", "name": "Falsche Silbentrennung am Zeilenende", "kurzbeschreibung": "Trennstrich an einer nicht zulässigen Stelle gesetzt.", "beispiel": "*Fens-ter → Fen-ster", "gruppe": "III", "bereich": "Getrennt- und Zusammenschreibung", "heuristik": ["silbentrennung"], "geprueft": false},
+    {"nr": "07", "name": "Doppelkonsonant fehlt", "kurzbeschreibung": "Kürzemarkierung: Der Konsonant nach kurzem betontem Vokal wurde nicht verdoppelt.", "beispiel": "*komen → kommen", "gruppe": "II", "bereich": "Kürzemarkierung", "heuristik": ["doppelkonsonant_fehlt"], "geprueft": false},
+    {"nr": "08", "name": "Doppelkonsonant überflüssig", "kurzbeschreibung": "Kürzemarkierung fälschlich gesetzt, obwohl der Vokal lang ist.", "beispiel": "*Bahnn → Bahn", "gruppe": "II", "bereich": "Kürzemarkierung", "heuristik": ["doppelkonsonant_zuviel"], "geprueft": false},
+    {"nr": "09", "name": "ck fehlt oder falsch", "kurzbeschreibung": "Kürzemarkierung mit <ck> nicht oder falsch realisiert (kk oder k statt ck).", "beispiel": "*Zuker → Zucker", "gruppe": "II", "bereich": "Kürzemarkierung", "heuristik": ["ck"], "geprueft": false},
+    {"nr": "10", "name": "tz fehlt oder falsch", "kurzbeschreibung": "Kürzemarkierung mit <tz> nicht oder falsch realisiert (zz oder z statt tz).", "beispiel": "*Kazze → Katze", "gruppe": "II", "bereich": "Kürzemarkierung", "heuristik": ["tz"], "geprueft": false},
+    {"nr": "11", "name": "Dehnungs-h fehlt", "kurzbeschreibung": "Längenmarkierung: Das silbentrennende bzw. dehnende <h> wurde ausgelassen.", "beispiel": "*Zan → Zahn", "gruppe": "II", "bereich": "Längenmarkierung", "heuristik": ["dehnungs_h_fehlt"], "geprueft": false},
+    {"nr": "12", "name": "Dehnungs-h überflüssig", "kurzbeschreibung": "Längenmarkierung fälschlich mit <h> gesetzt.", "beispiel": "*Tuhr → Tür", "gruppe": "II", "bereich": "Längenmarkierung", "heuristik": ["dehnungs_h_zuviel"], "geprueft": false},
+    {"nr": "13", "name": "ie fehlt (i statt ie)", "kurzbeschreibung": "Langes /i:/ wurde nur mit <i> geschrieben.", "beispiel": "*Wise → Wiese", "gruppe": "II", "bereich": "Längenmarkierung", "heuristik": ["ie_fehlt"], "geprueft": false},
+    {"nr": "14", "name": "ie überflüssig (ie statt i)", "kurzbeschreibung": "Kurzes /i/ wurde fälschlich mit <ie> geschrieben.", "beispiel": "*Tiesch → Tisch", "gruppe": "II", "bereich": "Längenmarkierung", "heuristik": ["ie_zuviel"], "geprueft": false},
+    {"nr": "15", "name": "Doppelvokal fehlt oder falsch", "kurzbeschreibung": "Längenmarkierung durch aa, ee oder oo nicht oder falsch gesetzt.", "beispiel": "*Bot → Boot", "gruppe": "II", "bereich": "Längenmarkierung", "heuristik": ["doppelvokal"], "geprueft": false},
+    {"nr": "16", "name": "Sonstige Längenmarkierung falsch", "kurzbeschreibung": "Übrige Fälle der Längenschreibung, z. B. <ih> oder <ieh> an falscher Stelle.", "beispiel": "*ihm Haus → im Haus", "gruppe": "II", "bereich": "Längenmarkierung", "heuristik": ["laenge_sonstige"], "geprueft": false},
+    {"nr": "17", "name": "s statt ss nach kurzem Vokal", "kurzbeschreibung": "Nach kurzem betontem Vokal wurde <s> statt <ss> geschrieben (oder umgekehrt).", "beispiel": "*Waser → Wasser", "gruppe": "II", "bereich": "s-Schreibung", "heuristik": ["s_statt_ss"], "geprueft": false},
+    {"nr": "18", "name": "ss/ß-Schreibung nach langem Vokal", "kurzbeschreibung": "Schweiz: durchgehend ss. Deutschland/Österreich: ß nach langem Vokal und Diphthong. Verwechslung der Varianten.", "beispiel": "*Strase → Strasse", "gruppe": "II", "bereich": "s-Schreibung", "heuristik": ["ss_statt_sz"], "geprueft": false},
+    {"nr": "19", "name": "Stimmhaftes s falsch geschrieben", "kurzbeschreibung": "Verwechslung von stimmhaftem <s> mit <ss> oder <z>.", "beispiel": "*Hausse → Hause", "gruppe": "II", "bereich": "s-Schreibung", "heuristik": ["s_stimmhaft"], "geprueft": false},
+    {"nr": "20", "name": "ä / e verwechselt", "kurzbeschreibung": "Umlautableitung nicht beachtet (Bär → Bären, nicht *Beren).", "beispiel": "*Beren → Bären", "gruppe": "II", "bereich": "Umlaute", "heuristik": ["ae_e"], "geprueft": false},
+    {"nr": "21", "name": "äu / eu verwechselt", "kurzbeschreibung": "Umlautableitung bei /oy/ nicht beachtet (Haus → Häuser, nicht *Heuser).", "beispiel": "*Heuser → Häuser", "gruppe": "II", "bereich": "Umlaute", "heuristik": ["aeu_eu"], "geprueft": false},
+    {"nr": "22", "name": "Umlautpunkte fehlen", "kurzbeschreibung": "Umlaut wurde als Grundvokal geschrieben.", "beispiel": "*Bucher → Bücher", "gruppe": "I", "bereich": "Umlaute", "heuristik": ["umlaut_fehlt"], "geprueft": false},
+    {"nr": "23", "name": "Konsonant ausgelassen", "kurzbeschreibung": "Ein Konsonantenbuchstabe fehlt, häufig in Konsonantenhäufungen.", "beispiel": "*shreiben → schreiben", "gruppe": "I", "bereich": "Vollständigkeit des Wortes", "heuristik": ["konsonant_fehlt"], "geprueft": false},
+    {"nr": "24", "name": "Konsonant hinzugefügt", "kurzbeschreibung": "Ein zusätzlicher Konsonantenbuchstabe wurde eingefügt.", "beispiel": "*Hunnd → Hund", "gruppe": "I", "bereich": "Vollständigkeit des Wortes", "heuristik": ["konsonant_zuviel"], "geprueft": false},
+    {"nr": "25", "name": "Vokal ausgelassen", "kurzbeschreibung": "Ein Vokalbuchstabe fehlt.", "beispiel": "*Blmen → Blumen", "gruppe": "I", "bereich": "Vollständigkeit des Wortes", "heuristik": ["vokal_fehlt"], "geprueft": false},
+    {"nr": "26", "name": "Vokal hinzugefügt", "kurzbeschreibung": "Ein zusätzlicher Vokalbuchstabe wurde eingefügt.", "beispiel": "*Kinider → Kinder", "gruppe": "I", "bereich": "Vollständigkeit des Wortes", "heuristik": ["vokal_zuviel"], "geprueft": false},
+    {"nr": "27", "name": "Auslautverhärtung b/d/g nicht abgeleitet", "kurzbeschreibung": "Stammprinzip: Im Auslaut gesprochenes p/t/k wurde als p/t/k statt b/d/g geschrieben.", "beispiel": "*Hunt → Hund", "gruppe": "II", "bereich": "Stammschreibung", "heuristik": ["auslautverhaertung"], "geprueft": false},
+    {"nr": "28", "name": "Stammschreibung sonstige (v/f, s/ss im Stamm)", "kurzbeschreibung": "Stammprinzip in übrigen Fällen nicht angewendet.", "beispiel": "*Grass → Gras (von Gräser)", "gruppe": "II", "bereich": "Stammschreibung", "heuristik": ["stamm_sonstige"], "geprueft": false},
+    {"nr": "29", "name": "Buchstaben vertauscht (Dreher)", "kurzbeschreibung": "Reihenfolge zweier benachbarter Buchstaben vertauscht.", "beispiel": "*Bort → Brot", "gruppe": "I", "bereich": "Vollständigkeit des Wortes", "heuristik": ["dreher"], "geprueft": false},
+    {"nr": "30", "name": "Ähnlich klingende Konsonanten verwechselt", "kurzbeschreibung": "Stimmhaft/stimmlos-Verwechslung im An- oder Inlaut (b/p, d/t, g/k, w/f).", "beispiel": "*Pall → Ball", "gruppe": "I", "bereich": "Laut-Buchstaben-Zuordnung", "heuristik": ["konsonant_verwechselt"], "geprueft": false},
+    {"nr": "31", "name": "Ähnlich klingende Vokale verwechselt", "kurzbeschreibung": "Vokalqualität falsch getroffen (e/i, o/u, ei/ai).", "beispiel": "*Finster → Fenster", "gruppe": "I", "bereich": "Laut-Buchstaben-Zuordnung", "heuristik": ["vokal_verwechselt"], "geprueft": false},
+    {"nr": "32", "name": "Mehrgraphem falsch (sch, ch, ng, nk, pf, qu)", "kurzbeschreibung": "Mehrbuchstabige Grapheme nicht korrekt wiedergegeben.", "beispiel": "*Sule → Schule", "gruppe": "I", "bereich": "Laut-Buchstaben-Zuordnung", "heuristik": ["mehrgraphem"], "geprueft": false},
+    {"nr": "33", "name": "Fremdwort- und Sonderschreibung", "kurzbeschreibung": "Schreibung mit v, y, ph, c oder th in Fremd- und Lehnwörtern.", "beispiel": "*Fysik → Physik", "gruppe": "III", "bereich": "Fremdwörter", "heuristik": ["fremdwort"], "geprueft": false},
+    {"nr": "34", "name": "Wortendung falsch (-er/-a, -en/-n, -ig/-ich)", "kurzbeschreibung": "Reduzierte Endsilben nicht korrekt verschriftet.", "beispiel": "*Mutta → Mutter, *wenich → wenig", "gruppe": "II", "bereich": "Endungen und Flexion", "heuristik": ["endung"], "geprueft": false},
+    {"nr": "35", "name": "Grammatische Endung falsch (Flexion, Konjugation)", "kurzbeschreibung": "Morphologisch falsche Form, z. B. Kasus-, Numerus- oder Personalendung.", "beispiel": "*er gehen → er geht", "gruppe": "III", "bereich": "Endungen und Flexion", "heuristik": ["flexion"], "geprueft": false},
+    {"nr": "36", "name": "Wort ausgelassen oder unleserlich", "kurzbeschreibung": "Ein Wort fehlt vollständig oder ist nicht entzifferbar.", "beispiel": "Lücke im Schülertext", "gruppe": "I", "bereich": "Sonstiges", "heuristik": ["wort_fehlt"], "geprueft": false},
+    {"nr": "37", "name": "Sonstiger Fehler / nicht klassifizierbar", "kurzbeschreibung": "Auffangkategorie für alles, was sich keiner anderen Kategorie zuordnen lässt.", "beispiel": "–", "gruppe": null, "bereich": "Sonstiges", "heuristik": ["sonstige"], "geprueft": false}
+  ]
+}
