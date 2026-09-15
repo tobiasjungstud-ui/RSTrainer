@@ -13,7 +13,7 @@
       "GRUPPENZUORDNUNG FEHLT: OLFA ordnet jede Kategorie zusätzlich einer von drei entwicklungsbezogenen Gruppen (I / II / III) zu, erkennbar an der roten, gelben bzw. grünen Markierung der Kategorienummer auf dem Auswertungsbogen. Diese Angabe war in der übermittelten Tabelle nicht enthalten und wurde NICHT erraten – das Feld 'gruppe' ist überall null. Zum Nachtragen: Einstellungen → OLFA-Kategorien.",
       "DE-CH-NEUBELEGUNG 13/15: Nach der Ergänzung zum technischen Manual (A.3) sind 13 und 15 für de-CH neu belegt – 13 = «s für ss», 15 = «ss für s», jeweils nach langem Vokal oder Diphthong (lexikalische ss-Schreibung, Förderbereich F3). 14 und 16 sind unbesetzt (NEVER_ASSIGN). Entscheidend ist die Vokallänge vor der s-Stelle: kurz → 07/08, lang → 13/15. Jede Zuordnung zu 13/15 trägt definition = de-CH."
     ],
-    "lesehilfe": "Die Bezeichnungen folgen dem Muster «X für Y»: geschrieben wurde X, richtig wäre Y. «Klein- für Großschreibung» heißt also: kleingeschrieben, obwohl groß richtig wäre.",
+    "lesehilfe": "Die Bezeichnungen folgen dem Muster «X für Y»: geschrieben wurde X, richtig wäre Y. «Klein- für Grossschreibung» heisst also: kleingeschrieben, obwohl gross richtig wäre.",
     "feld_erklaerung": {
       "nr": "Kategorienummer wie auf dem Auswertungsbogen.",
       "name": "Bezeichnung der Kategorie (erscheint in Auswahlmenüs und in den Chat-Prompts).",
@@ -84,11 +84,11 @@
   "kategorien": [
     {
       "nr": "01",
-      "name": "Klein- für Großschreibung",
-      "kurzbeschreibung": "Kleingeschrieben, obwohl Großschreibung richtig wäre. Untertypen unter anderem Abstrakta und substantivierte Wörter.",
+      "name": "Klein- für Grossschreibung",
+      "kurzbeschreibung": "Kleingeschrieben, obwohl Grossschreibung richtig wäre. Untertypen unter anderem Abstrakta und substantivierte Wörter.",
       "beispiel": "*haus → Haus",
       "gruppe": null,
-      "bereich": "Groß- und Kleinschreibung",
+      "bereich": "Gross- und Kleinschreibung",
       "heuristik": [
         "klein_statt_gross"
       ],
@@ -98,11 +98,11 @@
     },
     {
       "nr": "02",
-      "name": "Groß- für Kleinschreibung",
-      "kurzbeschreibung": "Großgeschrieben, obwohl Kleinschreibung richtig wäre. Untertyp unter anderem Verben.",
+      "name": "Gross- für Kleinschreibung",
+      "kurzbeschreibung": "Grossgeschrieben, obwohl Kleinschreibung richtig wäre. Untertyp unter anderem Verben.",
       "beispiel": "*Kalt → kalt",
       "gruppe": null,
-      "bereich": "Groß- und Kleinschreibung",
+      "bereich": "Gross- und Kleinschreibung",
       "heuristik": [
         "gross_statt_klein"
       ],
@@ -112,11 +112,11 @@
     },
     {
       "nr": "03",
-      "name": "Großschreibung im Wort",
-      "kurzbeschreibung": "Ein Großbuchstabe steht innerhalb eines Wortes.",
+      "name": "Grossschreibung im Wort",
+      "kurzbeschreibung": "Ein Grossbuchstabe steht innerhalb eines Wortes.",
       "beispiel": "*HAus → Haus",
       "gruppe": null,
-      "bereich": "Groß- und Kleinschreibung",
+      "bereich": "Gross- und Kleinschreibung",
       "heuristik": [
         "gross_im_wort"
       ],

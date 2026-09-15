@@ -165,3 +165,46 @@ def datenschutz_fussnote() -> None:
         "🔒 Alle Daten bleiben lokal in `daten/`. Dieses Verzeichnis ist von der "
         "Versionsverwaltung ausgeschlossen und wird nicht hochgeladen."
     )
+
+
+# ---------------------------------------------------------------------------
+# Dateiformat für die druckbaren Blätter
+# ---------------------------------------------------------------------------
+# PDF und Word liefern dasselbe Dokument, sie beantworten nur verschiedene
+# Fragen. Das PDF sieht überall gleich aus – auf dem Schulrechner, im
+# Kopierraum, im Anhang einer Mail. Die Word-Datei lässt sich vorher noch
+# ändern: eine Aufgabe streichen, eine Zeile zufügen. Deshalb ist PDF
+# vorbelegt und Word einen Klick entfernt, nicht umgekehrt.
+
+FORMATE = {
+    "pdf": {
+        "label": "📄 PDF – zum Drucken und Verschicken",
+        "endung": "pdf",
+        "mime": "application/pdf",
+    },
+    "docx": {
+        "label": "📝 Word – zum Weiterbearbeiten",
+        "endung": "docx",
+        "mime": ("application/vnd.openxmlformats-officedocument."
+                 "wordprocessingml.document"),
+    },
+}
+
+
+def formatwahl(schluessel: str, beschriftung: str = "Dateiformat") -> str:
+    """Zeigt die Formatauswahl und gibt ``"pdf"`` oder ``"docx"`` zurück."""
+    return st.radio(
+        beschriftung, list(FORMATE), horizontal=True,
+        format_func=lambda f: FORMATE[f]["label"], key=schluessel,
+    )
+
+
+def export_modul(format_: str):
+    """Das Modul zum gewählten Format.
+
+    ``pdf_export`` und ``docx_export`` haben absichtlich dieselben Signaturen –
+    die Oberfläche wählt nur aus und ruft dann unverändert dieselbe Funktion.
+    """
+    from .. import docx_export, pdf_export
+
+    return pdf_export if format_ == "pdf" else docx_export

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from .. import analysis, charts, config, db, docx_export
+from .. import analysis, charts, config, db
 from ..kategorien import (FB_REIHE, FOERDERBEREICHE, fehler_nach_foerderbereich,
                           foerderbereich_label, verteilung_foerderbereiche)
 from . import gemeinsam as g
@@ -169,7 +169,8 @@ def _export(con, schueler, punkte, trends, reg, balken, linien) -> None:
             st.success("Bilder erzeugt.")
 
     with spalte_b:
-        if st.button("Verlaufsbericht als Word-Datei", type="primary"):
+        format_ = g.formatwahl("verlauf_format")
+        if st.button("Verlaufsbericht erzeugen", type="primary"):
             bild = charts.speichern(
                 linien, config.EXPORT_DIR / f"Verlauf_{schueler['id']}.png")
             zeitraum = (f"{punkte[0].datum} bis {punkte[-1].datum} "
@@ -185,16 +186,16 @@ def _export(con, schueler, punkte, trends, reg, balken, linien) -> None:
                 for nr, t in sorted(trends.items(),
                                     key=lambda x: (-x[1].summe_gesamt, x[0]))
             ]
-            pfad = config.EXPORT_DIR / f"Verlaufsbericht_{schueler['id']}.docx"
-            docx_export.verlaufsbericht_schreiben(
+            endung = g.FORMATE[format_]["endung"]
+            pfad = config.EXPORT_DIR / f"Verlaufsbericht_{schueler['id']}.{endung}"
+            g.export_modul(format_).verlaufsbericht_schreiben(
                 pfad, g.anzeigename(con, schueler), zeitraum, zeilen, reg,
                 bild, kommentar,
             )
             with open(pfad, "rb") as datei:
                 st.download_button(
-                    "Bericht herunterladen", datei.read(), file_name=pfad.name,
-                    mime="application/vnd.openxmlformats-officedocument."
-                         "wordprocessingml.document",
+                    f"Bericht als {endung.upper()} herunterladen", datei.read(),
+                    file_name=pfad.name, mime=g.FORMATE[format_]["mime"],
                 )
             st.success(f"Erzeugt: `{pfad}`")
     g.datenschutz_fussnote()

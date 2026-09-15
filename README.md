@@ -31,7 +31,7 @@ ihrem Fachmaterial übernommen hat. Alle Einträge sind als `"geprueft": true`
 markiert.
 
 Die Bezeichnungen folgen dem Muster **«X für Y»**: geschrieben wurde X, richtig
-wäre Y. «Klein- für Großschreibung» heißt also *kleingeschrieben, obwohl groß
+wäre Y. «Klein- für Grossschreibung» heisst also *kleingeschrieben, obwohl gross
 richtig wäre*.
 
 Die Nummern **21 und 22 sind im Original unbesetzt** und bleiben es auch hier,
@@ -183,6 +183,44 @@ Antworten**, die sie selbst nicht geben kann:
   beurteilen.
 
 Beide Antworten werden mit dem Freigabedatum in der Datenbank festgehalten.
+
+---
+
+## Blätter als PDF oder als Word-Datei
+
+Jedes druckbare Dokument – Übungsblatt mit Mini-Test, Informationsblatt zu
+einem Text, Verlaufsbericht fürs Elterngespräch – lässt sich in beiden
+Formaten erzeugen. Die Auswahl steht direkt neben dem Knopf, vorbelegt ist
+PDF.
+
+| | PDF | Word |
+|---|---|---|
+| **Wofür** | drucken, kopieren, verschicken | vorher noch ändern |
+| **Sieht überall gleich aus** | ja | nein |
+| **Aufgabe streichen, Zeile zufügen** | nein | ja |
+
+`pdf_export.py` und `docx_export.py` haben absichtlich **dieselben
+Signaturen**. Die Oberfläche wählt nur das Modul und ruft unverändert dieselbe
+Funktion auf; ein Test hält das fest. Gesetzt wird mit reportlab, einem reinen
+Python-Paket ohne Systemabhängigkeiten – es lässt sich auf einem Lehrerlaptop
+ohne Administratorrechte installieren.
+
+Im Artefakt entsteht das PDF ohne fremde Bibliothek: Ein Übungsblatt ist
+reiner Text in einer Schrift, die jeder PDF-Betrachter mitbringt. Eine
+Bibliothek aus einem fremden Netz nachzuladen hiesse, dass ohne Internet kein
+Blatt entsteht und bei jedem Druck ein Zugriff nach draussen geht – in einem
+Werkzeug, das ausdrücklich lokal bleiben soll. Die Zeichenbreiten für den
+Zeilenumbruch stehen deshalb als Tabelle in `pdfdruck.js`; es ist dieselbe
+Metrik, die reportlab benutzt, damit beide Fassungen dasselbe Blatt gleich
+setzen.
+
+**Eine Fussangel, die beide Fassungen teilen:** Die eingebauten PDF-Schriften
+kennen Umlaute, «Guillemets» und Gedankenstriche, aber keine Pfeile und keine
+Aufzählungspunkte. Der Blatttext kommt aus einem Sprachmodell und enthält gern
+beides. Ohne Ersatz druckte ein `→` als `fi` – falsch, aber unauffällig, und
+im Klassensatz erst nach dem Kopieren zu sehen. Beide Fassungen führen darum
+dieselbe Ersetzungstabelle: `→` wird zu `->`, `•` zu `·`, und was danach noch
+fehlt, wird zu `?`. Sichtbar falsch ist besser als unsichtbar falsch.
 
 ---
 
@@ -632,13 +670,14 @@ erst, wenn das Sprachmodell einen Text auswertet.
 python3 -m pytest tests/ -q
 ```
 
-**Stand: 460 Tests, alle grün.** Abgedeckt sind:
+**Stand: 492 Tests, alle grün.** Abgedeckt sind:
 
 | Datei | Prüft |
 |---|---|
 | `test_diffing.py` | Wort- und Buchstabenabgleich, Kategorie-Vorschläge, Kennzahlen |
 | `test_analysis.py` | Trendeinstufung, Schwellen, Normierung, Empfehlungsreihenfolge |
 | `test_docx_export.py` | Gültige .docx, Seitenumbruch Vorder-/Rückseite, keine Lösungen auf der Aufgabenseite |
+| `test_pdf_export.py` | Gültige PDF, Seitenfolge, Lösungsblatt nur auf Wunsch, Zeichenersatz für Pfeile und Aufzählungspunkte, gleiche Signaturen wie die Word-Fassung |
 | `test_auftraege.py` | Prompt-Aufbau, Auftragsnummern, Zerlegen der Chat-Antwort, Rückfall auf Fliesstext, Anforderungsniveau je Schwierigkeitsgrad |
 | `test_validation.py` | Plausibilitätsprüfungen für Diktat und Blatt |
 | `test_db.py` | Datentrennung zwischen Profilen, Freigabe, freie Texte, Umhängen über Profile hinweg |
@@ -690,7 +729,8 @@ rstrainer/
   prompt_templates.py         >> Die Prompt-Vorlagen – zum Anpassen gedacht <<
   auftraege.py                Prompts bauen, Chat-Ergebnis, Analyse und Zielwörter zerlegen
   validation.py               Plausibilitätsprüfungen vor der Freigabe
-  docx_export.py              Übungsblatt, Informationsblatt, Verlaufsbericht
+  docx_export.py              Übungsblatt, Informationsblatt, Verlaufsbericht (Word)
+  pdf_export.py               Dieselben Dokumente als PDF, gleiche Signaturen
   charts.py                   Diagramme
   export.py                   CSV-/JSON-Export
   demo_data.py                Testmodus mit erfundenen Beispieldaten

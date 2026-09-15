@@ -12,7 +12,7 @@ from datetime import date
 
 import streamlit as st
 
-from .. import analysis, auftraege, config, db, docx_export, validation
+from .. import analysis, auftraege, config, db, validation
 from . import gemeinsam as g
 
 SCHWIERIGKEITEN = {
@@ -260,12 +260,15 @@ def _archiv(con, schueler) -> None:
                 "Lösungsblatt anhängen (Seite 3, deutlich als «nicht austeilen» markiert)",
                 key=f"arch_loes_{blatt['id']}",
             )
-            if st.button("Word-Datei erzeugen", type="primary",
-                         key=f"arch_docx_{blatt['id']}"):
+            format_ = g.formatwahl(f"arch_format_{blatt['id']}")
+            if st.button("Datei erzeugen", type="primary",
+                         key=f"arch_datei_{blatt['id']}"):
+                endung = g.FORMATE[format_]["endung"]
                 pfad = config.EXPORT_DIR / (
-                    f"Uebungsblatt_{schueler['id']}_{blatt['datum']}_{blatt['id']}.docx"
+                    f"Uebungsblatt_{schueler['id']}_{blatt['datum']}_"
+                    f"{blatt['id']}.{endung}"
                 )
-                docx_export.uebungsblatt_schreiben(
+                g.export_modul(format_).uebungsblatt_schreiben(
                     pfad, g.anzeigename(con, schueler), blatt["titel"], kategorien,
                     reg, blatt["inhalt_uebung"], blatt["inhalt_test"],
                     blatt["loesungen"], datum=_datum_deutsch(blatt["datum"]),
@@ -273,9 +276,8 @@ def _archiv(con, schueler) -> None:
                 )
                 with open(pfad, "rb") as datei:
                     st.download_button(
-                        "Word-Datei herunterladen", datei.read(), file_name=pfad.name,
-                        mime="application/vnd.openxmlformats-officedocument."
-                             "wordprocessingml.document",
+                        f"{endung.upper()} herunterladen", datei.read(),
+                        file_name=pfad.name, mime=g.FORMATE[format_]["mime"],
                         key=f"arch_dl_{blatt['id']}",
                     )
                 g.merken(f"Erzeugt: `{pfad}`")

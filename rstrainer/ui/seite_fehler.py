@@ -28,7 +28,7 @@ from datetime import date
 
 import streamlit as st
 
-from .. import auftraege, config, db, diffing, docx_export, olfa_engine, taxonomie
+from .. import auftraege, config, db, diffing, olfa_engine, taxonomie
 from ..kategorien import foerderbereich_von, schwerpunkte
 from . import gemeinsam as g
 
@@ -721,6 +721,7 @@ def _fehlerliste(con, schueler, diktat) -> None:
     )
     mit_text = st.checkbox("Text anhängen", value=True,
                            key=f"mit_text_{diktat['id']}")
+    format_ = g.formatwahl(f"info_format_{diktat['id']}")
     if st.button("Informationsblatt erzeugen", type="primary",
                  key=f"infoblatt_{diktat['id']}"):
         if ist_frei:
@@ -739,18 +740,19 @@ def _fehlerliste(con, schueler, diktat) -> None:
         else:
             kennzahlen = {"wortzahl_original": diktat["wortzahl"],
                           "fehlerquote_prozent": None}
+        endung = g.FORMATE[format_]["endung"]
         pfad = config.EXPORT_DIR / (
-            f"Infoblatt_{schueler['id']}_{diktat['datum']}_{diktat['id']}.docx"
+            f"Infoblatt_{schueler['id']}_{diktat['datum']}_{diktat['id']}.{endung}"
         )
         anhang = diktat["schuelertext"] if ist_frei else diktat["text_original"]
-        docx_export.informationsblatt_schreiben(
+        g.export_modul(format_).informationsblatt_schreiben(
             pfad, g.anzeigename(con, schueler), diktat["titel"], diktat["datum"],
             [dict(f) for f in fehler], reg, kennzahlen, kommentar,
             anhang if mit_text else "", art=diktat["art"],
         )
         with open(pfad, "rb") as datei:
             st.download_button(
-                "Informationsblatt herunterladen", datei.read(), file_name=pfad.name,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                f"Informationsblatt als {endung.upper()} herunterladen",
+                datei.read(), file_name=pfad.name, mime=g.FORMATE[format_]["mime"],
             )
         st.success(f"Erzeugt: `{pfad}`")

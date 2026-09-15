@@ -13,7 +13,7 @@ from rstrainer import analysis, config, db, demo_data, export, olfa
 
 def test_mitgelieferte_liste_ist_lesbar(liste):
     assert len(liste) == 37
-    assert liste.get("01").name == "Klein- für Großschreibung"
+    assert liste.get("01").name == "Klein- für Grossschreibung"
 
 
 def test_kategorienummern_sind_eindeutig(liste):

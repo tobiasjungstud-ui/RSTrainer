@@ -239,7 +239,7 @@ def marker_bestimmen(wort_original: str, wort_schueler: str) -> tuple[str, ...]:
         else:
             marker.append(_marker_ersetzung(orig, schueler, i1, i2, j1, j2))
 
-    # Zusätzlicher Hinweis, wenn obendrein die Großschreibung abweicht.
+    # Zusätzlicher Hinweis, wenn obendrein die Grossschreibung abweicht.
     if wort_original[:1].isupper() != wort_schueler[:1].isupper():
         marker.append("klein_statt_gross" if wort_original[:1].isupper()
                       else "gross_statt_klein")
