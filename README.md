@@ -259,6 +259,13 @@ Vorbelegt ist der genauere Weg: Diktatmodus, wo es eine Vorlage gibt, sonst
 Freitextmodus. Wählen Sie für ein Diktat den Freitextmodus, weist die App
 darauf hin, dass sie Genauigkeit verschenken.
 
+Einen freien Schülertext geben Sie direkt auf dieser Seite ein – ohne Umweg
+über *Texte*. Ist für ein Profil noch gar nichts erfasst, steht das
+Eingabefeld gleich da, wo sonst die Textauswahl wäre; gibt es schon Texte,
+liegt es unter *Weiteren freien Text erfassen*. Der gespeicherte Text ist
+sofort ausgewählt. Dieselbe Erfassung gibt es weiterhin unter *Texte*, sie
+legt denselben Datensatz an.
+
 **Klassifiziert wird in beiden Modi identisch** – von `olfa_engine`, nie vom
 Sprachmodell. Der Modus entscheidet nur, woher die Zielform kommt.
 
@@ -574,7 +581,7 @@ erst, wenn das Sprachmodell einen Text auswertet.
 python3 -m pytest tests/ -q
 ```
 
-**Stand: 436 Tests, alle grün.** Abgedeckt sind:
+**Stand: 439 Tests, alle grün.** Abgedeckt sind:
 
 | Datei | Prüft |
 |---|---|
@@ -590,6 +597,7 @@ python3 -m pytest tests/ -q
 | `test_taxonomie.py` | Pfade begradigen, Dubletten, Gegenteile nicht verschmelzen, Register, Schwerpunkte |
 | `test_analyse.py` | Analyse-Prompts, JSON zurücklesen, neue Fehlerarten, Aufräumplan, Regler Klassiker/Sondierung |
 | `test_freitext.py` | Freitextmodus: Regelprüfungen ohne Modell, Zielwort-Prompt, blinder Zweitdurchgang und Sicherheitsdeckel, Wortgrenzen, ehrliche Vollständigkeit, Modusauswahl |
+| `test_ui_fehlerseite.py` | Die Fehleranalyse-Seite ohne Text: Erfassung steht dort, der erfasste Text ist sofort ausgewählt |
 
 Zusätzlich wurde die Oberfläche durchgespielt – von Hand im Browser und
 kopfrechnend über `streamlit.testing`: Alle sechs Bereiche rendern
@@ -601,8 +609,9 @@ bestehenden.
 
 **Noch offen / bewusst nicht gebaut:**
 * Die Gruppenzuordnung I / II / III der Kategorien fehlt noch (siehe oben).
-* Die Oberfläche hat keine automatisierten Tests in der Suite; geprüft wurde
-  sie von Hand und mit einem Skript ausserhalb des Repositorys.
+* Die Oberfläche ist bis auf `test_ui_fehlerseite.py` nicht automatisiert
+  geprüft; sonst wurde sie von Hand und mit Skripten ausserhalb des
+  Repositorys durchgespielt.
 * Es gibt keine Mehrbenutzer-Funktion und keine Synchronisierung zwischen
   Geräten – bewusst, weil das den Datenschutzaufwand vervielfachen würde.
 

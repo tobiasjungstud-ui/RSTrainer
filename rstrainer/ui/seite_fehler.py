@@ -24,6 +24,8 @@ zugeordnet wird von der Lehrperson; nichts wird ungeprüft übernommen.
 
 from __future__ import annotations
 
+from datetime import date
+
 import streamlit as st
 
 from .. import auftraege, config, db, diffing, docx_export, olfa_engine, taxonomie
@@ -36,7 +38,12 @@ def zeichnen(con, schueler) -> None:
 
     diktate = db.diktat_liste(con, schueler["id"])
     if not diktate:
-        st.info("Bitte zuerst unter **Texte** ein Diktat oder einen freien Text erfassen.")
+        st.info(
+            "Für dieses Profil ist noch kein Text erfasst. Einen frei geschriebenen "
+            "Schülertext können Sie gleich hier eingeben – er wird sofort zur Analyse "
+            "ausgewählt. Ein Diktat mit Vorlage entsteht unter **Texte**."
+        )
+        _freitext_erfassen(con, schueler, aufklappbar=False)
         return
 
     # Streamlit kopiert Widget-Werte tief; sqlite3.Row lässt sich nicht picklen.
@@ -53,6 +60,7 @@ def zeichnen(con, schueler) -> None:
     diktat = db.diktat_holen(con, diktat_id) if diktat_id else None
     if diktat is None:
         return
+    _freitext_erfassen(con, schueler, aufklappbar=True)
     reiter = st.tabs([
         "🔬 OLFA-Analyse",
         "🤖 Freie Analyse durch das Sprachmodell",
@@ -67,6 +75,52 @@ def zeichnen(con, schueler) -> None:
         _von_hand(con, schueler, diktat)
     with reiter[3]:
         _fehlerliste(con, schueler, diktat)
+
+
+# ---------------------------------------------------------------------------
+# Freien Text gleich hier erfassen
+# ---------------------------------------------------------------------------
+
+def _freitext_erfassen(con, schueler, aufklappbar: bool) -> None:
+    """Wer einen Schülertext auswerten will, soll ihn dort eingeben können, wo
+    er ihn auswertet – nicht erst auf einer anderen Seite. Dieselbe Erfassung
+    steht weiterhin unter «Texte»; sie legt denselben Datensatz an."""
+    behaelter = (st.expander("📝 Weiteren freien Text erfassen")
+                 if aufklappbar else st.container())
+    with behaelter:
+        if aufklappbar:
+            st.caption(
+                "Noch ein Schülertext ohne Vorlage? Hier eingeben, statt dafür auf "
+                "die Seite «Texte» zu wechseln. Nach dem Speichern ist er oben "
+                "ausgewählt."
+            )
+        else:
+            st.caption(
+                "Abtippen oder einfügen, speichern – danach steht der Text oben in "
+                "der Auswahl und lässt sich im Freitextmodus auswerten."
+            )
+        with st.form(f"freitext_hier_{schueler['id']}", clear_on_submit=True):
+            spalte_a, spalte_b = st.columns(2)
+            with spalte_a:
+                titel = st.text_input("Titel *", placeholder="z. B. «Aufsatz Herbstferien»")
+            with spalte_b:
+                datum = st.date_input("Datum", value=date.today())
+            text = st.text_area("Text des Kindes *", height=200,
+                                placeholder="Abgetippt oder eingefügt.")
+            notiz = st.text_input("Notiz", placeholder="Auftrag, Umstände, Besonderes …")
+            if st.form_submit_button("Text speichern und auswerten", type="primary"):
+                if not titel.strip() or not text.strip():
+                    st.error("Titel und Text sind Pflichtfelder.")
+                else:
+                    neue_id = db.diktat_anlegen(
+                        con, schueler["id"], titel, "", datum=datum.isoformat(),
+                        notiz=notiz, quelle="freitext", freigegeben=True,
+                        art="freitext", schuelertext=text,
+                    )
+                    # Der neue Text ist der, den man gerade auswerten will.
+                    st.session_state["fehler_diktat"] = neue_id
+                    g.merken(f"Freier Text «{titel}» gespeichert und ausgewählt.")
+                    st.rerun()
 
 
 # ---------------------------------------------------------------------------
