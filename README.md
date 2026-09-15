@@ -48,21 +48,24 @@ Nachtragen lässt sie sich unter *Einstellungen → OLFA-Kategorien*. Die App
 funktioniert auch ohne; es fehlt lediglich die Gruppierung nach
 Entwicklungsphase.
 
-**2. Zwei der vier ß-Kategorien sind gesperrt.** Die App kennt nur die
-Schweizer Rechtschreibung – in den Prompts entsteht nie ein ß. Damit gilt für
-die Kategorien 13–16:
+**2. Die Kategorien 13 und 15 sind für de-CH neu belegt.** Die Ergänzung zum
+technischen Manual (A.3) regelt die ß-Kategorien für die Schweiz verbindlich:
 
-| Nr. | Kategorie | In der Schweiz |
+| Nr. | de-DE (Original) | de-CH (verbindlich) |
 |---|---|---|
-| 13 | s für ß | **gesperrt** – die Schreibung ohne ß ist hier richtig |
-| 14 | ß für s | **relevant** – erfasst ein fälschlich gesetztes ß |
-| 15 | ss für ß | **gesperrt** – ss ist hier die korrekte Schreibung |
-| 16 | ß für ss | **relevant** – etwa `*daß` statt `dass` |
+| 13 | s für ß | **s für ss** – `*Fus → Fuss`, `*Strase → Strasse` (nach langem Vokal/Diphthong) |
+| 14 | ß für s | **unbesetzt** – wird nie vergeben |
+| 15 | ss für ß | **ss für s** – `*Preisse → Preise`, `*Häusser → Häuser` |
+| 16 | ß für ss | **unbesetzt** – wird nie vergeben |
 
-«Gesperrt» heisst: nicht auswählbar, und der Analyse-Prompt untersagt dem
-Modell diese beiden Nummern ausdrücklich. Die Nummern bleiben trotzdem
-erhalten, damit die Zählung mit dem Auswertungsbogen übereinstimmt – ebenso
-wie die unbesetzten 21 und 22.
+Die naheliegende Lesart «ß-Kategorien sind in der Schweiz gegenstandslos»
+greift zu kurz: `Fus → Fuss` ist kein Schärfungsfehler (07), sondern
+lexikalisch gespeicherte ss-Schreibung – zwei Kompetenzen, zwei
+Fördermassnahmen. Entscheidend ist die **Vokallänge vor der s-Stelle**: kurz →
+07/08, lang → 13/15. Ein fälschlich gesetztes ß ist ein Konsonantenersatz
+(33). 14, 16, 21, 22 stehen auf `NEVER_ASSIGN`. Eine frühere Fassung dieses
+Werkzeugs hatte 13/15 gesperrt und 14/16 offen – das war die falsche Lesart
+und ist korrigiert; Altbestände mit 14/16 werden beim Laden auf 33 gehoben.
 
 ### Eigene Änderungen
 
@@ -180,6 +183,50 @@ Antworten**, die sie selbst nicht geben kann:
   beurteilen.
 
 Beide Antworten werden mit dem Freigabedatum in der Datenbank festgehalten.
+
+---
+
+## Die vierstufige Pipeline (Bereich A)
+
+Die Fehleranalyse folgt dem «Technischen Manual zur algorithmischen
+Erkennung» und seiner Ergänzung. Leitsatz: **so viel wie möglich
+deterministisch im Code, so wenig wie nötig per Sprachmodell.** Eine
+Zuordnung, die bei zwei Durchläufen desselben Textes verschieden ausfällt,
+macht das Längsschnittprofil wertlos.
+
+| Stufe | Was passiert | Wer |
+|---|---|---|
+| 1 | Fehler lokalisieren, Zielform bestimmen. Diktat: Alignment gegen den Referenztext. Freitext: Zielwörter aus dem Kontext, Schwelle 0,85, sonst manuelle Kontrolle | Code / Modell (nur Freitext) |
+| 2 | Graphemsegmentierung (`sch, ch, ck, tz, ie, ah … ss` als Einheiten), Transposition zuerst, Entscheidungsbaum nach Manual §11 mit CH-Abzweigung A.4, spezifische Kategorien vor generischen, Mehrfachfehler getrennt | Code |
+| 3 | Nur Grenzfälle (`needs_context` und die kritischen Paare aus §20): Frage nach dem **entscheidenden Merkmal**, nicht nach der Kategorie; Antwort ausserhalb der Kandidatenliste wird verworfen; blinder Zweitdurchgang ohne Kenntnis des ersten | Modell |
+| 4 | Kandidaten, berechnete Konfidenz (nie geschätzt), Status. Führen alle Kandidaten in denselben Förderbereich → `resolved_by_area`, sonst `manual_review` | Code |
+
+Fehlt dem Baum ein Merkmal (Vokallänge eines unmarkierten Wortes, Morphemgrenze,
+Lautwert eines v), rät er nicht: Er gibt `needs_context` mit den verbliebenen
+Kandidaten aus. Das **Zielwort-Lexikon** liefert diese Merkmale; beim ersten
+Auftreten schlägt das Modell den Eintrag vor, die Lehrperson bestätigt – ab
+dann ist die Klassifikation für dieses Wort rein deterministisch.
+
+Kontrollen, die keine Rückfrage an das Modell sind: Vollständigkeit (jedes
+Wort, jeder Satz hat einen Status – im Code), Halluzinationsfilter (steht die
+Originalform wirklich an der Stelle?), Validator nach §17 und A.5, und jede
+Zuordnung trägt Begründung, verworfene Alternativen und Merkmalherkunft mit.
+
+`rstrainer/olfa_engine.py` ist der Port der Engine des Artefakts; beide
+bestehen dieselben Goldstandard-Tests (Manual §19, Ergänzung A.1, Bau-Prompt
+§14 sowie die Beispiele aus §1–§9 und §5.1/5.2 für Wortgrenzen).
+
+---
+
+## Förderbereiche F1–F10
+
+Die OLFA-Nummer beantwortet «welche Struktur wurde verletzt», die
+Unterrichtsfrage lautet «was üben wir als Nächstes». Dazwischen liegt die
+Aggregation auf zehn **Förderbereiche** (Ergänzung B.2) – die eigentliche
+Ausgabe. Übersicht, Trend und Übungsblätter arbeiten auf dieser Ebene; die
+Nummern bleiben aufklappbar. F9 (Sorgfalt) ist anders zu lesen als F1–F8
+(Regelwissen); wächst F10 (Rest), ist das ein Hinweis auf den Classifier,
+nicht auf das Kind.
 
 ---
 
@@ -469,7 +516,7 @@ erst, wenn das Sprachmodell einen Text auswertet.
 python3 -m pytest tests/ -q
 ```
 
-**Stand: 287 Tests, alle grün.** Abgedeckt sind:
+**Stand: 391 Tests, alle grün.** Abgedeckt sind:
 
 | Datei | Prüft |
 |---|---|
@@ -481,6 +528,7 @@ python3 -m pytest tests/ -q
 | `test_db.py` | Datentrennung zwischen Profilen, Freigabe, freie Texte, Umhängen über Profile hinweg |
 | `test_olfa_und_export.py` | Kategorienliste, unbesetzte Nummern 21/22, Testmodus, CSV/JSON-Export, `.gitignore` |
 | `test_charts.py` | Diagramme, feste Farbreihenfolge, Serienbegrenzung |
+| `test_olfa_engine.py` | Goldstandard-Minimalpaare (§19, A.1, Bau-Prompt), Graphemsegmentierung, Transposition, Nie-Raten, Konsequenzprüfung C.1, Validator §17/A.5, Konfidenz C.2, Halluzinationsfilter, Umstufungsmuster C.3 |
 | `test_taxonomie.py` | Pfade begradigen, Dubletten, Gegenteile nicht verschmelzen, Register, Schwerpunkte |
 | `test_analyse.py` | Analyse-Prompts, JSON zurücklesen, neue Fehlerarten, Aufräumplan, Regler Klassiker/Sondierung |
 
@@ -513,6 +561,7 @@ rstrainer/
   config.py                   Pfade und fachliche Voreinstellungen
   db.py                       SQLite-Schema und Zugriffe
   olfa.py                     Kategorienliste laden, speichern, abfragen
+  olfa_engine.py              Deterministische OLFA-Engine: Grapheme, Baum, Validator, Förderbereiche
   taxonomie.py                Gelernte Fehlerarten: anlegen, begradigen, ordnen
   kategorien.py               Gemeinsame Sicht auf beide Kategoriensysteme
   textwerkzeuge.py            Tokenisierung, Normalisierung, Kontext

@@ -11,7 +11,7 @@
     ],
     "offene_punkte": [
       "GRUPPENZUORDNUNG FEHLT: OLFA ordnet jede Kategorie zusätzlich einer von drei entwicklungsbezogenen Gruppen (I / II / III) zu, erkennbar an der roten, gelben bzw. grünen Markierung der Kategorienummer auf dem Auswertungsbogen. Diese Angabe war in der übermittelten Tabelle nicht enthalten und wurde NICHT erraten – das Feld 'gruppe' ist überall null. Zum Nachtragen: Einstellungen → OLFA-Kategorien.",
-      "NUR SCHWEIZ: Das Werkzeug ist ausschliesslich auf die Schweizer Rechtschreibung ausgelegt – in keinem Auftrag an das Sprachmodell darf ein ß entstehen. Die Kategorien 13 (s für ß) und 15 (ss für ß) sind deshalb gesperrt: Sie beschreiben, dass ein ß NICHT geschrieben wurde, und genau das ist hier richtig. 14 (ß für s) und 16 (ß für ss) bleiben wählbar – sie erfassen ein fälschlich gesetztes ß. Gesperrte Nummern bleiben der Nummerierung wegen in der Liste."
+      "DE-CH-NEUBELEGUNG 13/15: Nach der Ergänzung zum technischen Manual (A.3) sind 13 und 15 für de-CH neu belegt – 13 = «s für ss», 15 = «ss für s», jeweils nach langem Vokal oder Diphthong (lexikalische ss-Schreibung, Förderbereich F3). 14 und 16 sind unbesetzt (NEVER_ASSIGN). Entscheidend ist die Vokallänge vor der s-Stelle: kurz → 07/08, lang → 13/15. Jede Zuordnung zu 13/15 trägt definition = de-CH."
     ],
     "lesehilfe": "Die Bezeichnungen folgen dem Muster «X für Y»: geschrieben wurde X, richtig wäre Y. «Klein- für Großschreibung» heißt also: kleingeschrieben, obwohl groß richtig wäre.",
     "feld_erklaerung": {
@@ -24,6 +24,61 @@
       "heuristik": "Technische Marker für die automatischen Kategorie-Vorschläge beim Abgleich. Ein Marker darf auf mehrere Kategorien zeigen; dann schlägt die App beide vor.",
       "geprueft": "true = von der Lehrperson gegen das Fachmaterial geprüft.",
       "gesperrt": "true = nicht mehr auswählbar (unbesetzt oder in der Schweiz nicht anwendbar); der Eintrag bleibt nur erhalten, damit die Nummerierung stimmt."
+    },
+    "foerderbereiche": {
+      "F1": [
+        "07",
+        "08",
+        "11"
+      ],
+      "F2": [
+        "09",
+        "10",
+        "12"
+      ],
+      "F3": [
+        "13",
+        "15"
+      ],
+      "F4": [
+        "17",
+        "18",
+        "36"
+      ],
+      "F5": [
+        "19",
+        "20",
+        "27",
+        "28"
+      ],
+      "F6": [
+        "01",
+        "02",
+        "03"
+      ],
+      "F7": [
+        "04",
+        "05",
+        "06"
+      ],
+      "F8": [
+        "23",
+        "24",
+        "25",
+        "26"
+      ],
+      "F9": [
+        "29",
+        "30",
+        "31",
+        "32",
+        "35"
+      ],
+      "F10": [
+        "33",
+        "34",
+        "37"
+      ]
     }
   },
   "kategorien": [
@@ -203,17 +258,17 @@
     },
     {
       "nr": "13",
-      "name": "s für ß",
-      "kurzbeschreibung": "Statt ß wurde ein einfaches s geschrieben. In der Schweiz nicht anwendbar: Dort ist die Schreibung ohne ß korrekt. Die Nummer bleibt nur der Nummerierung wegen erhalten.",
-      "beispiel": "*Fus → Fuß",
+      "name": "s für ss (de-CH)",
+      "kurzbeschreibung": "Einfaches s, wo die Schweizer Zielschreibung ss verlangt – nach langem Vokal oder Diphthong (lexikalische ss-Schreibung, keine Schärfung).",
+      "beispiel": "*Fus → Fuss, *Strase → Strasse, *heisen → heissen",
       "gruppe": null,
       "bereich": "s-Schreibung",
       "heuristik": [
-        "s_statt_sz"
+        "s_statt_ss_lang"
       ],
       "geprueft": true,
-      "gesperrt": true,
-      "grund": "in der Schweiz nicht anwendbar – ohne ß zu schreiben ist hier korrekt"
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "14",
@@ -222,26 +277,24 @@
       "beispiel": "*laß → las",
       "gruppe": null,
       "bereich": "s-Schreibung",
+      "heuristik": [],
+      "geprueft": true,
+      "gesperrt": true,
+      "grund": "In de-CH unbesetzt (Ergänzung A.3, NEVER_ASSIGN). Ein fälschlich gesetztes ß wird als Konsonantenersatz 33 geführt."
+    },
+    {
+      "nr": "15",
+      "name": "ss für s (de-CH)",
+      "kurzbeschreibung": "ss gesetzt, wo die Schweizer Zielschreibung einfaches s verlangt – nach langem Vokal oder Diphthong.",
+      "beispiel": "*Preisse → Preise, *Häusser → Häuser",
+      "gruppe": null,
+      "bereich": "s-Schreibung",
       "heuristik": [
-        "sz_statt_s"
+        "ss_statt_s_lang"
       ],
       "geprueft": true,
       "gesperrt": false,
       "grund": ""
-    },
-    {
-      "nr": "15",
-      "name": "ss für ß",
-      "kurzbeschreibung": "Statt ß wurde ss geschrieben. In der Schweiz nicht anwendbar: Dort ist ss die korrekte Schreibung. Die Nummer bleibt nur der Nummerierung wegen erhalten.",
-      "beispiel": "*Strasse → Straße",
-      "gruppe": null,
-      "bereich": "s-Schreibung",
-      "heuristik": [
-        "ss_statt_sz"
-      ],
-      "geprueft": true,
-      "gesperrt": true,
-      "grund": "in der Schweiz nicht anwendbar – ss ist hier die korrekte Schreibung"
     },
     {
       "nr": "16",
@@ -250,12 +303,10 @@
       "beispiel": "*daß → dass",
       "gruppe": null,
       "bereich": "s-Schreibung",
-      "heuristik": [
-        "sz_statt_ss"
-      ],
+      "heuristik": [],
       "geprueft": true,
-      "gesperrt": false,
-      "grund": ""
+      "gesperrt": true,
+      "grund": "In de-CH unbesetzt (Ergänzung A.3, NEVER_ASSIGN)."
     },
     {
       "nr": "17",
@@ -487,7 +538,8 @@
       "gruppe": null,
       "bereich": "Falsche Zeichen",
       "heuristik": [
-        "konsonant_verwechselt"
+        "konsonant_verwechselt",
+        "sz_gesetzt"
       ],
       "geprueft": true,
       "gesperrt": false,

@@ -71,10 +71,12 @@ STUFE = {
 
 #: Die oberste Ebene gelernter Fehlerarten, siehe rstrainer.taxonomie.
 SCHWEIZ_REGEL = (
-    "WICHTIG – Schweizer Rechtschreibung: Es gibt kein ß. «Strasse», «gross», "
-    "«heisst», «dass» sind KORREKT und keine Fehler. Die Kategorien 13 und 15 "
-    "dürfen NIE vergeben werden. Setzt das Kind fälschlich ein ß, sind 14 oder "
-    "16 richtig."
+    "WICHTIG – Schweizer Rechtschreibung (de-CH): Es gibt kein ß. «Strasse», "
+    "«gross», «heisst», «dass» sind KORREKT. Erzeuge nie eine Zielform mit ß. "
+    "Die Nummern 14 und 16 werden NIE vergeben. 13 = «s für ss» und 15 = «ss für s» "
+    "gelten nur nach langem Vokal oder Diphthong (Fus → Fuss, Preisse → Preise); "
+    "nach kurzem Vokal ist es Schärfung (07/08). Ein fälschlich gesetztes ß ist "
+    "ein Konsonantenersatz (33)."
 )
 
 QUALITAETSREGELN = """\
@@ -400,11 +402,66 @@ Antworte ausschliesslich mit einem JSON-Objekt, ohne Vor- oder Nachtext und ohne
 Ist nichts zu tun, gib leere Listen zurück.
 """
 
+# ---------------------------------------------------------------------------
+# Vierstufige Pipeline (Bau-Prompt): Stufe 1 Freitext und Stufe 3 Grenzfälle
+# ---------------------------------------------------------------------------
+# Die Klassifikation selbst übernimmt rstrainer.olfa_engine deterministisch.
+# Das Sprachmodell wird nur gefragt, (1) welche Zielwörter im freien Text
+# gemeint sind und (3) welches Merkmal einen Grenzfall entscheidet – nie,
+# welche Kategorie es ist.
+
+ZIELWOERTER = """\
+Du bestimmst für einen Schülertext (Sekundarstufe I, Schweiz) die intendierte \
+Zielschreibung jedes falsch geschriebenen Wortes.
+
+{schweiz_regel}
+
+Regeln:
+- Nur Rechtschreibung (Buchstaben, Gross-/Kleinschreibung, Getrennt-/Zusammenschreibung). \
+Keine Grammatik, kein Stil, keine Zeichensetzung.
+- Homophone aus dem Satzzusammenhang entscheiden (wider/wieder, das/dass, seid/seit).
+- Ein Wort, das korrekt ist, kommt NICHT in die Liste.
+- «sicherheit» ist deine Sicherheit (0–1), dass genau diese Zielform gemeint ist. Bei Zweifel: \
+die wahrscheinlichere nennen, Sicherheit unter {schwelle} setzen, Alternative angeben.
+
+Text:
+{text}
+
+Wörter (Nummer, Wort):
+{woerter}
+
+Antworte nur mit einem JSON-Array, ohne Vor- oder Nachtext:
+[{{"nummer": 12, "wort": "wider", "ziel": "wieder", "sicherheit": 0.97, "alternative": null}}]
+Leeres Array, wenn kein Wort falsch ist.
+"""
+
+MERKMALE = """\
+Du beantwortest für eine OLFA-Fehleranalyse präzise Fragen zu Merkmalen von Zielwörtern. \
+Beurteilt wird NICHT der Fehler, sondern ein sprachliches Merkmal des Zielworts.
+
+{schweiz_regel}
+
+Für jeden Fall: Beantworte die Frage anhand des Zielworts. Nenne dann, welcher der genannten \
+Kandidaten aus dem Merkmal folgt – nie eine Kategorie ausserhalb der Kandidatenliste. \
+Bist du dir beim Merkmal nicht sicher, setze "sicher": false.
+
+{faelle}
+
+Antworte nur mit einem JSON-Array, ein Objekt je Fall in derselben Reihenfolge:
+[{{"fall": 1, "vokallaenge": "kurz"|"lang"|null, "morphemgrenze": true|false|null, \
+"v": "f"|"v"|null, "umlaut": true|false|null, "kategorie": "07", "sicher": true, \
+"begruendung": "höchstens 15 Wörter"}}]
+"""
+
+VORLAGEN["zielwoerter"] = ZIELWOERTER
+VORLAGEN["merkmale"] = MERKMALE
 VORLAGEN["analyse_diktat"] = ANALYSE_DIKTAT
 VORLAGEN["analyse_freitext"] = ANALYSE_FREITEXT
 VORLAGEN["aufraeumen"] = AUFRAEUMEN
 
 PFLICHTPLATZHALTER.update({
+    "zielwoerter": {"schweiz_regel", "text", "woerter", "schwelle"},
+    "merkmale": {"schweiz_regel", "faelle"},
     "analyse_diktat": {"analyse_kopf", "analyse_format", "originaltext", "schuelertext"},
     "analyse_freitext": {"analyse_kopf", "analyse_format", "schuelertext"},
     "aufraeumen": {"sammlung", "oberbegriffe"},

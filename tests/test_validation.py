@@ -47,7 +47,7 @@ def test_unpassende_kategorie_warnt(register):
     """Ein Text ohne ß kann die Kategorie 15 (ss für ß) nicht üben."""
     text = "Am Morgen kam der Hund. Er lief davon."
     befunde = validation.diktat_pruefen(text, 9, ["15"], register)
-    assert _finde(befunde, "ss für ß")[0].stufe == WARNUNG
+    assert _finde(befunde, "ss für s")[0].stufe == WARNUNG
 
 
 def test_leerer_text_warnt(register):

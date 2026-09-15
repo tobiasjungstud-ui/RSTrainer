@@ -158,14 +158,10 @@ def _marker_ersetzung(orig: str, schueler: str, i1: int, i2: int,
         return "umlaut_fehlt"
 
     # s-Schreibung – vier getrennte Kategorien (13 bis 16)
-    if a == "ß" and b == "s":
-        return "s_statt_sz"
-    if a == "s" and b == "ß":
-        return "sz_statt_s"
-    if a == "ß" and b == "ss":
-        return "ss_statt_sz"
-    if a == "ss" and b == "ß":
-        return "sz_statt_ss"
+    # de-CH: Ein Zielwort enthält nie ein ß. Setzt das Kind eines, ist das ein
+    # Konsonantenersatz (Ergänzung A.3: 14/16 werden nie vergeben).
+    if b == "ß":
+        return "sz_gesetzt"
 
     # Kürzemarkierung mit ck und tz (Kategorie 07)
     if "ck" in (a, b) or (a == "k" and b == "kk"):

@@ -4,20 +4,25 @@ from __future__ import annotations
 
 import streamlit as st
 
-from .. import auftraege, config, db, demo_data, export, olfa, taxonomie
+from .. import auftraege, config, db, demo_data, export, olfa, olfa_engine, taxonomie
 from . import gemeinsam as g
 
 
 def zeichnen(con) -> None:
     st.header("Einstellungen")
-    reiter_allg, reiter_olfa, reiter_arten, reiter_demo, reiter_export = st.tabs(
-        ["⚙️ Allgemein", "📖 OLFA-Kategorien", "🌱 Gelernte Fehlerarten",
-         "🧪 Testmodus", "💾 Datenexport"]
+    (reiter_allg, reiter_olfa, reiter_lex, reiter_test, reiter_arten,
+     reiter_demo, reiter_export) = st.tabs(
+        ["⚙️ Allgemein", "📖 OLFA-Kategorien", "📚 Zielwort-Lexikon", "✅ Testlauf",
+         "🌱 Gelernte Fehlerarten", "🧪 Testmodus", "💾 Datenexport"]
     )
     with reiter_allg:
         _allgemein(con)
     with reiter_olfa:
         _olfa(con)
+    with reiter_lex:
+        _lexikon(con)
+    with reiter_test:
+        _testlauf(con)
     with reiter_arten:
         _fehlerarten(con)
     with reiter_demo:
@@ -40,11 +45,13 @@ def _allgemein(con) -> None:
     st.divider()
     st.subheader("Rechtschreibung")
     st.markdown(
-        "Das Werkzeug ist ausschliesslich auf die **Schweizer Rechtschreibung** "
-        "ausgelegt: kein ß, durchgehend ss. Eine Umschaltung gibt es nicht. "
-        "Entsprechend sind die OLFA-Kategorien **13** und **15** gesperrt – sie "
-        "beschreiben, dass ein ß *nicht* geschrieben wurde, und genau das ist "
-        "hier richtig. Setzt ein Kind fälschlich ein ß, greifen 14 und 16."
+        "Zielnorm ist die **Schweizer Standardorthografie (de-CH)**: kein ß, "
+        "durchgehend ss. Eine Umschaltung gibt es nicht. Nach der Ergänzung zum "
+        "technischen Manual (A.3) sind **13 = s für ss** und **15 = ss für s** neu "
+        "belegt – jeweils nach langem Vokal oder Diphthong (Fuss, Strasse, Preise), "
+        "Förderbereich F3. Entscheidend ist die Vokallänge vor der s-Stelle: kurz "
+        "heisst Schärfung (07/08). **14, 16, 21, 22** werden nie vergeben; ein "
+        "fälschlich gesetztes ß ist ein Konsonantenersatz (33)."
     )
     gesperrt = [k for k in g.kategorienliste() if k.gesperrt]
     if gesperrt:
@@ -185,6 +192,88 @@ def _olfa(con) -> None:
             g.kategorien_neu_laden()
             g.merken("Zurückgesetzt.")
             st.rerun()
+
+
+def _lexikon(con) -> None:
+    """Zielwort-Lexikon: Merkmale, die sich nicht aus der Schreibung ableiten
+    lassen (Manual §3, Ergänzung A.4). Ab dem Eintrag ist die Klassifikation
+    für dieses Wort rein deterministisch."""
+    st.subheader("Zielwort-Lexikon")
+    st.caption(
+        "Vokallänge bei unmarkierten Wörtern (Tal lang, Bus kurz), Morphemgrenzen "
+        "(Fahr|rad), Lautwert eines v (Vogel /f/, Vase /v/), Umlautwort ja/nein. "
+        f"{len(olfa_engine.VORGABE_LEXIKON)} Wörter sind als Vorgabe mitgeliefert; "
+        "eigene Einträge gelten für alle Profile."
+    )
+    with st.form("lexikon_form", clear_on_submit=True):
+        spalten = st.columns(2)
+        wort = spalten[0].text_input("Wort *", placeholder="z. B. Nuss")
+        vokale = spalten[1].text_input("Vokale (je Vokal kurz / lang / ?)", placeholder="kurz  oder  lang,kurz")
+        spalten = st.columns(3)
+        morpheme = spalten[0].text_input("Morpheme (Grenze als |)", placeholder="Fahr|rad")
+        v = spalten[1].selectbox("v gesprochen als", ["–", "f", "v"])
+        umlaut = spalten[2].selectbox("Umlautwort", ["–", "ja", "nein"])
+        if st.form_submit_button("Eintrag speichern", type="primary"):
+            if not wort.strip():
+                st.error("Bitte ein Wort angeben.")
+            else:
+                vok = [x.strip().lower() for x in vokale.replace("/", ",").split(",") if x.strip()]
+                vok = [x if x in ("kurz", "lang") else "?" for x in vok] or None
+                eintrag = {"vokale": vok, "morpheme": morpheme.strip() or None,
+                           "v": None if v == "–" else v,
+                           "umlaut": None if umlaut == "–" else umlaut == "ja"}
+                if not any(x is not None for x in eintrag.values()):
+                    st.error("Bitte mindestens ein Merkmal angeben.")
+                else:
+                    db.lexikon_speichern(con, wort, eintrag)
+                    g.merken(f"Lexikoneintrag «{wort}» gespeichert.")
+                    st.rerun()
+
+    eintraege = db.lexikon_laden(con)
+    if not eintraege:
+        st.info("Noch keine eigenen Einträge.")
+        return
+    import pandas as pd
+    st.dataframe(pd.DataFrame([{
+        "Wort": w, "Vokale": ", ".join(e["vokale"]) if e.get("vokale") else "",
+        "Morpheme": e.get("morpheme") or "", "v": e.get("v") or "",
+        "Umlaut": "" if e.get("umlaut") is None else ("ja" if e["umlaut"] else "nein"),
+        "Quelle": e.get("quelle", ""),
+    } for w, e in sorted(eintraege.items())]), hide_index=True, width="stretch")
+    weg = st.selectbox("Eintrag löschen", ["–"] + sorted(eintraege), key="lexikon_loeschen")
+    if weg != "–" and st.button("Löschen", key="lexikon_loeschen_knopf"):
+        db.lexikon_loeschen(con, weg)
+        g.merken(f"«{weg}» gelöscht.")
+        st.rerun()
+
+
+def _testlauf(con) -> None:
+    """Manual §19: Die Minimalpaare als ausführbarer Test in der Oberfläche."""
+    st.subheader("Goldstandard-Minimalpaare")
+    st.caption(
+        "Die Minimalpaare aus Manual §19, die CH-Fälle aus Ergänzung A.1/A.4 und "
+        "die Beispiele aus Manual §1–§9 laufen gegen das Regelwerk. Kein späterer "
+        "Umbau darf diese Tests verschlechtern – dieselbe Liste läuft auch in pytest."
+    )
+    if st.button("Testlauf starten", type="primary"):
+        lexikon = dict(olfa_engine.VORGABE_LEXIKON)
+        lexikon.update(g.lexikon())
+        st.session_state["testlauf"] = (olfa_engine.testlauf(lexikon), olfa_engine.testlauf_text(lexikon))
+    lauf = st.session_state.get("testlauf")
+    if not lauf:
+        return
+    woerter, texte = lauf
+    alle = woerter + texte
+    ok = sum(1 for x in alle if x["ok"])
+    (st.success if ok == len(alle) else st.error)(f"{ok} von {len(alle)} bestanden.")
+    import pandas as pd
+    st.dataframe(pd.DataFrame(
+        [{"Fall": f"{x['s']} → {x['t']}", "Erwartet": " + ".join(x["erwartet"]),
+          "Erhalten": " + ".join(x["erhalten"]) or "–", "Quelle": x["quelle"], "OK": "✓" if x["ok"] else "✗"}
+         for x in woerter]
+        + [{"Fall": x["schueler"], "Erwartet": " + ".join(x["erwartet"]),
+            "Erhalten": " + ".join(x["erhalten"]) or "–", "Quelle": x["quelle"], "OK": "✓" if x["ok"] else "✗"}
+           for x in texte]), hide_index=True, width="stretch")
 
 
 def _fehlerarten(con) -> None:

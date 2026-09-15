@@ -5,11 +5,13 @@ from __future__ import annotations
 import streamlit as st
 
 from .. import analysis, charts, config, db, docx_export
+from ..kategorien import (FB_REIHE, FOERDERBEREICHE, fehler_nach_foerderbereich,
+                          foerderbereich_label, verteilung_foerderbereiche)
 from . import gemeinsam as g
 
 
 def zeichnen(con, schueler) -> None:
-    st.header("Fehleranalyse und Verlauf")
+    st.header("Förderprofil und Verlauf")
 
     diktate = db.diktat_liste(con, schueler["id"])
     fehler = [dict(f) for f in db.fehler_liste(con, schueler["id"])]
@@ -42,6 +44,9 @@ def zeichnen(con, schueler) -> None:
         )
 
     st.divider()
+    _foerderbereiche(punkte, fehler, reg)
+
+    st.divider()
     st.subheader("Häufigkeit nach Fehlerart")
     haeufigkeit = {nr: sum(reihe) for nr, reihe in reihen.items()}
     balken = charts.balken_kategorien(haeufigkeit, reg)
@@ -64,6 +69,58 @@ def zeichnen(con, schueler) -> None:
 
     st.divider()
     _export(con, schueler, punkte, trends, reg, balken, linien)
+
+
+def _foerderbereiche(punkte, fehler, reg) -> None:
+    """Ergänzung B: Die Förderbereiche sind die eigentliche Ausgabe. Aus
+    dieser Ansicht leitet die Lehrperson ab, was als Nächstes geübt wird."""
+    st.subheader("Förderbereiche F1–F10")
+    verteilung = verteilung_foerderbereiche(fehler)
+    gesamt = sum(verteilung.values())
+    if not gesamt:
+        st.info("Noch keine Rechtschreibfehler (Bereich A) erfasst.")
+        return
+    nach_nr: dict[str, int] = {}
+    for f in fehler:
+        nach_nr[f["kategorie_nr"]] = nach_nr.get(f["kategorie_nr"], 0) + 1
+
+    f9 = verteilung.get("F9", 0)
+    f10 = verteilung.get("F10", 0)
+    f1_8 = sum(verteilung.get(f, 0) for f in FB_REIHE[:8])
+    if f9 > f1_8 and f9 >= 3:
+        st.info(
+            "**F9 überwiegt.** Hohe Last bei Durchgliederung und Sorgfalt bei geringer "
+            "Last in F1–F8 spricht für Kontrollstrategien (Abhören, Kontrolllesen), nicht "
+            "für Regelvermittlung (Ergänzung B.3)."
+        )
+    if gesamt >= 10 and f10 / gesamt > 0.15:
+        st.warning(
+            f"**F10 ist gross** ({round(100 * f10 / gesamt)} %). Wächst der Restbereich, "
+            "deutet das eher auf ein Problem im Classifier als auf eine Schülerschwäche – "
+            "bitte die 33/34/37-Zuordnungen durchsehen."
+        )
+    maximum = max(verteilung.values())
+    for f in FB_REIHE:
+        n = verteilung.get(f, 0)
+        b = FOERDERBEREICHE[f]
+        with st.expander(f"{f} · {b['name']} — {n} ({round(100 * n / gesamt)} %)", expanded=False):
+            st.progress(n / maximum if maximum else 0.0)
+            st.caption(b["foerdern"])
+            for nr in b["olfa"]:
+                st.markdown(f"- {reg.label(nr)}: **{nach_nr.get(nr, 0)}**")
+
+    st.markdown("**Entwicklung je Förderbereich** (Fehler pro 100 Wörter)")
+    fehler_f = fehler_nach_foerderbereich(fehler)
+    trends_f = analysis.trends_bestimmen(punkte, fehler_f)
+    import pandas as pd
+    zeilen = [{
+        "Förderbereich": foerderbereich_label(f),
+        "Fehler gesamt": t.summe_gesamt,
+        "In Texten": f"{t.diktate_mit_fehler} von {t.diktate_gesamt}",
+        "Entwicklung": f"{t.symbol} {t.text}",
+        "Vorher": t.rate_vorher, "Aktuell": t.rate_aktuell,
+    } for f, t in sorted(trends_f.items(), key=lambda x: (-x[1].summe_gesamt, x[0]))]
+    st.dataframe(pd.DataFrame(zeilen), hide_index=True, width="stretch")
 
 
 def _trendtabelle(trends, reg, gezeigt: list[str]) -> None:

@@ -23,9 +23,8 @@ from rstrainer.diffing import ERSETZT, FEHLT, ZUSAETZLICH
     ("Boot", "Bot", "doppelvokal_fehlt"),
     ("Hund", "Hunt", "auslautverhaertung"),
     ("Korb", "Korp", "auslautverhaertung"),
-    ("Fuß", "Fus", "s_statt_sz"),
-    ("las", "laß", "sz_statt_s"),
-    ("dass", "daß", "sz_statt_ss"),
+    ("las", "laß", "sz_gesetzt"),
+    ("dass", "daß", "sz_gesetzt"),
     ("Vater", "Fater", "f_statt_v"),
     ("Fisch", "Visch", "v_statt_f"),
     ("Vase", "Wase", "w_statt_v"),
@@ -44,8 +43,8 @@ def test_marker_wird_erkannt(original, schueler, erwartet):
 
 def test_ss_wird_nicht_als_grossschreibfehler_verbucht():
     """casefold() bildet ß auf ss ab – das darf den ß-Fehler nicht verdecken."""
-    marker = diffing.marker_bestimmen("Straße", "Strasse")
-    assert "ss_statt_sz" in marker
+    marker = diffing.marker_bestimmen("Strasse", "Straße")
+    assert "sz_gesetzt" in marker
     assert "gross_statt_klein" not in marker
     assert "klein_statt_gross" not in marker
 
@@ -133,9 +132,9 @@ def test_faelschlich_gesetztes_sz_wird_erkannt(liste):
     """Schweizer Fall: Im Originaltext kommt nie ein ß vor, ein Kind kann aber
     trotzdem eines setzen. Kategorie 14 und 16 müssen das auffangen."""
     assert diffing.kategorie_vorschlaege(
-        diffing.marker_bestimmen("dass", "daß"), liste)[0].nr == "16"
+        diffing.marker_bestimmen("dass", "daß"), liste)[0].nr == "33"
     assert diffing.kategorie_vorschlaege(
-        diffing.marker_bestimmen("las", "laß"), liste)[0].nr == "14"
+        diffing.marker_bestimmen("las", "laß"), liste)[0].nr == "33"
 
 
 def test_ein_marker_darf_mehrere_kategorien_vorschlagen(liste):

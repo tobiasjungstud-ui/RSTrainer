@@ -43,9 +43,9 @@ def test_freitextprompt_hat_keine_vorlage_und_warnt_vor_stilkritik(liste, sammlu
 
 def test_prompt_verbietet_die_gesperrten_kategorien(liste, sammlung):
     prompt = auftraege.analyse_prompt_bauen("Text", "", liste, sammlung)
-    assert "\n13 = " not in prompt and "\n15 = " not in prompt
-    assert "\n14 = " in prompt and "\n16 = " in prompt
-    assert "13 und 15 dürfen NIE vergeben werden" in prompt
+    assert "\n14 = " not in prompt and "\n16 = " not in prompt
+    assert "\n13 = " in prompt and "\n15 = " in prompt
+    assert "14 und 16 werden NIE vergeben" in prompt
 
 
 def test_prompt_zaehlt_bereits_angelegte_arten_auf(liste):
@@ -79,9 +79,9 @@ def test_einstellige_nummer_wird_aufgefuellt(liste, sammlung):
     assert e.zeilen[0].kategorie_nr == "07"
 
 
-@pytest.mark.parametrize("nr", ["13", "15", "99", "", None])
+@pytest.mark.parametrize("nr", ["14", "16", "21", "99", "", None])
 def test_unbrauchbare_nummern_landen_auf_der_auffangkategorie(liste, sammlung, nr):
-    """13 und 15 sind in der Schweiz gesperrt, 99 gibt es nicht."""
+    """14, 16, 21, 22 werden in de-CH nie vergeben, 99 gibt es nicht."""
     e = auftraege.analyse_lesen(_antwort(OLFA_ZEILE | {"kategorie": nr}),
                                 liste, sammlung)
     assert e.zeilen[0].kategorie_nr == "37"
@@ -311,7 +311,7 @@ def test_sondierung_enthaelt_keine_gesehenen_kategorien(register):
 
 def test_sondierung_ueberspringt_gesperrte_kategorien(register):
     vorrat = analysis.sondierungsvorrat(diktatpunkte(2), [], register)
-    assert "13" not in vorrat and "15" not in vorrat
+    assert not {"14", "16", "21", "22"} & set(vorrat)
 
 
 def test_sondierung_bezieht_gelernte_arten_ein(liste):

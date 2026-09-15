@@ -20,8 +20,8 @@ from __future__ import annotations
 
 import streamlit as st
 
-from .. import auftraege, config, db, diffing, docx_export, taxonomie
-from ..kategorien import schwerpunkte
+from .. import auftraege, config, db, diffing, docx_export, olfa_engine, taxonomie
+from ..kategorien import foerderbereich_von, schwerpunkte
 from . import gemeinsam as g
 
 
@@ -183,11 +183,15 @@ def _analyse_ablauf(con, schueler, diktat) -> None:
 # ---------------------------------------------------------------------------
 
 def _diff_ablauf(con, schueler, diktat) -> None:
-    reg = g.register()
+    """Stufe 1 + 2 des Bau-Prompts: Alignment gegen den Referenztext, danach
+    das deterministische Regelwerk (rstrainer.olfa_engine). Kein Sprachmodell.
+    Fälle, denen ein Merkmal fehlt, werden nicht geraten, sondern als
+    «manuelle Kontrolle» ausgewiesen."""
     st.caption(
-        "Die App richtet den Schülertext wortweise am Original aus und schlägt "
-        "Abweichungen vor. Sie sieht nur das Buchstabenbild – die Kategorie ist "
-        "geraten, nicht verstanden. Satzzeichen werden nicht verglichen."
+        "Der Schülertext wird Wort für Wort gegen den Referenztext ausgerichtet, "
+        "graphemorientiert segmentiert und über den OLFA-Entscheidungsbaum "
+        "klassifiziert – ohne Sprachmodell, reproduzierbar, mit Begründung und "
+        "verworfenen Alternativen je Fehler. Satzzeichen werden nicht verglichen."
     )
 
     schuelertext = _schuelertext_feld(con, diktat, "diff_text")
@@ -195,42 +199,73 @@ def _diff_ablauf(con, schueler, diktat) -> None:
     if st.button("Abgleich starten", type="primary",
                  disabled=not schuelertext.strip(), key=f"diff_start_{diktat['id']}"):
         db.diktat_aktualisieren(con, diktat["id"], schuelertext=schuelertext)
-        st.session_state[f"abweichungen_{diktat['id']}"] = diffing.vergleiche(
-            diktat["text_original"], schuelertext, reg.liste
+        lexikon = dict(olfa_engine.VORGABE_LEXIKON)
+        lexikon.update(g.lexikon())
+        ergebnis = olfa_engine.analysiere_diktat(
+            diktat["text_original"], schuelertext, lexikon, g.muster(schueler["id"])
         )
+        # Stufe 4 ohne Modell: Konsequenzprüfung, dann bleibt Offenes offen.
+        for e in ergebnis["ereignisse"]:
+            if e["status"] == "needs_context":
+                olfa_engine.konsequenz_pruefen(e)
+                if e["status"] == "needs_context":
+                    e["status"] = "manual_review"
+                olfa_engine.konfidenz(e, {"zielwortSicherheit": 1})
+        st.session_state[f"abweichungen_{diktat['id']}"] = ergebnis
         st.rerun()
 
-    abweichungen = st.session_state.get(f"abweichungen_{diktat['id']}")
-    if abweichungen is None:
+    ergebnis = st.session_state.get(f"abweichungen_{diktat['id']}")
+    if ergebnis is None:
         return
 
-    kennzahlen = diffing.kennzahlen(diktat["text_original"], schuelertext)
+    kz = ergebnis["kennzahlen"]
+    ereignisse = ergebnis["ereignisse"]
+    offen = sum(1 for e in ereignisse if e["status"] == "manual_review")
     spalten = st.columns(4)
-    spalten[0].metric("Wörter im Original", kennzahlen["wortzahl_original"])
-    spalten[1].metric("Wörter im Schülertext", kennzahlen["wortzahl_schueler"])
-    spalten[2].metric("Abweichungen", kennzahlen["abweichungen"])
-    spalten[3].metric("Fehlerquote", f"{kennzahlen['fehlerquote_prozent']} %")
+    spalten[0].metric("Wörter im Original", kz["woerterReferenz"])
+    spalten[1].metric("Wörter im Schülertext", kz["woerterSchueler"])
+    spalten[2].metric("Fehlerereignisse", len(ereignisse))
+    spalten[3].metric("Manuelle Kontrolle", offen)
 
-    if not abweichungen:
+    ohne_status = [a for a in ergebnis["abdeckung"] if a["status"] == "offen"]
+    st.caption(
+        f"Vollständigkeitskontrolle im Code: {len(ergebnis['abdeckung'])} Wörter, "
+        f"{sum(1 for a in ergebnis['abdeckung'] if a['status'] == 'korrekt')} korrekt, "
+        f"{sum(1 for a in ergebnis['abdeckung'] if a['status'] == 'fehler')} mit Fehler"
+        + (f", **{len(ohne_status)} ohne Status**" if ohne_status else "") + "."
+        + (" Ausgelassen: " + ", ".join(f"«{x['wort']}»" for x in ergebnis["ausgelassen"]) + "."
+           if ergebnis["ausgelassen"] else "")
+        + (" Zusätzlich: " + ", ".join(f"«{x['wort']}»" for x in ergebnis["zusaetzlich"]) + "."
+           if ergebnis["zusaetzlich"] else "")
+    )
+
+    if not ereignisse:
         st.success("Keine Abweichungen gefunden.")
         return
 
     st.divider()
     st.markdown(
-        f"### {len(abweichungen)} vorgeschlagene Abweichungen  \n"
-        "Jede Zeile einzeln bestätigen und die Kategorie zuordnen. "
-        "Nicht angehakte Zeilen werden ignoriert."
+        f"### {len(ereignisse)} Fehlerereignisse  \n"
+        "Eindeutige zuerst, unsichere unten. Jede Zeile lässt sich umstufen – "
+        "eine Umstufung wird als Muster gespeichert und beim nächsten gleichen "
+        "Fall vorgeschlagen."
     )
+    rang = {"resolved": 0, "resolved_by_area": 1, "resolved_by_ki": 2, "manual_review": 3}
+    sortiert = sorted(ereignisse, key=lambda e: (rang.get(e["status"], 4), -(e.get("confidence") or 0)))
     _bestaetigungsliste(
         con, schueler, diktat,
         [
             {
-                "wort_original": a.wort_original, "wort_schueler": a.wort_schueler,
-                "kontext": a.kontext, "darstellung": a.darstellung,
-                "vorgabe": a.vorschlaege[0].nr if a.vorschlaege else "37",
-                "vorschlaege": a.vorschlaege, "begruendung": "", "neue_art": None,
+                "wort_original": e["targetForm"], "wort_schueler": e["studentForm"],
+                "kontext": (olfa_engine.saetze(schuelertext)[e["sentenceIndex"]]
+                            if e["sentenceIndex"] < len(olfa_engine.saetze(schuelertext)) else ""),
+                "darstellung": f"{e['studentForm']} → {e['targetForm']}  "
+                               f"⟨{e['studentGrapheme'] or '∅'}⟩ für ⟨{e['targetGrapheme'] or '∅'}⟩",
+                "vorgabe": e["kategorie"], "vorschlaege": [],
+                "begruendung": e["reason"], "neue_art": None,
+                "ereignis": e,
             }
-            for a in abweichungen
+            for e in sortiert
         ],
         schluessel="diff",
     )
@@ -268,8 +303,9 @@ def _bestaetigungsliste(con, schueler, diktat, abweichungen, schluessel: str,
             schon_da = (a["wort_original"], a["wort_schueler"]) in bereits_erfasst
             spalte_haken, spalte_wort, spalte_kat = st.columns([1, 3, 4])
             with spalte_haken:
+                unsicher = bool(a.get("ereignis")) and a["ereignis"]["status"] == "manual_review"
                 uebernehmen = st.checkbox(
-                    "übernehmen", value=not schon_da,
+                    "übernehmen", value=not schon_da and not unsicher,
                     key=f"{schluessel}_ok_{diktat['id']}_{i}",
                     label_visibility="collapsed",
                 )
@@ -278,10 +314,33 @@ def _bestaetigungsliste(con, schueler, diktat, abweichungen, schluessel: str,
                 st.caption(a["kontext"] or "–")
                 if a.get("begruendung"):
                     st.caption(f"💬 {a['begruendung']}")
+                e = a.get("ereignis")
+                if e:
+                    stufe = {"resolved": "eindeutig", "resolved_by_area": "Bereich eindeutig",
+                             "resolved_by_ki": "KI-geprüft", "manual_review": "manuelle Kontrolle"}
+                    zeile = (f"Sicherheit **{e.get('confidence', 0):.2f}** · {stufe.get(e['status'], e['status'])}"
+                             + (f" · Förderbereich **{e['foerderbereich']}**" if e.get("foerderbereich") else "")
+                             + (" · de-CH" if e.get("definition") == "de-CH" else ""))
+                    if e["status"] == "manual_review":
+                        st.warning(zeile + (f" · Kandidaten: {', '.join(e['kandidaten'])}" if e.get("kandidaten") else ""))
+                    else:
+                        st.caption(zeile)
+                    with st.expander("Geprüft und verworfen · Herkunft"):
+                        for x in e.get("excluded", []):
+                            st.markdown(f"- {x['category']}: {x['reason']}")
+                        st.markdown(f"- Merkmal: {e.get('featureSource')}"
+                                    + (f" – {e['entscheidend']}" if e.get("entscheidend") else ""))
+                        for v in e.get("validator", []):
+                            st.markdown(f"- Validator: {v['regel']} → {v['ergebnis']}")
+                        if e.get("possibleUnderlyingCause"):
+                            st.markdown(f"- Vermutete Ursache: {e['possibleUnderlyingCause']}")
                 if schon_da:
                     st.caption("⚠️ bereits erfasst")
             with spalte_kat:
                 vorgabe = a.get("vorgabe") or "37"
+                kand = list(a.get("ereignis", {}).get("kandidaten") or []) if a.get("ereignis") else []
+                if kand:
+                    optionen = kand + [o for o in optionen if o not in kand]
                 kategorie = st.selectbox(
                     "Kategorie", optionen,
                     index=optionen.index(vorgabe) if vorgabe in optionen else 0,
@@ -312,18 +371,30 @@ def _uebernehmen(con, schueler, diktat, auswahl, schluessel: str, ergebnis) -> N
         angelegt = auftraege.analyse_uebernehmen(ergebnis, sammlung)
         g.sammlung_speichern(sammlung)
 
-    eintraege = [
-        {
+    eintraege = []
+    muster_neu = 0
+    for a, kategorie in genommen:
+        e = a.get("ereignis") or {}
+        umgestuft = bool(e) and kategorie != e.get("kategorie")
+        if umgestuft and e.get("muster"):
+            db.muster_speichern(con, schueler["id"], e["muster"], kategorie)
+            muster_neu += 1
+        eintraege.append({
             "diktat_id": diktat["id"],
             "kategorie_nr": kategorie,
             "wort_original": a["wort_original"],
             "wort_schueler": a["wort_schueler"],
             "kontext": a["kontext"],
             "datum": diktat["datum"],
-        }
-        for a, kategorie in genommen
-    ]
+            "notiz": e.get("reason", "") if e else "",
+            "status": "resolved" if umgestuft or not e else e.get("status", "resolved"),
+            "konfidenz": 0.95 if umgestuft else (e.get("confidence") if e else None),
+            "merkmal": "eigene" if umgestuft else (e.get("featureSource") if e else "eigene"),
+            "foerderbereich": foerderbereich_von(kategorie),
+        })
     anzahl = db.fehler_mehrere_anlegen(con, schueler["id"], eintraege)
+    if muster_neu:
+        g.merken(f"{muster_neu} Umstufungsmuster gespeichert.")
     for key in (f"abweichungen_{diktat['id']}", f"analyse_ergebnis_{diktat['id']}",
                 f"analyse_prompt_text_{diktat['id']}", f"analyse_roh_{diktat['id']}"):
         st.session_state.pop(key, None)

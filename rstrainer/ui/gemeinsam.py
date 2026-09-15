@@ -50,6 +50,16 @@ def sammlung_speichern(neue: taxonomie.Sammlung) -> None:
     kategorien_neu_laden()
 
 
+def lexikon() -> dict:
+    """Bestätigte Lexikoneinträge (profilübergreifend), Schlüssel: Zielwort klein."""
+    return db.lexikon_laden(verbindung())
+
+
+def muster(schueler_id: int) -> dict:
+    """Umstufungsmuster dieses Profils: Schlüssel → {kategorie, am}."""
+    return db.muster_laden(verbindung(), schueler_id)
+
+
 def anzeigename(con, schueler: sqlite3.Row) -> str:
     """Name für Ausdrucke und Exporte.
 

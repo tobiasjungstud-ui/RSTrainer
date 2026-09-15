@@ -64,7 +64,11 @@ CREATE TABLE IF NOT EXISTS fehler (
     kontext        TEXT    DEFAULT '',
     datum          TEXT    NOT NULL,
     notiz          TEXT    DEFAULT '',
-    erstellt_am    TEXT    NOT NULL
+    erstellt_am    TEXT    NOT NULL,
+    status         TEXT    DEFAULT 'resolved',
+    konfidenz      REAL,
+    merkmal        TEXT    DEFAULT '',
+    foerderbereich TEXT
 );
 
 CREATE TABLE IF NOT EXISTS blaetter (
@@ -96,6 +100,21 @@ CREATE TABLE IF NOT EXISTS auftraege (
     eingefuegt_am TEXT
 );
 
+CREATE TABLE IF NOT EXISTS lexikon (
+    wort        TEXT PRIMARY KEY,
+    eintrag     TEXT NOT NULL,
+    quelle      TEXT NOT NULL DEFAULT 'lexikon',
+    am          TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS muster (
+    schueler_id INTEGER NOT NULL REFERENCES schueler(id) ON DELETE CASCADE,
+    schluessel  TEXT NOT NULL,
+    kategorie   TEXT NOT NULL,
+    am          TEXT NOT NULL,
+    PRIMARY KEY (schueler_id, schluessel)
+);
+
 CREATE TABLE IF NOT EXISTS einstellungen (
     schluessel TEXT PRIMARY KEY,
     wert       TEXT NOT NULL
@@ -125,6 +144,12 @@ def verbinden(pfad: Path | str | None = None) -> sqlite3.Connection:
     con = sqlite3.connect(pfad, check_same_thread=False)
     con.row_factory = sqlite3.Row
     con.executescript(SCHEMA)
+    # Ältere Datenbanken kennen die Pipeline-Spalten noch nicht.
+    vorhanden = {r["name"] for r in con.execute("PRAGMA table_info(fehler)")}
+    for spalte, typ in (("status", "TEXT DEFAULT 'resolved'"), ("konfidenz", "REAL"),
+                        ("merkmal", "TEXT DEFAULT ''"), ("foerderbereich", "TEXT")):
+        if spalte not in vorhanden:
+            con.execute(f"ALTER TABLE fehler ADD COLUMN {spalte} {typ}")
     con.commit()
     return con
 
@@ -318,12 +343,20 @@ def fehler_anlegen(con, schueler_id: int, kategorie_nr: str, diktat_id: int | No
 
 
 def fehler_mehrere_anlegen(con, schueler_id: int, eintraege: list[dict]) -> int:
-    """Legt mehrere Fehler in einer Transaktion an (Rückgabe: Anzahl)."""
+    """Legt mehrere Fehler in einer Transaktion an (Rückgabe: Anzahl).
+
+    Die Pipeline-Felder (Status, Konfidenz, Merkmalherkunft, Förderbereich)
+    sind optional – von Hand erfasste Fehler tragen die Vorgaben.
+    """
+    from .kategorien import foerderbereich_von
+
     jetzt = _jetzt()
     zeilen = [
         (schueler_id, e.get("diktat_id"), e["kategorie_nr"], e.get("wort_original", ""),
          e.get("wort_schueler", ""), e.get("kontext", ""), e.get("datum") or _heute(),
-         e.get("notiz", ""), jetzt)
+         e.get("notiz", ""), jetzt, e.get("status") or "resolved", e.get("konfidenz"),
+         e.get("merkmal") or "eigene",
+         e.get("foerderbereich") or foerderbereich_von(e["kategorie_nr"]))
         for e in eintraege
     ]
     if not zeilen:
@@ -331,8 +364,9 @@ def fehler_mehrere_anlegen(con, schueler_id: int, eintraege: list[dict]) -> int:
     with transaktion(con):
         con.executemany(
             "INSERT INTO fehler (schueler_id, diktat_id, kategorie_nr, wort_original,"
-            " wort_schueler, kontext, datum, notiz, erstellt_am)"
-            " VALUES (?,?,?,?,?,?,?,?,?)",
+            " wort_schueler, kontext, datum, notiz, erstellt_am, status, konfidenz,"
+            " merkmal, foerderbereich)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             zeilen,
         )
     return len(zeilen)
@@ -365,6 +399,62 @@ def fehler_umhaengen(con, von_nr: str, nach_nr: str) -> int:
             (nach_nr, von_nr),
         )
     return cur.rowcount
+
+
+def fehler_umstufen(con, fehler_id: int, kategorie_nr: str) -> None:
+    """Manuelle Umstufung eines gespeicherten Fehlers (Ergänzung C.3)."""
+    from .kategorien import foerderbereich_von
+
+    with transaktion(con):
+        con.execute(
+            "UPDATE fehler SET kategorie_nr = ?, status = 'resolved', konfidenz = 0.95,"
+            " merkmal = 'eigene', foerderbereich = ? WHERE id = ?",
+            (kategorie_nr, foerderbereich_von(kategorie_nr), fehler_id),
+        )
+
+
+# --------------------------------------------------------------------------
+# Zielwort-Lexikon (profilübergreifend) und Umstufungsmuster (pro Profil)
+# --------------------------------------------------------------------------
+
+def lexikon_laden(con) -> dict[str, dict]:
+    aus: dict[str, dict] = {}
+    for r in con.execute("SELECT wort, eintrag, quelle FROM lexikon"):
+        e = json.loads(r["eintrag"])
+        e["quelle"] = r["quelle"]
+        aus[r["wort"]] = e
+    return aus
+
+
+def lexikon_speichern(con, wort: str, eintrag: dict, quelle: str = "lexikon") -> None:
+    rein = {k: eintrag.get(k) for k in ("vokale", "morpheme", "v", "umlaut", "begruendung")}
+    with transaktion(con):
+        con.execute(
+            "INSERT OR REPLACE INTO lexikon (wort, eintrag, quelle, am) VALUES (?,?,?,?)",
+            (wort.lower(), json.dumps(rein, ensure_ascii=False), quelle, _jetzt()),
+        )
+
+
+def lexikon_loeschen(con, wort: str) -> None:
+    with transaktion(con):
+        con.execute("DELETE FROM lexikon WHERE wort = ?", (wort.lower(),))
+
+
+def muster_laden(con, schueler_id: int) -> dict[str, dict]:
+    return {
+        r["schluessel"]: {"kategorie": r["kategorie"], "am": r["am"]}
+        for r in con.execute("SELECT schluessel, kategorie, am FROM muster WHERE schueler_id = ?",
+                             (schueler_id,))
+    }
+
+
+def muster_speichern(con, schueler_id: int, schluessel: str, kategorie: str) -> None:
+    with transaktion(con):
+        con.execute(
+            "INSERT OR REPLACE INTO muster (schueler_id, schluessel, kategorie, am)"
+            " VALUES (?,?,?,?)",
+            (schueler_id, schluessel, kategorie, _jetzt()),
+        )
 
 
 def fehler_haeufigkeit(con, schueler_id: int) -> list[sqlite3.Row]:

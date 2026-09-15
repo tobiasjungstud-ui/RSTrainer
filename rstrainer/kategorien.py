@@ -111,3 +111,52 @@ def schwerpunkte(fehler, hoechstens: int = 5) -> Schwerpunkte:
     if not auswahl:
         auswahl = sortiert[:hoechstens]
     return Schwerpunkte(auswahl, len(sortiert) - len(auswahl), sum(zaehler.values()))
+
+
+# ---------------------------------------------------------------------------
+# Förderbereiche F1–F10 (Ergänzung B.2) – die eigentliche Ausgabeebene
+# ---------------------------------------------------------------------------
+
+from . import olfa_engine as _engine  # noqa: E402
+
+FOERDERBEREICHE = _engine.FOERDERBEREICHE
+FB_REIHE = ["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10"]
+
+
+def foerderbereich_von(nr: str) -> str | None:
+    """Förderbereich einer OLFA-Nummer; ``None`` für B–E und Unbekanntes."""
+    return _engine.AREA_MAP.get(str(nr))
+
+
+def bereich_von(nr: str) -> str:
+    """Bereich A–E einer Kennung: OLFA-Nummern sind A, ``B:Kasus`` ist B."""
+    nr = str(nr or "")
+    if len(nr) > 2 and nr[1] == ":" and nr[0] in "BCDE":
+        return nr[0]
+    return "A"
+
+
+def fehler_nach_foerderbereich(fehler) -> list[dict]:
+    """Fehler aus Bereich A auf ihre Förderbereiche umgeschlüsselt – damit
+    Trend und Empfehlung auf zehn Reihen rechnen statt auf 37."""
+    aus = []
+    for f in fehler:
+        d = dict(f) if not isinstance(f, dict) else dict(f)
+        nr = str(d.get("kategorie_nr", ""))
+        fb = foerderbereich_von(nr)
+        if bereich_von(nr) == "A" and fb:
+            d["kategorie_nr"] = fb
+            aus.append(d)
+    return aus
+
+
+def verteilung_foerderbereiche(fehler) -> dict[str, int]:
+    z: dict[str, int] = {}
+    for f in fehler_nach_foerderbereich(fehler):
+        z[f["kategorie_nr"]] = z.get(f["kategorie_nr"], 0) + 1
+    return z
+
+
+def foerderbereich_label(f: str) -> str:
+    b = FOERDERBEREICHE.get(f)
+    return f"{f} – {b['name']}" if b else f
