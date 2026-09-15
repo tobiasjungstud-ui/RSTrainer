@@ -69,6 +69,131 @@ STUFE = {
     "anspruchsvoll": "9. Klasse Sekundarstufe I (ca. 15 Jahre)",
 }
 
+# ---------------------------------------------------------------------------
+# Anforderungsniveau
+# ---------------------------------------------------------------------------
+# Eine Klassenstufe allein macht kein Blatt schwer. «9. Klasse» erzeugte
+# dieselben Lückenwörter wie «7. Klasse», nur mit anderem Wortmaterial – und
+# selbst das nur zufällig. Der Schwierigkeitsgrad muss deshalb sagen, WAS die
+# Aufgabe verlangt, nicht bloss, wie alt das Kind ist.
+#
+# Drei Hebel unterscheiden die Stufen, und zwar überprüfbar:
+#   1. Wortmaterial   – Häufigkeit, Silbenzahl, Fremdwörter, Zweifelsfälle.
+#   2. Stützung       – Ist der Suchort markiert? Steht der Buchstabe dabei?
+#   3. Leistungsart   – Wiedererkennen, selbst finden, begründen, produzieren.
+#
+# Der schwerste Hebel ist der zweite: Solange jede Lücke mit «_____» markiert
+# ist und der einzusetzende Buchstabe in Klammern danebensteht, bleibt die
+# Aufgabe eine Ja/Nein-Entscheidung an bekannter Stelle. Wer den Fehler selbst
+# finden muss, arbeitet um eine Stufe höher – auch bei gleichem Wortmaterial.
+
+ANFORDERUNG = {
+    "leicht": """\
+- Wortmaterial: hochfrequenter Grundwortschatz, ein- bis zweisilbig. Keine \
+Fremdwörter, keine mehrgliedrigen Zusammensetzungen.
+- Stützung: Der Suchort darf markiert sein. Lücken mit Buchstabenvorgabe in \
+Klammern, Ankreuzpaare und Sortieraufgaben sind erwünscht.
+- Kontext: Einzelwörter und kurze, einfache Sätze.
+- Leistungsart: Regel wiedererkennen und anwenden. Der Merksatz steht \
+unmittelbar vor den Aufgaben und lässt sich direkt übertragen.""",
+
+    "mittel": """\
+- Wortmaterial: Grundwortschatz plus geläufige Ableitungen und \
+Zusammensetzungen, einzelne geläufige Fremdwörter.
+- Stützung: Höchstens die Hälfte der Aufgaben je Schwerpunkt darf den Suchort \
+markieren. Mindestens EINE Aufgabe je Schwerpunkt ist ungestützt: ein Satz \
+oder Kurztext, in dem die Fehler erst gefunden werden müssen.
+- Kontext: Überwiegend ganze Sätze, dazu mindestens ein zusammenhängender \
+Kurztext.
+- Leistungsart: Anwenden und begründen. Bei einer Aufgabe je Schwerpunkt ist \
+das Ableitungswort oder die Regel in Stichworten zu nennen.""",
+
+    "anspruchsvoll": """\
+Dies ist die höchste Stufe. Ein Blatt, das sich mit Schulwissen der \
+Primarstufe lösen lässt, verfehlt sie. Die folgenden Punkte sind Vorgaben, \
+keine Anregungen:
+
+- Wortmaterial: mittlere bis geringe Häufigkeit, mehrsilbige Ableitungen und \
+Zusammensetzungen, Fremd- und Lehnwörter, Fachwörter aus anderen Schulfächern. \
+Helvetismen der Schweizer Standardsprache (parkieren, grillieren, Trottoir, \
+Coiffeur, Velo, Peperoni) sind ausdrücklich erwünscht. VERBOTEN sind Wörter, \
+die in der Primarschule geübt werden: Sonne, Blume, Hand, Baum, Haus, Wasser, \
+Butter, Mutter, kommen, rennen und Vergleichbares.
+- Stützung: Der einzusetzende Buchstabe wird NIE in Klammern mitgeliefert. \
+Höchstens EINE Aufgabe je Schwerpunkt darf den Suchort markieren. Alle \
+übrigen sind ungestützt.
+- Mindestens die Hälfte der Aufgaben je Schwerpunkt ist eine Fehlersuche in \
+einem zusammenhängenden Text. Nenne die Anzahl der Fehler, nie ihre Stelle.
+- Distraktoren: In jedem Fehlersuchtext stehen mindestens drei Schreibungen, \
+die KORREKT sind, aber ungewohnt aussehen – Stängel, aufwendig, Tollpatsch, \
+nummerieren, platzieren, Känguru, rau, Zierrat, Ass, Tipp, selbstständig, \
+Quäntchen, behände, Gämse, überschwänglich. Wer sie «verbessert», macht einen \
+Fehler. Weise in der Aufgabenstellung darauf hin, dass nicht jede ungewohnte \
+Schreibung falsch ist.
+- Kontrastpaare, über die erst der Satz entscheidet: das/dass, wider/wieder, \
+seit/seid, Stadt/statt, Lied/Lid, Waise/Weise, Leib/Laib, malen/mahlen, \
+Saite/Seite, Rad/Rat, Mine/Miene, Gewähr/Gewehr, Ähre/Ehre. Ankreuzaufgaben \
+sind NUR in dieser Form zulässig – beide Formen müssen für sich genommen \
+existieren. Ein Paar wie «trefen / treffen», bei dem eine Form gar kein Wort \
+ist, gehört nicht auf dieses Niveau.
+- Begründungspflicht: Zu jeder Entscheidung gehört das Ableitungswort oder die \
+Regel in Stichworten. Sag in der Aufgabenstellung, dass eine richtige \
+Schreibung ohne Begründung nur halb zählt.
+- Fälle, in denen das Hören versagt, gehören dazu: bei der Umlautableitung \
+Wörter, deren ä/äu sich NICHT herleiten lässt (Eltern, fremd, Held, edel, \
+Schwert, Segel) neben solchen, bei denen es geht (Stängel → Stange, \
+überschwänglich → Überschwang, behände → Hand, Quäntchen → Quantum, \
+aufwändig → Aufwand). Bei der Schärfung Wörter, die trotz kurzem Vokal NICHT \
+verdoppeln, weil schon zwei Mitlaute folgen (Karte, Wurst, Lampe, Geduld), \
+und Fremdwörter mit unerwarteter Schreibung (Karotte, Bagatelle, Gorilla, \
+Marionette, Appartement).
+- Weil es in de-CH kein ß gibt, fehlt die Längenmarkierung: Die Unterscheidung \
+von ss nach kurzem Vokal (Fluss, müssen, Schloss) und ss nach langem Vokal \
+oder Diphthong (Fuss, heissen, grüssen, draussen) ist ein eigener \
+Schwerpunkt, sobald die Schärfung geübt wird.
+- Bei der Gross- und Kleinschreibung reichen Satzanfang und Begleiter nicht. \
+Verlangt sind Nominalisierungen ohne Artikel (etwas Schönes, nichts Besseres, \
+im Allgemeinen, des Weiteren, aufs Neue, der Einzelne, im Folgenden), \
+Tageszeiten nach Adverb (heute Abend, gestern Morgen – dagegen klein: abends, \
+morgens) und feste Verbindungen (Rad fahren, recht haben, leid tun, Angst \
+haben – dagegen gross: das Radfahren, sein Recht).
+- Leistungsart: Mindestens eine Aufgabe je Schwerpunkt verlangt eigene \
+Produktion unter Bedingung, z. B. «Schreibe einen Satz, in dem das und dass \
+beide richtig vorkommen» oder «Schreibe zwei Sätze, in denen dasselbe Wort \
+einmal gross und einmal klein geschrieben wird».
+- Punkte: Vergib im Mini-Test Punkte je Teilleistung und rechne die Begründung \
+mit. Die Punktzahl am Ende ist die Summe dieser Teilpunkte, nicht die Zahl der \
+Aufgaben.""",
+}
+
+#: Für das Diktat greifen dieselben Hebel, aber an einem Fliesstext: Dort gibt
+#: es keine Aufgabenformate, nur Wortwahl und Satzbau.
+ANFORDERUNG_DIKTAT = {
+    "leicht": """\
+- Hochfrequenter Grundwortschatz, kurze Hauptsätze, höchstens ein Nebensatz \
+pro Satz. Keine Fremdwörter, keine mehrgliedrigen Zusammensetzungen.""",
+
+    "mittel": """\
+- Grundwortschatz plus geläufige Ableitungen und Zusammensetzungen. \
+Satzgefüge mit Nebensätzen, wörtliche Rede erlaubt. Einzelne geläufige \
+Fremdwörter.""",
+
+    "anspruchsvoll": """\
+- Mittlere bis geringe Worthäufigkeit, mehrsilbige Ableitungen und \
+Zusammensetzungen, Fremd- und Lehnwörter, Helvetismen der Schweizer \
+Standardsprache. Keine Wörter aus dem Primarschul-Übungswortschatz (Sonne, \
+Blume, Hand, Baum, Haus, Wasser).
+- Mehrfach verschachtelte Satzgefüge, Einschübe zwischen Kommas, wörtliche \
+Rede mit Redebegleitsatz in der Mitte.
+- Baue bewusst Zweifelsfälle ein, die erst der Satz entscheidet: das/dass, \
+wider/wieder, seit/seid, Getrennt- und Zusammenschreibung (Rad fahren gegen \
+das Radfahren), Nominalisierungen ohne Artikel (etwas Wichtiges, im \
+Allgemeinen), Tageszeiten nach Adverb (heute Abend).
+- Da es in de-CH kein ß gibt, fehlt die Längenmarkierung: Nimm Wörter mit ss \
+nach kurzem Vokal (Fluss, müssen) UND nach langem Vokal oder Diphthong (Fuss, \
+heissen, draussen) in denselben Text.""",
+}
+
 #: Die oberste Ebene gelernter Fehlerarten, siehe rstrainer.taxonomie.
 SCHWEIZ_REGEL = (
     "WICHTIG – Schweizer Rechtschreibung (de-CH): Es gibt kein ß. «Strasse», "
@@ -108,6 +233,12 @@ Auftragsnummer: {auftrag_code}
 - Thema: {thema}
 - Umfang: {wortzahl} Wörter (Toleranz ±10 %)
 - Schwierigkeitsgrad: {schwierigkeit}
+
+### Anforderungsniveau
+Diese Vorgaben entscheiden über den Schwierigkeitsgrad. Halte sie ein, auch \
+wenn der Text dadurch weniger glatt klingt.
+
+{anforderung}
 
 ### Zielkategorien (OLFA)
 Der Text muss gezielt Wörter enthalten, an denen sich genau diese \
@@ -158,6 +289,13 @@ Auftragsnummer: {auftrag_code}
 - Das Blatt wird beidseitig gedruckt: Vorderseite Übungsteil, Rückseite Mini-Test.
 - Die Schülerin / der Schüler arbeitet selbstständig, ohne Lehrerhilfe.
 
+### Anforderungsniveau
+Diese Vorgaben entscheiden über den Schwierigkeitsgrad – nicht die \
+Klassenstufe und nicht die Zahl der Aufgaben. Halte sie Punkt für Punkt ein \
+und prüfe am Schluss jede Aufgabe gegen sie.
+
+{anforderung}
+
 ### Förderschwerpunkte
 Alle Aufgaben müssen erkennbar zu genau diesen Kategorien gehören. Ordne \
 jeder Aufgabe im Aufgabentext sichtbar die Kategorienummer zu, damit die \
@@ -167,21 +305,38 @@ Lehrperson die Zuordnung prüfen kann.
 
 ### Aufbau Übungsteil (Vorderseite)
 Pro Förderschwerpunkt {aufgaben_pro_kategorie} Aufgaben, aufsteigend im \
-Schwierigkeitsgrad. Nutze abwechslungsreiche Formate, zum Beispiel:
-- Lückenwörter ergänzen
+Schwierigkeitsgrad. Die Formate wählst du nach dem Anforderungsniveau oben. \
+Zur Auswahl stehen, von gestützt nach ungestützt:
+- Lückenwörter ergänzen (Suchort markiert)
 - richtige von falscher Schreibung unterscheiden und ankreuzen
 - Wörter nach Regel sortieren
 - Wortfamilie bilden / verlängern zur Ableitung
-- eigene Sätze mit vorgegebenen Wörtern schreiben
+- Fehler in einem zusammenhängenden Text finden und berichtigen (Suchort \
+nicht markiert)
+- Entscheidung schriftlich begründen (Ableitungswort oder Regel nennen)
+- eigene Sätze unter einer Bedingung schreiben
+
+Die gestützten Formate ganz oben sind nur zulässig, soweit das \
+Anforderungsniveau sie erlaubt.
 
 Formuliere zu jedem Schwerpunkt EINEN kurzen Merksatz (höchstens zwei Zeilen, \
 kindgerecht, ohne Fachjargon) vor den zugehörigen Aufgaben.
 
 ### Aufbau Mini-Test (Rückseite)
 - Insgesamt {test_aufgaben} Aufgaben, alle Förderschwerpunkte abgedeckt.
-- Andere Wörter als im Übungsteil, gleiches Anforderungsniveau.
+- Andere Wörter als im Übungsteil, gleiches Anforderungsniveau. Der Test darf \
+nicht leichter sein als der Übungsteil: Dieselben Formatvorgaben gelten hier \
+unverändert.
 - Am Ende eine Zeile «Erreichte Punkte: ____ von {test_aufgaben}».
 - KEINE Merksätze und KEINE Lösungshinweise auf der Testseite.
+
+### Prüfe dich selbst, bevor du antwortest
+Geh jede Aufgabe einzeln durch und beantworte für dich: Erfüllt sie die \
+Vorgaben unter «Anforderungsniveau»? Eine Aufgabe, die das nicht tut, \
+ersetzt du – auch wenn sie inhaltlich schön ist. Prüfe besonders: Steht \
+irgendwo ein einzusetzender Buchstabe in Klammern, obwohl das Niveau ihn \
+verbietet? Ist eine Ankreuzform gar kein existierendes Wort? Stammt ein Wort \
+aus dem Primarschul-Wortschatz?
 
 ### Sehr wichtig
 Auf der Vorderseite und auf der Rückseite dürfen KEINE Lösungen stehen – \
@@ -224,6 +379,12 @@ Auftragsnummer: {auftrag_code}
 - Zweck: Überprüfung, ob die geübten Schwerpunkte sitzen.
 - Umfang: {test_aufgaben} Aufgaben, in {bearbeitungszeit} lösbar.
 
+### Anforderungsniveau
+Diese Vorgaben entscheiden über den Schwierigkeitsgrad. Prüfe am Schluss jede \
+Aufgabe gegen sie und ersetze, was nicht passt.
+
+{anforderung}
+
 ### Förderschwerpunkte
 {kategorienblock}
 
@@ -258,10 +419,13 @@ VORLAGEN = {
 
 #: Welche Platzhalter jede Vorlage mindestens braucht – für den Selbsttest.
 PFLICHTPLATZHALTER = {
-    "diktat": {"auftrag_code", "kategorienblock", "wortzahl", "marke_anfang", "marke_ende"},
-    "uebungsblatt": {"auftrag_code", "kategorienblock", "marke_anfang", "marke_ende",
+    "diktat": {"auftrag_code", "kategorienblock", "wortzahl", "anforderung",
+               "marke_anfang", "marke_ende"},
+    "uebungsblatt": {"auftrag_code", "kategorienblock", "anforderung",
+                     "marke_anfang", "marke_ende",
                      "marke_uebung", "marke_test", "marke_loesung"},
-    "minitest": {"auftrag_code", "kategorienblock", "marke_anfang", "marke_ende",
+    "minitest": {"auftrag_code", "kategorienblock", "anforderung",
+                 "marke_anfang", "marke_ende",
                  "marke_test", "marke_loesung"},
 }
 

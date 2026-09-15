@@ -253,3 +253,101 @@ def test_kopfzeilen_ohne_trenner_werden_erkannt():
     e = auftraege.ergebnis_lesen(antwort)
     assert e.titel == "Kurz"
     assert e.haupttext == "Der eigentliche Text."
+
+
+# ---------------------------------------------------------------------------
+# Anforderungsniveau (nicht nur Klassenstufe)
+# ---------------------------------------------------------------------------
+# Vorher übersetzte der Schwierigkeitsgrad nur in eine Klassenstufe. Das Modell
+# baute daraufhin auf allen drei Stufen dasselbe Blatt: Lückenwörter mit
+# vorgegebenem Buchstaben, Ankreuzpaare, Einzelwörter. «Anspruchsvoll» war
+# mittelschwer. Diese Tests halten fest, dass die Stufen operativ verschieden
+# sind – also sagen, WAS die Aufgabe verlangt.
+
+STUFEN = ["leicht", "mittel", "anspruchsvoll"]
+
+
+@pytest.mark.parametrize("grad", STUFEN)
+def test_jede_stufe_hat_ein_eigenes_anforderungsniveau(grad):
+    assert pt.ANFORDERUNG[grad].strip()
+    assert pt.ANFORDERUNG_DIKTAT[grad].strip()
+
+
+def test_die_stufen_unterscheiden_sich_wirklich():
+    texte = [pt.ANFORDERUNG[g] for g in STUFEN]
+    assert len(set(texte)) == 3
+    diktat = [pt.ANFORDERUNG_DIKTAT[g] for g in STUFEN]
+    assert len(set(diktat)) == 3
+
+
+def test_anspruchsvoll_verbietet_die_gestuetzte_luecke():
+    """Der Buchstabe in Klammern macht aus der Aufgabe eine Ja/Nein-Frage an
+    bekannter Stelle – genau das war am hochgeladenen Blatt zu leicht."""
+    text = pt.ANFORDERUNG["anspruchsvoll"]
+    assert "NIE in Klammern mitgeliefert" in text
+    assert "Höchstens EINE Aufgabe je Schwerpunkt darf den Suchort markieren" in text
+
+
+def test_anspruchsvoll_verlangt_ungestuetzte_fehlersuche_mit_distraktoren():
+    text = pt.ANFORDERUNG["anspruchsvoll"]
+    assert "Mindestens die Hälfte der Aufgaben" in text
+    assert "Nenne die Anzahl der Fehler, nie ihre Stelle" in text
+    assert "Distraktoren" in text and "KORREKT sind, aber ungewohnt aussehen" in text
+
+
+def test_anspruchsvoll_verlangt_begruendung_und_eigene_produktion():
+    text = pt.ANFORDERUNG["anspruchsvoll"]
+    assert "Begründungspflicht" in text
+    assert "ohne Begründung nur halb zählt" in text
+    assert "eigene Produktion unter Bedingung" in text.replace("\n", " ")
+
+
+def test_anspruchsvoll_schliesst_den_primarschulwortschatz_aus():
+    text = pt.ANFORDERUNG["anspruchsvoll"]
+    assert "VERBOTEN" in text
+    for wort in ("Sonne", "Blume", "Wasser"):
+        assert wort in text
+
+
+def test_anspruchsvoll_nennt_die_de_ch_luecke_ohne_eszett():
+    """Ohne ß fehlt die Längenmarkierung – das ist hier der harte Fall."""
+    for text in (pt.ANFORDERUNG["anspruchsvoll"], pt.ANFORDERUNG_DIKTAT["anspruchsvoll"]):
+        assert "kein ß gibt" in text
+        assert "Fuss" in text and "Fluss" in text     # lang gegen kurz, beide mit ss
+
+
+def test_leichte_stufe_erlaubt_die_stuetzung_ausdruecklich():
+    text = pt.ANFORDERUNG["leicht"]
+    assert "Der Suchort darf markiert sein" in text
+    assert "VERBOTEN" not in text
+
+
+@pytest.mark.parametrize("typ,parameter", [
+    ("uebungsblatt", {"aufgaben_pro_kategorie": 3, "test_aufgaben": 6,
+                      "bearbeitungszeit": "20 Minuten"}),
+    ("minitest", {"test_aufgaben": 6, "bearbeitungszeit": "10 Minuten",
+                  "bekannte_woerter": "Sonne"}),
+    ("diktat", {"textsorte": "Bericht", "thema": "Schulreise", "wortzahl": 110,
+                "treffer_pro_kategorie": 3}),
+])
+@pytest.mark.parametrize("grad", STUFEN)
+def test_das_niveau_steht_im_fertigen_prompt(typ, parameter, grad, liste):
+    _, text = auftraege.prompt_bauen(
+        typ, {**parameter, "kategorien": ["07", "17", "01"], "schwierigkeit": grad}, liste)
+    assert "### Anforderungsniveau" in text
+    erwartet = (pt.ANFORDERUNG_DIKTAT if typ == "diktat" else pt.ANFORDERUNG)[grad]
+    assert erwartet.split("\n")[0][:40] in text
+
+
+def test_anspruchsvoller_auftrag_ist_deutlich_fordernder_als_der_leichte(liste):
+    parameter = {"kategorien": ["07", "17", "01"], "aufgaben_pro_kategorie": 3,
+                 "test_aufgaben": 6, "bearbeitungszeit": "20 Minuten"}
+    _, leicht = auftraege.prompt_bauen("uebungsblatt", {**parameter, "schwierigkeit": "leicht"}, liste)
+    _, schwer = auftraege.prompt_bauen("uebungsblatt", {**parameter, "schwierigkeit": "anspruchsvoll"}, liste)
+    assert len(schwer) > len(leicht) + 2000
+    assert "Prüfe dich selbst" in schwer
+
+
+def test_unbekannter_grad_faellt_auf_mittel_zurueck_je_typ():
+    assert auftraege._anforderung("diktat", "sehr schwer") == pt.ANFORDERUNG_DIKTAT["mittel"]
+    assert auftraege._anforderung("uebungsblatt", "sehr schwer") == pt.ANFORDERUNG["mittel"]

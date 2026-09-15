@@ -82,6 +82,19 @@ def kategorienblock(nummern: list[str], liste: Kategorienliste,
     return "\n".join(zeilen) if zeilen else "- (keine Kategorie gewählt)"
 
 
+def _anforderung(typ: str, schwierigkeit: str) -> str:
+    """Das Anforderungsniveau zum gewählten Schwierigkeitsgrad.
+
+    Der Schwierigkeitsgrad muss sagen, WAS die Aufgabe verlangt. Eine blosse
+    Klassenstufe erzeugte auf allen drei Stufen dasselbe Blatt: dieselben
+    Lückenwörter mit vorgegebenem Buchstaben, nur anderes Wortmaterial.
+    Das Diktat hat eigene Vorgaben – dort gibt es keine Aufgabenformate,
+    nur Wortwahl und Satzbau.
+    """
+    tabelle = pt.ANFORDERUNG_DIKTAT if typ == "diktat" else pt.ANFORDERUNG
+    return tabelle.get(schwierigkeit, tabelle["mittel"])
+
+
 def prompt_bauen(typ: str, parameter: dict[str, Any], liste: Kategorienliste,
                  code: str | None = None,
                  sammlung: Sammlung | None = None) -> tuple[str, str]:
@@ -104,6 +117,9 @@ def prompt_bauen(typ: str, parameter: dict[str, Any], liste: Kategorienliste,
         "marke_loesung": pt.MARKE_LOESUNG,
         "kopf_trenner": pt.KOPF_TRENNER,
         "stufe": pt.STUFE.get(schwierigkeit, pt.STUFE["mittel"]),
+        # Der Schwierigkeitsgrad muss sagen, WAS die Aufgabe verlangt – eine
+        # Klassenstufe allein erzeugte auf allen drei Stufen dasselbe Blatt.
+        "anforderung": _anforderung(typ, schwierigkeit),
         "kategorienblock": kategorienblock(
             list(parameter.get("kategorien", [])), liste,
             list(parameter.get("sondierung", [])), sammlung,

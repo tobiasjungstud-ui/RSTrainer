@@ -186,6 +186,57 @@ Beide Antworten werden mit dem Freigabedatum in der Datenbank festgehalten.
 
 ---
 
+## Was «anspruchsvoll» bedeutet
+
+Der Schwierigkeitsgrad hiess früher nur eine Klassenstufe: «7. Klasse»,
+«8. Klasse», «9. Klasse». Das reichte nicht. Das Modell baute auf allen drei
+Stufen dasselbe Blatt – Lückenwörter mit vorgegebenem Buchstaben, Ankreuzpaare,
+Einzelwörter – und tauschte höchstens das Wortmaterial. «Anspruchsvoll» kam als
+mittelschwer heraus.
+
+Der Grad sagt jetzt, **was die Aufgabe verlangt**. Drei Hebel unterscheiden die
+Stufen, und zwar überprüfbar:
+
+| Hebel | leicht | mittel | anspruchsvoll |
+|---|---|---|---|
+| **Wortmaterial** | hochfrequenter Grundwortschatz | dazu geläufige Ableitungen und Fremdwörter | mittlere bis geringe Häufigkeit, Fremd- und Lehnwörter, Helvetismen; Primarschulwortschatz verboten |
+| **Stützung** | Suchort markiert, Buchstabe in Klammern | höchstens die Hälfte gestützt | Buchstabe nie vorgegeben, höchstens eine markierte Aufgabe je Schwerpunkt |
+| **Leistungsart** | wiedererkennen und anwenden | anwenden und begründen | selbst finden, begründen, unter Bedingung produzieren |
+
+Der wirksamste Hebel ist die Stützung. Solange jede Lücke mit `_____` markiert
+ist und der einzusetzende Buchstabe daneben steht, bleibt die Aufgabe eine
+Ja/Nein-Entscheidung an bekannter Stelle. Wer den Fehler selbst finden muss,
+arbeitet eine Stufe höher – bei gleichem Wortmaterial.
+
+Auf der höchsten Stufe kommen vier Vorgaben dazu, die den Unterschied
+ausmachen:
+
+* **Fehlersuche statt Lücke.** Mindestens die Hälfte der Aufgaben ist ein
+  zusammenhängender Text mit einer genannten Zahl von Fehlern an ungenannter
+  Stelle.
+* **Distraktoren.** In jedem Fehlersuchtext stehen mindestens drei korrekte,
+  aber ungewohnt aussehende Schreibungen (Stängel, aufwendig, Tollpatsch,
+  nummerieren, Zierrat, Ass, Tipp). Wer sie «verbessert», macht einen Fehler.
+  Das trennt Regelwissen von Rechtschreib-Misstrauen.
+* **Begründungspflicht.** Zu jeder Entscheidung gehört das Ableitungswort oder
+  die Regel. Eine richtige Schreibung ohne Begründung zählt halb.
+* **Fälle, in denen das Hören versagt.** Umlaute, die sich nicht ableiten
+  lassen (Eltern, fremd, Held), neben solchen, die es tun (Stängel → Stange).
+  Kurze Vokale ohne Verdoppelung, weil schon zwei Mitlaute folgen (Karte,
+  Wurst). Und – weil in de-CH die Längenmarkierung fehlt – ss nach kurzem
+  Vokal (Fluss, müssen) gegen ss nach langem Vokal oder Diphthong (Fuss,
+  heissen).
+
+Ankreuzaufgaben sind auf dieser Stufe nur noch als echte Kontrastpaare
+zulässig, über die der Satz entscheidet (das/dass, Stadt/statt, Saite/Seite).
+Ein Paar wie «trefen / treffen», bei dem eine Form gar kein Wort ist, prüft
+nichts.
+
+Für das Diktat greifen dieselben Hebel an einem Fliesstext: Wortwahl,
+Satzverschachtelung und eingebaute Zweifelsfälle statt Aufgabenformaten.
+
+---
+
 ## Die vierstufige Pipeline (Bereich A)
 
 Die Fehleranalyse folgt dem «Technischen Manual zur algorithmischen
@@ -581,14 +632,14 @@ erst, wenn das Sprachmodell einen Text auswertet.
 python3 -m pytest tests/ -q
 ```
 
-**Stand: 439 Tests, alle grün.** Abgedeckt sind:
+**Stand: 460 Tests, alle grün.** Abgedeckt sind:
 
 | Datei | Prüft |
 |---|---|
 | `test_diffing.py` | Wort- und Buchstabenabgleich, Kategorie-Vorschläge, Kennzahlen |
 | `test_analysis.py` | Trendeinstufung, Schwellen, Normierung, Empfehlungsreihenfolge |
 | `test_docx_export.py` | Gültige .docx, Seitenumbruch Vorder-/Rückseite, keine Lösungen auf der Aufgabenseite |
-| `test_auftraege.py` | Prompt-Aufbau, Auftragsnummern, Zerlegen der Chat-Antwort, Rückfall auf Fliesstext |
+| `test_auftraege.py` | Prompt-Aufbau, Auftragsnummern, Zerlegen der Chat-Antwort, Rückfall auf Fliesstext, Anforderungsniveau je Schwierigkeitsgrad |
 | `test_validation.py` | Plausibilitätsprüfungen für Diktat und Blatt |
 | `test_db.py` | Datentrennung zwischen Profilen, Freigabe, freie Texte, Umhängen über Profile hinweg |
 | `test_olfa_und_export.py` | Kategorienliste, unbesetzte Nummern 21/22, Testmodus, CSV/JSON-Export, `.gitignore` |
