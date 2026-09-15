@@ -1,16 +1,22 @@
-"""Seite: Fehlererfassung – durch das Sprachmodell, per Abgleich oder von Hand.
+"""Seite: Fehlererfassung – OLFA-Analyse, freie Analyse oder von Hand.
 
-Drei Wege, dieselbe Bestätigungsliste:
+**OLFA-Analyse** klassifiziert deterministisch (rstrainer.olfa_engine) und hat
+zwei wählbare Modi:
 
-**Sprachmodell** – ordnet inhaltlich zu und darf für alles, was die OLFA-Liste
-nicht abdeckt (vor allem Grammatik), eigene Fehlerarten benennen. Der einzige
-Weg, der auch bei freien Texten ohne Vorlage funktioniert.
+* *Diktatmodus* – der Schülertext wird gegen die Vorlage ausgerichtet. Was
+  falsch ist, steht objektiv fest; kein Sprachmodell ist beteiligt.
+* *Freitextmodus* – ohne Vorlage fehlt dieser Massstab. Das Sprachmodell wird
+  deshalb genau eine Frage gefragt: Welches Wort war gemeint? Klassifiziert
+  wird auch hier vom Regelwerk. Vorgeschaltet sind Prüfungen, die ohne Modell
+  auskommen (ß ist in de-CH immer falsch; frühere Fehlschreibungen dieses
+  Kindes), und ein optionaler blinder Zweitdurchgang. Was nur ein Durchgang
+  gesehen hat oder worin sich die Durchgänge widersprechen, wird nicht als
+  sicher ausgegeben, sondern zur Kontrolle vorgelegt.
 
-**Mechanischer Abgleich** – vergleicht Original und Abschrift Wort für Wort
-und rät die Kategorie aus dem Buchstabenbild. Braucht zwingend eine Vorlage,
-also ein Diktat.
+**Freie Analyse durch das Sprachmodell** benennt zusätzlich, was die OLFA-Liste
+nicht abdeckt – vor allem Grammatik – und legt dafür eigene Fehlerarten an.
 
-**Von Hand** – für alles, was beide nicht sehen.
+**Von Hand** – für alles, was keiner dieser Wege sieht.
 
 Was aus diesen Wegen kommt, ist immer nur ein Vorschlag. Bestätigt und
 zugeordnet wird von der Lehrperson; nichts wird ungeprüft übernommen.
@@ -47,28 +53,57 @@ def zeichnen(con, schueler) -> None:
     diktat = db.diktat_holen(con, diktat_id) if diktat_id else None
     if diktat is None:
         return
-    ist_frei = diktat["art"] == "freitext"
-
-    namen = ["🤖 Analyse durch das Sprachmodell"]
-    if not ist_frei:
-        namen.append("🔍 Mechanischer Abgleich")
-    namen += ["✍️ Fehler von Hand", "📋 Erfasste Fehler & Infoblatt"]
-    reiter = st.tabs(namen)
-
+    reiter = st.tabs([
+        "🔬 OLFA-Analyse",
+        "🤖 Freie Analyse durch das Sprachmodell",
+        "✍️ Fehler von Hand",
+        "📋 Erfasste Fehler & Infoblatt",
+    ])
     with reiter[0]:
+        _olfa_ablauf(con, schueler, diktat)
+    with reiter[1]:
         _analyse_ablauf(con, schueler, diktat)
-    if ist_frei:
-        with reiter[1]:
-            _von_hand(con, schueler, diktat)
-        with reiter[2]:
-            _fehlerliste(con, schueler, diktat)
+    with reiter[2]:
+        _von_hand(con, schueler, diktat)
+    with reiter[3]:
+        _fehlerliste(con, schueler, diktat)
+
+
+# ---------------------------------------------------------------------------
+# OLFA-Analyse: Modus wählen
+# ---------------------------------------------------------------------------
+
+def hat_vorlage(diktat) -> bool:
+    """Nur ein Text mit Vorlage kann im Diktatmodus ausgewertet werden."""
+    return diktat["art"] != "freitext" and bool((diktat["text_original"] or "").strip())
+
+
+def _olfa_ablauf(con, schueler, diktat) -> None:
+    mit_vorlage = hat_vorlage(diktat)
+    beschriftung = {
+        "diktat": "📄 Diktatmodus – gegen die Vorlage",
+        "freitext": "📝 Freitextmodus – ohne Vorlage",
+    }
+    modi = (["diktat", "freitext"] if mit_vorlage else ["freitext"])
+    modus = st.radio(
+        "Modus der Fehleranalyse", modi, format_func=beschriftung.get,
+        horizontal=True, key=f"olfa_modus_{diktat['id']}",
+        help=("Der Diktatmodus ist genauer, weil objektiv feststeht, was falsch "
+              "ist. Er setzt eine Vorlage voraus."),
+    )
+    if not mit_vorlage:
+        st.caption("Zu diesem Text gibt es keine Vorlage – nur der Freitextmodus "
+                   "ist möglich.")
+    elif modus == "freitext":
+        st.warning(
+            "Der Diktatmodus wäre hier genauer: Zu diesem Text gibt es eine "
+            "Vorlage, gegen die sich jede Abweichung objektiv bestimmen lässt."
+        )
+
+    if modus == "diktat":
+        _diff_ablauf(con, schueler, diktat)
     else:
-        with reiter[1]:
-            _diff_ablauf(con, schueler, diktat)
-        with reiter[2]:
-            _von_hand(con, schueler, diktat)
-        with reiter[3]:
-            _fehlerliste(con, schueler, diktat)
+        _freitext_ablauf(con, schueler, diktat)
 
 
 # ---------------------------------------------------------------------------
@@ -98,10 +133,12 @@ def _analyse_ablauf(con, schueler, diktat) -> None:
     reg = g.register()
     ist_frei = diktat["art"] == "freitext"
     st.caption(
-        "Das Sprachmodell liest den Text und benennt jeden Fehler – Rechtschreibung "
-        "und Grammatik. Wofür die OLFA-Liste keine Kategorie hat, legt es selbst "
-        "eine an und ordnet sie hierarchisch ein "
-        "(z. B. «Grammatik › Kasus › Dativ statt Akkusativ»)."
+        "Hier benennt das Sprachmodell die Fehler selbst – auch, was die "
+        "OLFA-Liste nicht abdeckt, vor allem Grammatik. Wofür es keine Kategorie "
+        "gibt, legt es eine an und ordnet sie hierarchisch ein "
+        "(z. B. «Grammatik › Kasus › Dativ statt Akkusativ»). Für die "
+        "Rechtschreibung ist die **OLFA-Analyse** genauer: Dort klassifiziert "
+        "das Regelwerk, nicht das Modell."
         + ("" if ist_frei else
            " Beim Diktat zählt nur, was von der Vorlage abweicht.")
     )
@@ -204,13 +241,7 @@ def _diff_ablauf(con, schueler, diktat) -> None:
         ergebnis = olfa_engine.analysiere_diktat(
             diktat["text_original"], schuelertext, lexikon, g.muster(schueler["id"])
         )
-        # Stufe 4 ohne Modell: Konsequenzprüfung, dann bleibt Offenes offen.
-        for e in ergebnis["ereignisse"]:
-            if e["status"] == "needs_context":
-                olfa_engine.konsequenz_pruefen(e)
-                if e["status"] == "needs_context":
-                    e["status"] = "manual_review"
-                olfa_engine.konfidenz(e, {"zielwortSicherheit": 1})
+        _stufe_vier(ergebnis)
         st.session_state[f"abweichungen_{diktat['id']}"] = ergebnis
         st.rerun()
 
@@ -243,6 +274,17 @@ def _diff_ablauf(con, schueler, diktat) -> None:
         st.success("Keine Abweichungen gefunden.")
         return
 
+    _ereignisse_bestaetigen(con, schueler, diktat, ereignisse, schuelertext, "diff")
+
+
+# ---------------------------------------------------------------------------
+# Gemeinsame Darstellung der Fehlerereignisse
+# ---------------------------------------------------------------------------
+
+def _ereignisse_bestaetigen(con, schueler, diktat, ereignisse, schuelertext,
+                            schluessel: str) -> None:
+    """Dieselbe Liste für beide Modi – der Weg zum Zielwort unterscheidet sich,
+    die Klassifikation und damit die Anzeige nicht."""
     st.divider()
     st.markdown(
         f"### {len(ereignisse)} Fehlerereignisse  \n"
@@ -252,13 +294,14 @@ def _diff_ablauf(con, schueler, diktat) -> None:
     )
     rang = {"resolved": 0, "resolved_by_area": 1, "resolved_by_ki": 2, "manual_review": 3}
     sortiert = sorted(ereignisse, key=lambda e: (rang.get(e["status"], 4), -(e.get("confidence") or 0)))
+    saetze = olfa_engine.saetze(schuelertext)
     _bestaetigungsliste(
         con, schueler, diktat,
         [
             {
                 "wort_original": e["targetForm"], "wort_schueler": e["studentForm"],
-                "kontext": (olfa_engine.saetze(schuelertext)[e["sentenceIndex"]]
-                            if e["sentenceIndex"] < len(olfa_engine.saetze(schuelertext)) else ""),
+                "kontext": (saetze[e["sentenceIndex"]]
+                            if e["sentenceIndex"] < len(saetze) else ""),
                 "darstellung": f"{e['studentForm']} → {e['targetForm']}  "
                                f"⟨{e['studentGrapheme'] or '∅'}⟩ für ⟨{e['targetGrapheme'] or '∅'}⟩",
                 "vorgabe": e["kategorie"], "vorschlaege": [],
@@ -267,8 +310,143 @@ def _diff_ablauf(con, schueler, diktat) -> None:
             }
             for e in sortiert
         ],
-        schluessel="diff",
+        schluessel=schluessel,
     )
+
+
+# ---------------------------------------------------------------------------
+# Freitextmodus: Stufe 1 per Sprachmodell, Stufe 2 deterministisch
+# ---------------------------------------------------------------------------
+
+def _stufe_vier(ergebnis) -> None:
+    """Stufe 4 ohne Modell: Konsequenzprüfung, dann bleibt Offenes offen."""
+    for e in ergebnis["ereignisse"]:
+        if e["status"] == "needs_context":
+            olfa_engine.konsequenz_pruefen(e)
+            if e["status"] == "needs_context":
+                e["status"] = "manual_review"
+            olfa_engine.konfidenz(e, {"zielwortSicherheit": e.get("zielwortSicherheit", 1)})
+
+
+def _freitext_ablauf(con, schueler, diktat) -> None:
+    st.caption(
+        "Ohne Vorlage muss zuerst feststehen, welches Wort gemeint war. Genau "
+        "danach – und nach nichts anderem – wird das Sprachmodell gefragt. Die "
+        "Kategorie bestimmt anschliessend dasselbe Regelwerk wie im Diktatmodus. "
+        "Ein zweiter, blinder Durchgang ist freiwillig; er entscheidet nur mit "
+        "darüber, wie sicher eine Zielform ist."
+    )
+
+    schuelertext = _schuelertext_feld(con, diktat, "frei_text")
+    if not schuelertext.strip():
+        return
+
+    bekannt = auftraege.bekannte_fehlschreibungen(db.fehler_liste(con, schueler["id"]))
+    regeln = auftraege.regelfunde(schuelertext, bekannt)
+    if regeln:
+        st.info(
+            f"**{len(regeln)} Fund(e) ohne Sprachmodell** – sie stehen fest, "
+            "unabhängig von jeder Antwort:\n"
+            + "\n".join(
+                f"- «{r['student']}» → «{r['target']}» "
+                + ("(in de-CH gibt es kein ß)" if r["herkunft"] == "regel"
+                   else "(von diesem Kind schon einmal so geschrieben)")
+                for r in regeln)
+        )
+
+    st.divider()
+    st.subheader("Schritt 1 · Zielwörter bestimmen lassen")
+    if st.button("Zielwort-Prompt erzeugen", type="primary",
+                 key=f"frei_prompt_{diktat['id']}"):
+        db.diktat_aktualisieren(con, diktat["id"], schuelertext=schuelertext)
+        st.session_state[f"frei_prompt_1_{diktat['id']}"] = \
+            auftraege.zielwort_prompt_bauen(schuelertext, 1)
+        st.session_state[f"frei_prompt_2_{diktat['id']}"] = \
+            auftraege.zielwort_prompt_bauen(schuelertext, 2)
+        st.rerun()
+
+    prompt_1 = st.session_state.get(f"frei_prompt_1_{diktat['id']}")
+    if not prompt_1:
+        return
+    st.code(prompt_1, language="markdown")
+    st.caption("In einen Claude-Chat einfügen und das JSON-Array zurückkopieren.")
+
+    st.divider()
+    st.subheader("Schritt 2 · Antwort einfügen")
+    roh_1 = st.text_area("Antwort Durchgang 1", height=200,
+                         key=f"frei_roh_1_{diktat['id']}")
+
+    with st.expander("Zweiter, blinder Durchgang (empfohlen)",
+                     expanded=not st.session_state.get(f"frei_roh_2_{diktat['id']}")):
+        st.caption(
+            "Denselben Text in einem **neuen, leeren** Chat auswerten lassen – "
+            "anders formuliert, damit die zweite Antwort nicht die erste "
+            "abschreibt. Wo beide Durchgänge dieselbe Zielform nennen, ist sie "
+            "belastbar; wo sie sich widersprechen, geht der Fall zur Kontrolle."
+        )
+        st.code(st.session_state.get(f"frei_prompt_2_{diktat['id']}", ""),
+                language="markdown")
+        roh_2 = st.text_area("Antwort Durchgang 2", height=200,
+                             key=f"frei_roh_2_{diktat['id']}")
+
+    if st.button("Zielwörter auswerten", key=f"frei_lesen_{diktat['id']}"):
+        if not (roh_1 or "").strip():
+            st.warning("Die Antwort aus Durchgang 1 fehlt noch.")
+        else:
+            try:
+                d1 = auftraege.zielwoerter_lesen(roh_1)
+                d2 = auftraege.zielwoerter_lesen(roh_2) if (roh_2 or "").strip() else None
+            except ValueError as fehler:
+                st.error(f"{fehler} Bitte nur das JSON-Array einfügen.")
+            else:
+                liste = auftraege.zielwoerter_vereinen(regeln, d1, d2)
+                lexikon = dict(olfa_engine.VORGABE_LEXIKON)
+                lexikon.update(g.lexikon())
+                ergebnis = olfa_engine.analysiere_liste(
+                    liste, schuelertext, lexikon, g.muster(schueler["id"]), quelle="ki")
+                _stufe_vier(ergebnis)
+                ergebnis["durchgaenge"] = 2 if d2 is not None else 1
+                st.session_state[f"frei_ergebnis_{diktat['id']}"] = ergebnis
+                st.rerun()
+
+    ergebnis = st.session_state.get(f"frei_ergebnis_{diktat['id']}")
+    if ergebnis is None:
+        return
+
+    ereignisse = ergebnis["ereignisse"]
+    offen_woerter = [a for a in ergebnis["abdeckung"] if a["status"] == "offen"]
+    spalten = st.columns(4)
+    spalten[0].metric("Wörter im Text", len(ergebnis["abdeckung"]))
+    spalten[1].metric("Fehlerereignisse", len(ereignisse))
+    spalten[2].metric("Manuelle Kontrolle",
+                      sum(1 for e in ereignisse if e["status"] == "manual_review"))
+    spalten[3].metric("Durchgänge", ergebnis.get("durchgaenge", 1))
+
+    st.caption(
+        f"Ohne Vorlage gilt kein Wort als geprüft, nur weil eine Liste vorliegt: "
+        f"{len(offen_woerter)} von {len(ergebnis['abdeckung'])} Wörtern sind nicht "
+        "als fehlerhaft gemeldet worden – das heisst nicht, dass sie geprüft "
+        "wurden."
+        + (" Verworfen: " + "; ".join(
+            f"«{v.get('student') or v.get('target')}» – {v['grund']}"
+            for v in ergebnis["verworfen"]) + "."
+           if ergebnis["verworfen"] else "")
+    )
+    if ergebnis.get("durchgaenge", 1) == 1:
+        st.caption(
+            "Nur ein Durchgang: Die Sicherheit jeder Zielform, die vom Modell "
+            "kommt, ist deshalb auf 0.80 gedeckelt und liegt damit unter der "
+            "Schwelle {schwelle} – diese Zeilen kommen zur Kontrolle, statt eine "
+            "Genauigkeit zu behaupten, die ein einzelner Durchgang nicht hergibt. "
+            "Ein zweiter, blinder Durchgang hebt den Deckel.".format(
+                schwelle=olfa_engine.ZIELWORT_SCHWELLE)
+        )
+
+    if not ereignisse:
+        st.success("Es wurde kein Fehler gemeldet.")
+        return
+
+    _ereignisse_bestaetigen(con, schueler, diktat, ereignisse, schuelertext, "frei")
 
 
 # ---------------------------------------------------------------------------
@@ -396,7 +574,9 @@ def _uebernehmen(con, schueler, diktat, auswahl, schluessel: str, ergebnis) -> N
     if muster_neu:
         g.merken(f"{muster_neu} Umstufungsmuster gespeichert.")
     for key in (f"abweichungen_{diktat['id']}", f"analyse_ergebnis_{diktat['id']}",
-                f"analyse_prompt_text_{diktat['id']}", f"analyse_roh_{diktat['id']}"):
+                f"analyse_prompt_text_{diktat['id']}", f"analyse_roh_{diktat['id']}",
+                f"frei_ergebnis_{diktat['id']}", f"frei_prompt_1_{diktat['id']}",
+                f"frei_prompt_2_{diktat['id']}"):
         st.session_state.pop(key, None)
     meldung = f"{anzahl} Fehler übernommen."
     if angelegt:

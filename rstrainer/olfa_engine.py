@@ -830,6 +830,55 @@ def wortgrenzen_ereignis(teile: list[str], ziel: str) -> dict:
     return e
 
 
+def wortgrenzen_ergebnis(teile: list[str], ziel: str) -> list[dict]:
+    """Getrennt geschrieben, wo zusammengehört (04/06) – samt dem Folgefehler
+    aus Manual §5.1: «Zahn arzt» ist 04 PLUS 01, «Zahn Arzt» nur 04."""
+    aus = [wortgrenzen_ereignis(teile, ziel)]
+    if ziel[:1].isupper():
+        for teil in teile[1:]:
+            if teil[:1].islower():
+                aus.append(ereignis(
+                    studentGrapheme=teil[0], targetGrapheme=teil[0].upper(), kategorie="01",
+                    reason=f"«{teil}» als abgetrennter Nomenbestandteil kleingeschrieben (Manual §5.1)."))
+    return aus
+
+
+def zusammenschreibung_ereignis(schuelerwort: str, ziel: str) -> dict:
+    """Zusammengeschrieben, wo getrennt gehört (05)."""
+    e = ereignis(studentGrapheme=schuelerwort, targetGrapheme=ziel, kategorie="05")
+    e["reason"] = f"«{schuelerwort}» statt «{ziel}»: mehrere selbstständige Wörter zusammengeschrieben."
+    _excl(e, "04", "Nicht getrennt statt zusammen, sondern umgekehrt.")
+    e["featureSource"] = "heuristik"
+    return e
+
+
+# ------------------------------------- Deterministische Vorprüfungen -------
+# Zwei Dinge lassen sich im Freitext ohne Modell sicher sagen. Sie laufen VOR
+# dem Modell und gehen in dieselbe Liste – ein Modell, das sie übersieht, kann
+# sie so nicht mehr verschlucken.
+
+def eszett_screening(tokens: list[dict]) -> list[dict]:
+    """In der Schweizer Zielnorm gibt es kein ß. Jedes ß ist objektiv falsch,
+    die Zielform ergibt sich mechanisch."""
+    return [{"tokenIndex": t["index"], "student": t["wort"],
+             "target": t["wort"].replace("ß", "ss"), "sicherheit": 1, "herkunft": "regel"}
+            for t in tokens if "ß" in t["wort"]]
+
+
+def wiederholungs_screening(tokens: list[dict], bekannt: dict[str, str]) -> list[dict]:
+    """Was dieses Kind schon einmal falsch geschrieben hat, wird beim erneuten
+    Auftreten geprüft – gerade die wiederkehrenden Fehler tragen das
+    Längsschnittprofil, und genau sie überliest ein Modell gern."""
+    aus = []
+    for t in tokens:
+        ziel = bekannt.get(normalisieren(t["wort"]))
+        if not ziel or normalisieren(ziel) == normalisieren(t["wort"]):
+            continue
+        aus.append({"tokenIndex": t["index"], "student": t["wort"], "target": ziel,
+                    "sicherheit": 0.8, "herkunft": "wiederholung"})
+    return aus
+
+
 def align_woerter(referenz: str, schuelertext: str) -> dict[str, Any]:
     tok_r, tok_s = tokenisiere(referenz), tokenisiere(schuelertext)
     norm_r = [normalisieren(x["wort"]) for x in tok_r]
@@ -924,14 +973,8 @@ def analysiere_diktat(referenz: str, schuelertext: str, lexikon: dict | None = N
                          reason=f"«{p['schueler']}» statt «{zw}»: mehrere Wörter zusammengeschrieben.")
             fertig(e, p, zw); setze(p["schuelerTok"], "fehler"); continue
         if art == "getrennt":
-            e = wortgrenzen_ereignis(p["schuelerWoerter"], p["ziel"])
-            fertig(e, p, p["ziel"])
-            if p["ziel"][:1].isupper():
-                for teil in p["schuelerWoerter"][1:]:
-                    if teil[:1].islower():
-                        g = ereignis(studentGrapheme=teil[0], targetGrapheme=teil[0].upper(), kategorie="01",
-                                     reason=f"«{teil}» als abgetrennter Nomenbestandteil kleingeschrieben (Manual §5.1).")
-                        fertig(g, p, p["ziel"])
+            for e in wortgrenzen_ergebnis(p["schuelerWoerter"], p["ziel"]):
+                fertig(e, p, p["ziel"])
             start = p["schuelerTok"]["index"]
             for t in tok_s[start:start + len(p["schuelerWoerter"])]:
                 setze(t, "fehler")
@@ -951,41 +994,105 @@ def analysiere_diktat(referenz: str, schuelertext: str, lexikon: dict | None = N
 
 def analysiere_liste(liste: Iterable[dict], schuelertext: str, lexikon: dict | None = None,
                      muster: dict | None = None, quelle: str = "import") -> dict[str, Any]:
-    """Import-/Freitextmodus: fertige Liste (Original, Ziel, Position) → Stufe 2."""
+    """Import-/Freitextmodus: fertige Liste (Original, Ziel, Position) → Stufe 2.
+
+    Kein Token gilt als geprüft, nur weil eine Liste vorliegt – wer die Liste
+    erzeugt hat, setzt die Abdeckung (Bau-Prompt §5.1).
+    """
     muster = muster or {}
     tok_s = tokenisiere(schuelertext)
-    ereignisse: list[dict] = []; verworfen: list[dict] = []
-    abdeckung = [{"index": t["index"], "wort": t["wort"], "satz": t["satz"],
-                  "status": "geprueft" if quelle == "ki" else "offen"} for t in tok_s]
-    for z in liste:
-        tok = None
+    ereignisse: list[dict] = []
+    verworfen: list[dict] = []
+    abdeckung = [{"index": t["index"], "wort": t["wort"], "satz": t["satz"], "status": "offen"}
+                 for t in tok_s]
+
+    def finde(z: dict) -> dict | None:
+        """Halluzinationsfilter (Bau-Prompt §5.2) mit Toleranz gegenüber
+        verzählten Nummern: Ein Modell trifft die Wortnummer nicht immer, das
+        Wort selbst aber schon. Erfunden ist ein Eintrag erst, wenn das Wort
+        NIRGENDS steht."""
+        gesucht = normalisieren(z.get("student", ""))
+        if not gesucht:
+            return None
         ti = z.get("tokenIndex")
-        if isinstance(ti, int) and 0 <= ti < len(tok_s) and normalisieren(tok_s[ti]["wort"]) == normalisieren(z.get("student", "")):
-            tok = tok_s[ti]
-        if tok is None:
-            tok = next((t for t in tok_s if normalisieren(t["wort"]) == normalisieren(z.get("student", ""))
-                        and (z.get("satz") is None or t["satz"] == z.get("satz"))), None)
-        if tok is None:
-            verworfen.append({**z, "grund": "Originalform steht nicht an der angegebenen Stelle im Text"}); continue
-        if "ß" in (z.get("target") or ""):
+        if isinstance(ti, int) and 0 <= ti < len(tok_s) and normalisieren(tok_s[ti]["wort"]) == gesucht:
+            return tok_s[ti]
+        treffer = [t for t in tok_s if normalisieren(t["wort"]) == gesucht
+                   and (z.get("satz") is None or t["satz"] == z.get("satz"))]
+        alle = treffer or [t for t in tok_s if normalisieren(t["wort"]) == gesucht]
+        if not alle:
+            return None
+        if len(alle) == 1:
+            return alle[0]
+        if isinstance(ti, int):
+            return min(alle, key=lambda t: abs(t["index"] - ti))
+        return alle[0]
+
+    def festhalten(e: dict, tok: dict, student_form: str, ziel: str, sicherheit: float) -> None:
+        e["studentForm"] = student_form
+        e["targetForm"] = ziel
+        e["sentenceIndex"] = tok["satz"]
+        e["charOffset"] = tok["at"] + (e.get("charOffsetImWort") or 0)
+        e["tokenIndex"] = tok["index"]
+        e["muster"] = muster_schluessel(e, ziel)
+        frueher = muster.get(e["muster"])
+        if frueher and e["status"] != "manual_review":
+            e["kategorie"] = frueher["kategorie"]
+            e["status"] = "resolved"
+            e["featureSource"] = "eigene"
+            e["kandidaten"] = []
+            e["reason"] += f" Nach eigener Zuordnung ({frueher.get('am', '')})."
+        if sicherheit < ZIELWORT_SCHWELLE:
+            e["status"] = "manual_review"
+            e["kandidaten"] = e["kandidaten"] or [k for k in [e["kategorie"]] if k]
+            e["reason"] = (f"Zielwort «{ziel}» nur mit Sicherheit {sicherheit} bestimmt "
+                           f"(Schwelle {ZIELWORT_SCHWELLE}) – eine unsichere Zielwortentscheidung darf "
+                           "keine präzise Kategorie vortäuschen. ") + e["reason"]
+        abschliessen(e, {"ziel": ziel},
+                     {"eigeneZuordnung": bool(frueher), "zielwortSicherheit": sicherheit, "quelle": quelle})
+        e["zielwortSicherheit"] = sicherheit
+        ereignisse.append(e)
+
+    for z in liste:
+        ziel = str(z.get("target") or "").strip()
+        if not ziel:
+            verworfen.append({**z, "grund": "Keine Zielform angegeben"}); continue
+        if "ß" in ziel:
             verworfen.append({**z, "grund": "Zielform enthält ß – in de-CH unzulässig"}); continue
         sicherheit = z.get("sicherheit") if isinstance(z.get("sicherheit"), (int, float)) else 1
-        r = klassifiziere_wort(tok["wort"], z["target"], lexikon)
-        for e in r["ereignisse"]:
-            e["studentForm"] = tok["wort"]; e["targetForm"] = z["target"]; e["sentenceIndex"] = tok["satz"]
-            e["charOffset"] = tok["at"] + (e.get("charOffsetImWort") or 0); e["tokenIndex"] = tok["index"]
-            e["muster"] = muster_schluessel(e, z["target"])
-            frueher = muster.get(e["muster"])
-            if frueher and e["status"] != "manual_review":
-                e["kategorie"] = frueher["kategorie"]; e["status"] = "resolved"; e["featureSource"] = "eigene"; e["kandidaten"] = []
-            if sicherheit < ZIELWORT_SCHWELLE:
-                e["status"] = "manual_review"
-                e["kandidaten"] = e["kandidaten"] or [k for k in [e["kategorie"]] if k]
-                e["reason"] = f"Zielwort «{z['target']}» nur mit Sicherheit {sicherheit} bestimmt (Schwelle {ZIELWORT_SCHWELLE}). " + e["reason"]
-            abschliessen(e, {"ziel": z["target"]}, {"eigeneZuordnung": bool(frueher), "zielwortSicherheit": sicherheit, "quelle": quelle})
-            e["zielwortSicherheit"] = sicherheit
-            ereignisse.append(e)
+
+        # Wortgrenzen: Das Kind hat EIN Zielwort auf mehrere Wörter verteilt.
+        nummern = z.get("nummern")
+        if isinstance(nummern, list) and len(nummern) > 1:
+            toks = [tok_s[n] for n in nummern if isinstance(n, int) and 0 <= n < len(tok_s)]
+            if (len(toks) != len(nummern)
+                    or normalisieren("".join(t["wort"] for t in toks)) != normalisieren(ziel)):
+                verworfen.append({**z, "grund": "Die genannten Wortnummern ergeben zusammen nicht die Zielform"})
+                continue
+            teile = [t["wort"] for t in toks]
+            for e in wortgrenzen_ergebnis(teile, ziel):
+                festhalten(e, toks[0], " ".join(teile), ziel, sicherheit)
+            for t in toks:
+                abdeckung[t["index"]]["status"] = "fehler"
+            continue
+
+        tok = finde(z)
+        if tok is None:
+            verworfen.append({**z, "grund": "Originalform steht nicht im Text"}); continue
+
+        # Umgekehrter Fall: mehrere Zielwörter zusammengezogen.
+        if re.search(r"\s", ziel):
+            if normalisieren(tok["wort"]) != normalisieren(re.sub(r"\s+", "", ziel)):
+                verworfen.append({**z, "grund": "Zielform mit Leerzeichen passt nicht zum zusammengeschriebenen Wort"})
+                continue
+            festhalten(zusammenschreibung_ereignis(tok["wort"], ziel), tok, tok["wort"], ziel, sicherheit)
+            abdeckung[tok["index"]]["status"] = "fehler"
+            continue
+
+        for e in klassifiziere_wort(tok["wort"], ziel, lexikon)["ereignisse"]:
+            festhalten(e, tok, tok["wort"], ziel, sicherheit)
         abdeckung[tok["index"]]["status"] = "fehler"
+
     return {"ereignisse": ereignisse, "abdeckung": abdeckung, "verworfen": verworfen}
 
 

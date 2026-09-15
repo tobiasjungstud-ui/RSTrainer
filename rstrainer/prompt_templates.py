@@ -412,27 +412,50 @@ Ist nichts zu tun, gib leere Listen zurück.
 
 ZIELWOERTER = """\
 Du bestimmst für einen Schülertext (Sekundarstufe I, Schweiz) die intendierte \
-Zielschreibung jedes falsch geschriebenen Wortes.
+Zielschreibung jedes falsch geschriebenen Wortes. Du klassifizierst den Fehler NICHT – \
+das macht ein Regelwerk. Deine einzige Aufgabe ist: Welches Wort war gemeint?
 
 {schweiz_regel}
 
-Regeln:
-- Nur Rechtschreibung (Buchstaben, Gross-/Kleinschreibung, Getrennt-/Zusammenschreibung). \
-Keine Grammatik, kein Stil, keine Zeichensetzung.
-- Homophone aus dem Satzzusammenhang entscheiden (wider/wieder, das/dass, seid/seit).
-- Ein Wort, das korrekt ist, kommt NICHT in die Liste.
-- «sicherheit» ist deine Sicherheit (0–1), dass genau diese Zielform gemeint ist. Bei Zweifel: \
-die wahrscheinlichere nennen, Sicherheit unter {schwelle} setzen, Alternative angeben.
+## Was zählt
+Nur Orthografie: Buchstaben, Gross-/Kleinschreibung, Getrennt- und Zusammenschreibung.
 
-Text:
+## Was NICHT zählt
+- Keine Grammatik (Fälle, Verbformen, Kongruenz), keine Zeichensetzung.
+- Kein Stil, keine Wortwahl, kein Satzbau, keine Wiederholungen, kein «besser wäre».
+- Umgangssprache und Helvetismen sind zulässig, solange sie korrekt geschrieben sind.
+- Eigennamen und erfundene Namen sind nicht falsch.
+- Im Zweifel NICHT als Fehler werten.
+
+## Vollständigkeit
+Geh die Wortliste von oben nach unten durch. Jedes falsch geschriebene Wort gehört in \
+die Antwort, auch wenn derselbe Fehler mehrfach vorkommt – dann einmal pro Vorkommen \
+mit der jeweiligen Nummer. Ein korrekt geschriebenes Wort kommt NICHT in die Liste.
+
+## Zielwort aus dem Zusammenhang
+Bei gleich klingenden Wörtern entscheidet der Satz, nicht die Häufigkeit: wider/wieder, \
+das/dass, seid/seit, man/mann, wahr/war, mehr/Meer, Lied/Lid, Stadt/statt.
+Bist du dir bei der gemeinten Zielform nicht sicher, nenne die wahrscheinlichere, setze \
+«sicherheit» unter {schwelle} und trage die Alternative ein. Eine unsichere \
+Zielwortentscheidung wird der Lehrperson vorgelegt – rate nicht.
+
+## Wortgrenzen
+- Zwei oder mehr Wörter zu einem verklebt: EIN Eintrag, «ziel» mit Leerzeichen \
+(«zumbeispiel» → «zum Beispiel»).
+- Ein Wort auf mehrere aufgeteilt: EIN Eintrag, alle beteiligten Nummern in «nummern», \
+«ziel» zusammengeschrieben («Zahn» «arzt» → «Zahnarzt»).
+
+## Textausschnitt
 {text}
 
-Wörter (Nummer, Wort):
+## Wörter (Nummer, Wort)
 {woerter}
 
-Antworte nur mit einem JSON-Array, ohne Vor- oder Nachtext:
-[{{"nummer": 12, "wort": "wider", "ziel": "wieder", "sicherheit": 0.97, "alternative": null}}]
-Leeres Array, wenn kein Wort falsch ist.
+## Ausgabe
+Antworte ausschliesslich mit einem JSON-Array, ohne Vor- oder Nachtext und ohne Code-Zaun:
+[{{"nummer": 12, "wort": "wider", "ziel": "wieder", "sicherheit": 0.97, \
+"alternative": null, "nummern": null}}]
+Ein leeres Array, wenn in diesem Ausschnitt kein Wort falsch geschrieben ist.
 """
 
 MERKMALE = """\

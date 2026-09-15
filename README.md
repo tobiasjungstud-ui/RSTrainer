@@ -196,7 +196,7 @@ macht das Längsschnittprofil wertlos.
 
 | Stufe | Was passiert | Wer |
 |---|---|---|
-| 1 | Fehler lokalisieren, Zielform bestimmen. Diktat: Alignment gegen den Referenztext. Freitext: Zielwörter aus dem Kontext, Schwelle 0,85, sonst manuelle Kontrolle | Code / Modell (nur Freitext) |
+| 1 | Fehler lokalisieren, Zielform bestimmen. Diktat: Alignment gegen den Referenztext. Freitext: erst Regelprüfungen ohne Modell (ß, frühere Fehlschreibungen), dann Zielwörter aus dem Kontext, Schwelle 0,85, sonst manuelle Kontrolle | Code / Modell (nur Freitext) |
 | 2 | Graphemsegmentierung (`sch, ch, ck, tz, ie, ah … ss` als Einheiten), Transposition zuerst, Entscheidungsbaum nach Manual §11 mit CH-Abzweigung A.4, spezifische Kategorien vor generischen, Mehrfachfehler getrennt | Code |
 | 3 | Nur Grenzfälle (`needs_context` und die kritischen Paare aus §20): Frage nach dem **entscheidenden Merkmal**, nicht nach der Kategorie; Antwort ausserhalb der Kandidatenliste wird verworfen; blinder Zweitdurchgang ohne Kenntnis des ersten | Modell |
 | 4 | Kandidaten, berechnete Konfidenz (nie geschätzt), Status. Führen alle Kandidaten in denselben Förderbereich → `resolved_by_area`, sonst `manual_review` | Code |
@@ -236,69 +236,127 @@ nicht auf das Kind.
 schreibt sie ab. Was von der Vorlage abweicht, ist objektiv ein Fehler.
 
 **Freier Text** – alles, was im Unterricht sonst entsteht: Aufsatz, Bericht,
-Antwort auf eine Frage. Es gibt keine Vorlage; die Beurteilung übernimmt das
-Sprachmodell. Die Wortzahl richtet sich hier nach dem Text des Kindes, denn
-etwas anderes gibt es nicht zu zählen.
+Antwort auf eine Frage. Es gibt keine Vorlage, also auch keinen objektiven
+Massstab dafür, was falsch ist. Die Wortzahl richtet sich hier nach dem Text
+des Kindes, denn etwas anderes gibt es nicht zu zählen.
 
 Beide landen in derselben Auswertung und im selben Lernverlauf.
 
 ---
 
-## Fehlererfassung: drei Wege, eine Bestätigungsliste
+## Fehlererfassung
 
-### 1. Analyse durch das Sprachmodell
+Die Fehleranalyse funktioniert in beiden Fällen – und der **Modus ist
+ausdrücklich wählbar**. Unter *Fehler → OLFA-Analyse* steht oben eine
+Auswahl:
 
-Die App erzeugt einen Analyse-Prompt mit dem Text, der vollständigen
-OLFA-Liste und allen bereits gelernten Fehlerarten. Im Chat ausgewertet,
-kommt ein JSON-Array zurück, das die App einliest – auch wenn ein Code-Zaun
-oder einleitendes Geplauder mitkommt.
+| Modus | Voraussetzung | Wer bestimmt das Zielwort |
+|---|---|---|
+| 📄 **Diktatmodus** | eine Vorlage | der Referenztext, per Alignment |
+| 📝 **Freitextmodus** | keine | Regelprüfungen und das Sprachmodell |
 
-Das Modell leistet zweierlei, was der mechanische Abgleich nicht kann: Es
-ordnet die Kategorien **inhaltlich** zu statt nach dem Buchstabenbild, und es
-darf für alles, was die OLFA-Liste nicht abdeckt – vor allem **Grammatik** –
-eigene Fehlerarten benennen (siehe unten). Für freie Texte ist es der einzige
-Weg.
+Vorbelegt ist der genauere Weg: Diktatmodus, wo es eine Vorlage gibt, sonst
+Freitextmodus. Wählen Sie für ein Diktat den Freitextmodus, weist die App
+darauf hin, dass sie Genauigkeit verschenken.
 
-Bei freien Texten warnt der Prompt ausdrücklich vor Stilkritik: Ohne Vorlage
-ist die Versuchung gross, zu viel anzustreichen. Umständliche Formulierungen,
-Wortwahl, Wiederholungen und Umgangssprache sind **keine** Fehler.
+**Klassifiziert wird in beiden Modi identisch** – von `olfa_engine`, nie vom
+Sprachmodell. Der Modus entscheidet nur, woher die Zielform kommt.
 
-### 2. Mechanischer Abgleich (nur Diktat)
+### Diktatmodus
 
-Schülertext abtippen, einfügen, **Abgleich starten**. Die App richtet beide
-Texte wortweise aneinander aus und schlägt Abweichungen samt Kategorie vor.
-Sie sieht nur das Buchstabenbild – die Kategorie ist geraten, nicht
-verstanden.
+Schülertext abtippen, **Abgleich starten**. Die App richtet beide Texte
+wortweise aneinander aus, segmentiert graphemorientiert und klassifiziert über
+den Entscheidungsbaum: reproduzierbar, mit Begründung und verworfenen
+Alternativen je Fehler. Jedes Wort bekommt einen Status (korrekt, Fehler,
+ausgelassen, zusätzlich); kein Sprachmodell ist beteiligt.
 
-### 3. Von Hand
+### Freitextmodus
 
-Für alles, was beide nicht sehen: Satzzeichen, Silbentrennung am Zeilenende,
-unleserliche Stellen.
+Ohne Vorlage muss zuerst feststehen, welches Wort gemeint war. Das ist die
+einzige Frage, die das Modell beantwortet – die Kategorie bestimmt es nie.
+Vier Vorkehrungen tragen die Zuverlässigkeit:
+
+**1. Was ohne Modell feststeht, wird ohne Modell gefunden.** In der Schweizer
+Zielnorm gibt es kein ß: Jedes ß ist objektiv falsch, die Zielform ergibt sich
+mechanisch (`Straße → Strasse`). Und was dieses Kind schon einmal falsch
+geschrieben hat, wird beim erneuten Auftreten geprüft – gerade die
+wiederkehrenden Fehler tragen das Längsschnittprofil, und genau sie überliest
+ein Modell gern, weil sie im Satz unauffällig sind. Diese Funde gelten auch
+dann, wenn das Modell gar nicht oder falsch antwortet; ein Regelfund schlägt
+jede Modellaussage.
+
+**2. Der Prompt fragt nur nach dem Zielwort.** Er nennt jedes Wort mit einer
+Nummer, verbietet Grammatik-, Stil- und Zeichensetzungskritik ausdrücklich
+(ohne Vorlage ist die Versuchung gross, zu viel anzustreichen), erklärt die
+Homophone aus dem Satzzusammenhang und regelt die Wortgrenzen in beide
+Richtungen: `Zahn` + `arzt` → `Zahnarzt` über die Nummernliste, `zumbeispiel`
+→ `zum Beispiel` über die Zielform mit Leerzeichen.
+
+**3. Ein blinder Zweitdurchgang ist möglich und empfohlen.** Derselbe Text in
+einem neuen, leeren Chat, anders formuliert, damit die zweite Antwort nicht
+die erste abschreibt. Die Sicherheit einer Zielform wird nicht vom Modell
+übernommen, sondern berechnet:
+
+| Lage | Sicherheit |
+|---|---|
+| Regelfund | 1,00 |
+| beide Durchgänge einig | die niedrigere der beiden |
+| nur ein Durchgang hat es gesehen | höchstens 0,70 |
+| gar kein Zweitdurchgang | höchstens 0,80 |
+| Durchgänge uneinig | höchstens 0,60 – unter der Schwelle |
+
+Liegt sie unter 0,85, wird keine präzise Kategorie ausgegeben, sondern der
+Fall zur Kontrolle vorgelegt – mit beiden Zielformen.
+
+**4. Vollständigkeit wird nicht behauptet.** Kein Wort gilt als geprüft, nur
+weil eine Liste vorliegt. Im Freitextmodus steht jedes nicht gemeldete Wort
+auf `offen`, und die App schreibt hin, wie viele das sind. Der Diktatmodus
+kennt dagegen den Status jedes Wortes. Dazu kommt der Halluzinationsfilter:
+Eine gemeldete Originalform, die nirgends im Text steht, wird verworfen –
+eine verzählte Wortnummer dagegen nicht, denn das Wort selbst trifft ein
+Modell zuverlässiger als seine Nummer.
+
+### Freie Analyse durch das Sprachmodell
+
+Der zweite Reiter ist der alte Weg und bleibt für das, was die OLFA-Liste
+nicht abdeckt: Das Modell benennt die Fehler selbst, auch **Grammatik**, und
+legt dafür eigene Fehlerarten an (siehe unten). Für die Rechtschreibung ist
+die OLFA-Analyse genauer, weil dort das Regelwerk klassifiziert.
+
+### Von Hand
+
+Für alles, was keiner dieser Wege sieht: Satzzeichen, Silbentrennung am
+Zeilenende, unleserliche Stellen.
 
 ---
 
-Alle drei Wege enden in **derselben Bestätigungsliste**: Sie bestätigen jede
-Zeile einzeln und ändern die Kategorie, wo nötig – **vorgeschlagen wird, nie
-automatisch übernommen**.
+Alle Wege enden in **derselben Bestätigungsliste**: Sie bestätigen jede Zeile
+einzeln und ändern die Kategorie, wo nötig – **vorgeschlagen wird, nie
+automatisch übernommen**. Unsichere Zeilen sind vorab abgewählt. Eine
+Umstufung wird als Muster gespeichert und beim nächsten gleichen Fall
+vorgeschlagen.
 
-Beispiele für die Kategorie-Vorschläge des mechanischen Abgleichs:
+Beispiele für Zuordnungen der Engine:
 
-| Original | Geschrieben | Vorschlag |
+| Original | Geschrieben | Zuordnung |
 |---|---|---|
-| Haus | haus | 01 – Klein- für Großschreibung |
+| Haus | haus | 01 – Klein- für Grossschreibung |
 | kommen | komen | 07 – Einfachschreibung für Konsonantenverdoppelung |
-| hat | hatt | 08 / 11 – Verdoppelung an falscher Stelle |
+| hat | hatt | 08 – Verdoppelung für Einfachschreibung |
 | Zahn | Zan | 09 – markierte Länge fehlt |
-| dass | daß | 16 – ß für ss |
+| Fuss | Fus | 13 – s für ss (nach Langvokal, de-CH) |
+| Preise | Preisse | 15 – ss für s (nach Diphthong, de-CH) |
+| Strasse | Straße | 33 – ein ß ist in de-CH ein Konsonantenersatz |
 | Bären | Beren | 17 – e für ä |
 | Hund | Hunt | 19 – p, t, k für b, d, g |
 | Vater | Fater | 23 – f für v |
 | wenig | wenich | 27 – ch für g im Silbenende |
 | Schule | Sule | 29 – Konsonantenzeichen fehlt |
-| Brot | Bort | 35 – Zeichenumstellung |
+| Garten | Graten | 35 – Zeichenumstellung |
 | Bücher | Bucher | 36 – Umlautbezeichnung |
 
-Ein Test prüft jedes dieser Paare gegen die Kategorienliste.
+Ein Test prüft jede dieser Zeilen gegen die Engine – das README ist hier eine
+Zusage, keine Beschreibung.
 
 ---
 
@@ -516,7 +574,7 @@ erst, wenn das Sprachmodell einen Text auswertet.
 python3 -m pytest tests/ -q
 ```
 
-**Stand: 391 Tests, alle grün.** Abgedeckt sind:
+**Stand: 436 Tests, alle grün.** Abgedeckt sind:
 
 | Datei | Prüft |
 |---|---|
@@ -531,13 +589,15 @@ python3 -m pytest tests/ -q
 | `test_olfa_engine.py` | Goldstandard-Minimalpaare (§19, A.1, Bau-Prompt), Graphemsegmentierung, Transposition, Nie-Raten, Konsequenzprüfung C.1, Validator §17/A.5, Konfidenz C.2, Halluzinationsfilter, Umstufungsmuster C.3 |
 | `test_taxonomie.py` | Pfade begradigen, Dubletten, Gegenteile nicht verschmelzen, Register, Schwerpunkte |
 | `test_analyse.py` | Analyse-Prompts, JSON zurücklesen, neue Fehlerarten, Aufräumplan, Regler Klassiker/Sondierung |
+| `test_freitext.py` | Freitextmodus: Regelprüfungen ohne Modell, Zielwort-Prompt, blinder Zweitdurchgang und Sicherheitsdeckel, Wortgrenzen, ehrliche Vollständigkeit, Modusauswahl |
 
 Zusätzlich wurde die Oberfläche durchgespielt – von Hand im Browser und
 kopfrechnend über `streamlit.testing`: Alle sechs Bereiche rendern
 fehlerfrei, der komplette Diktat-Ablauf (Prompt erzeugen → Ergebnis einfügen
 → Prüfung → Freigabe → Archiv) läuft durch, und ebenso der Analyse-Ablauf für
-einen freien Text (Prompt → JSON einfügen → Bestätigungsliste → Übernehmen),
-inklusive Anlegen einer neuen Fehlerart und Wiederverwenden einer bestehenden.
+einen freien Text (Modus wählen → Prompt → JSON einfügen → Bestätigungsliste →
+Übernehmen), inklusive Anlegen einer neuen Fehlerart und Wiederverwenden einer
+bestehenden.
 
 **Noch offen / bewusst nicht gebaut:**
 * Die Gruppenzuordnung I / II / III der Kategorien fehlt noch (siehe oben).
@@ -568,7 +628,7 @@ rstrainer/
   diffing.py                  Wort- und Buchstabenabgleich
   analysis.py                 Trendberechnung und Empfehlungslogik
   prompt_templates.py         >> Die Prompt-Vorlagen – zum Anpassen gedacht <<
-  auftraege.py                Prompts bauen, Chat-Ergebnis und Analyse zerlegen
+  auftraege.py                Prompts bauen, Chat-Ergebnis, Analyse und Zielwörter zerlegen
   validation.py               Plausibilitätsprüfungen vor der Freigabe
   docx_export.py              Übungsblatt, Informationsblatt, Verlaufsbericht
   charts.py                   Diagramme

@@ -202,3 +202,33 @@ def test_eigene_zuordnung_wird_bei_gleichem_muster_vorgeschlagen():
     mit = E.analysiere_diktat("Die Nuss.", "Die Nus.", {}, {schluessel: {"kategorie": "13", "am": "2026-01-01"}})["ereignisse"][0]
     assert (mit["kategorie"], mit["status"], mit["featureSource"]) == ("13", "resolved", "eigene")
     assert mit["confidence"] == 0.95
+
+
+# --- Die Beispieltabelle im README ------------------------------------------
+
+README_TABELLE = [
+    ("haus", "Haus", "01"), ("komen", "kommen", "07"), ("hatt", "hat", "08"),
+    ("Zan", "Zahn", "09"), ("Fus", "Fuss", "13"), ("Preisse", "Preise", "15"),
+    ("Beren", "Bären", "17"), ("Hunt", "Hund", "19"), ("Fater", "Vater", "23"),
+    ("wenich", "wenig", "27"), ("Sule", "Schule", "29"),
+    ("Straße", "Strasse", "33"), ("Graten", "Garten", "35"),
+    ("Bucher", "Bücher", "36"),
+]
+
+
+@pytest.mark.parametrize("schueler,ziel,nummer", README_TABELLE,
+                         ids=lambda x: str(x))
+def test_readme_beispiele_stimmen_mit_der_engine_ueberein(schueler, ziel, nummer):
+    """Die Tabelle im README ist eine Zusage – sie wird hier eingelöst."""
+    r = E.klassifiziere_wort(schueler, ziel, E.VORGABE_LEXIKON)
+    for e in r["ereignisse"]:
+        E.abschliessen(e, {"ziel": ziel}, {"zielwortSicherheit": 1})
+    assert [E._erhalten(e) for e in r["ereignisse"]] == [nummer]
+
+
+def test_readme_tabelle_ist_vollstaendig_abgebildet():
+    """Wer eine Zeile ergänzt, ergänzt auch den Test – und umgekehrt."""
+    from pathlib import Path
+    readme = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
+    fehlend = [(s, z) for s, z, _ in README_TABELLE if f"| {z} | {s} |" not in readme]
+    assert not fehlend, f"Nicht im README: {fehlend}"

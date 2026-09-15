@@ -26,9 +26,11 @@ from __future__ import annotations
 import json
 import re
 import secrets
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
+from . import olfa_engine
 from . import prompt_templates as pt
 from .diffing import kategorie_vorschlaege, marker_bestimmen
 from .olfa import Kategorienliste
@@ -505,6 +507,162 @@ def analyse_zu_abweichungen(zeilen: list[Analysezeile], bezugstext: str,
                             if z.wort_schueler else f"{z.wort_original} → (fehlt)"),
         })
     return treffer
+
+
+# ---------------------------------------------------------------------------
+# Freitextmodus: Stufe 1 der Pipeline – nur das Zielwort, nie die Kategorie
+# ---------------------------------------------------------------------------
+# Beim Diktat ist objektiv bestimmt, was falsch ist: alles, was von der Vorlage
+# abweicht. Im frei geschriebenen Text fehlt dieser Massstab – irgendwer muss
+# sagen, welches Wort gemeint war. Genau das und nichts anderes wird hier
+# gefragt. Klassifiziert wird danach deterministisch von rstrainer.olfa_engine,
+# damit derselbe Text zweimal dasselbe Ergebnis liefert.
+
+
+def bekannte_fehlschreibungen(fehler: Iterable[Any]) -> dict[str, str]:
+    """Frühere Fehlschreibungen dieses Kindes als ``falsch → richtig``.
+
+    Wiederkehrende Fehler tragen das Längsschnittprofil – und genau sie
+    überliest ein Sprachmodell gern, weil sie im Satz unauffällig sind. Sie
+    werden deshalb vor dem Modell regelbasiert gesucht.
+    """
+    aus: dict[str, str] = {}
+    for f in fehler:
+        falsch = str((f["wort_schueler"] if not isinstance(f, dict) else f.get("wort_schueler")) or "").strip()
+        richtig = str((f["wort_original"] if not isinstance(f, dict) else f.get("wort_original")) or "").strip()
+        if not falsch or not richtig or " " in falsch or " " in richtig:
+            continue
+        if olfa_engine.normalisieren(falsch) == olfa_engine.normalisieren(richtig):
+            continue
+        aus.setdefault(olfa_engine.normalisieren(falsch), richtig)
+    return aus
+
+
+def regelfunde(schuelertext: str, bekannt: dict[str, str] | None = None) -> list[dict]:
+    """Was ohne Modell feststeht: ß ist in de-CH immer falsch, und was dieses
+    Kind schon einmal falsch geschrieben hat, wird erneut geprüft."""
+    tokens = olfa_engine.tokenisiere(schuelertext or "")
+    return (olfa_engine.eszett_screening(tokens)
+            + olfa_engine.wiederholungs_screening(tokens, bekannt or {}))
+
+
+def zielwort_prompt_bauen(schuelertext: str, fassung: int = 1) -> str:
+    """Prompt für Stufe 1. ``fassung=2`` formuliert den Auftrag anders –
+    der zweite Durchgang soll blind sein, nicht die erste Antwort abschreiben."""
+    tokens = olfa_engine.tokenisiere(schuelertext or "")
+    liste = "\n".join(f"{t['index']}\t{t['wort']}" for t in tokens) or "(keine Wörter)"
+    text = pt.ZIELWOERTER.format(
+        schweiz_regel=pt.SCHWEIZ_REGEL, text=(schuelertext or "").strip(),
+        woerter=liste, schwelle=olfa_engine.ZIELWORT_SCHWELLE,
+    )
+    if fassung == 2:
+        text = text.replace(
+            "Du bestimmst für einen Schülertext (Sekundarstufe I, Schweiz) die "
+            "intendierte Zielschreibung jedes falsch geschriebenen Wortes.",
+            "Du bist Korrektorin für Deutsch (Sekundarstufe I, Schweiz). Unten steht ein "
+            "Schülertext und darunter seine Wörter mit Nummern. Nenne jedes Wort, das "
+            "orthografisch falsch geschrieben ist, mit der beabsichtigten korrekten Schreibung.",
+            1,
+        )
+    return text
+
+
+def zielwoerter_lesen(roh: Any) -> list[dict]:
+    """Liest die Antwort von Stufe 1. Gibt Einträge zurück, wie sie
+    :func:`rstrainer.olfa_engine.analysiere_liste` erwartet."""
+    daten = roh
+    if not isinstance(daten, list):
+        ausschnitt = _json_ausschneiden(daten, "[", "]")
+        if ausschnitt is None:
+            raise ValueError("Die Antwort enthielt keine Zielwortliste.")
+        try:
+            daten = json.loads(ausschnitt)
+        except json.JSONDecodeError as fehler:
+            raise ValueError("Die Antwort war kein gültiges JSON.") from fehler
+    if not isinstance(daten, list):
+        raise ValueError("Unerwartetes Format – erwartet wurde ein JSON-Array.")
+
+    aus = []
+    for z in daten:
+        if not isinstance(z, dict):
+            continue
+        try:
+            nummer = int(z.get("nummer"))
+        except (TypeError, ValueError):
+            nummer = None
+        nummern = z.get("nummern")
+        nummern = ([int(n) for n in nummern if str(n).lstrip("-").isdigit()]
+                   if isinstance(nummern, list) and len(nummern) > 1 else None)
+        sicherheit = z.get("sicherheit")
+        sicherheit = (max(0.0, min(1.0, float(sicherheit)))
+                      if isinstance(sicherheit, (int, float)) else 0.7)
+        eintrag = {
+            "tokenIndex": nummer, "student": str(z.get("wort") or ""),
+            "target": str(z.get("ziel") or "").strip(), "sicherheit": sicherheit,
+            "alternative": str(z["alternative"]) if z.get("alternative") else None,
+            "nummern": nummern, "herkunft": "ki",
+        }
+        if eintrag["target"] and (eintrag["student"] or eintrag["nummern"]):
+            aus.append(eintrag)
+    return aus
+
+
+def _stelle(z: dict) -> str:
+    """Schlüssel einer Fundstelle: Zwei Durchgänge sollen dieselbe Stelle gleich
+    benennen, auch wenn sie sich in der Wortnummer vertun."""
+    if z.get("nummern"):
+        return "n:" + ",".join(str(n) for n in z["nummern"])
+    return f"{z.get('tokenIndex')}:{olfa_engine.normalisieren(z.get('student', ''))}"
+
+
+def zielwoerter_vereinen(regeln: list[dict], durchgang1: list[dict],
+                         durchgang2: list[dict] | None = None) -> list[dict]:
+    """Führt Regelfunde und ein bis zwei Modelldurchgänge zusammen.
+
+    Die Sicherheit wird nicht vom Modell übernommen, sondern gedeckelt: was nur
+    ein Durchgang gesehen hat, ist weniger sicher; wo sich die Durchgänge
+    widersprechen, sinkt sie unter die Schwelle und der Fall geht zur
+    Kontrolle. Ein Regelfund schlägt jede Modellaussage – er ist nicht geraten.
+    """
+    nach_stelle: dict[str, dict] = {}
+    for z in regeln:
+        nach_stelle[_stelle(z)] = {
+            **z, "zweitdurchgang": ("Regel: in de-CH gibt es kein ß"
+                                   if z.get("herkunft") == "regel"
+                                   else "Regel: schon einmal so falsch geschrieben")}
+
+    zwei = durchgang2 is not None
+    b = {_stelle(z): z for z in (durchgang2 or [])}
+    for za in durchgang1:
+        k = _stelle(za)
+        if nach_stelle.get(k, {}).get("herkunft") in ("regel", "wiederholung"):
+            continue
+        zb = b.get(k)
+        if not zwei:
+            eintrag = {**za, "sicherheit": min(za["sicherheit"], 0.8),
+                       "zweitdurchgang": "kein Zweitdurchgang"}
+        elif zb is None:
+            eintrag = {**za, "sicherheit": min(za["sicherheit"], 0.7),
+                       "zweitdurchgang": "nur Durchgang 1"}
+        elif olfa_engine.normalisieren(za["target"]) == olfa_engine.normalisieren(zb["target"]):
+            eintrag = {**za, "sicherheit": min(za["sicherheit"], zb["sicherheit"]),
+                       "zweitdurchgang": "beide Durchgänge einig"}
+        else:
+            eintrag = {**za, "alternative": zb["target"],
+                       "sicherheit": min(za["sicherheit"], 0.6),
+                       "zweitdurchgang": f"uneinig: «{za['target']}» gegen «{zb['target']}»"}
+        nach_stelle[k] = eintrag
+
+    # Was nur der zweite Durchgang gesehen hat, ist ebenfalls ein Fund.
+    for zb in (durchgang2 or []):
+        k = _stelle(zb)
+        if k in nach_stelle:
+            continue
+        nach_stelle[k] = {**zb, "sicherheit": min(zb["sicherheit"], 0.7),
+                          "zweitdurchgang": "nur Durchgang 2"}
+
+    return sorted(nach_stelle.values(),
+                  key=lambda z: (z.get("nummern") or [z.get("tokenIndex") or 0])[0])
 
 
 # ---------------------------------------------------------------------------
