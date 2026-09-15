@@ -11,7 +11,7 @@
     ],
     "offene_punkte": [
       "GRUPPENZUORDNUNG FEHLT: OLFA ordnet jede Kategorie zusätzlich einer von drei entwicklungsbezogenen Gruppen (I / II / III) zu, erkennbar an der roten, gelben bzw. grünen Markierung der Kategorienummer auf dem Auswertungsbogen. Diese Angabe war in der übermittelten Tabelle nicht enthalten und wurde NICHT erraten – das Feld 'gruppe' ist überall null. Zum Nachtragen: Einstellungen → OLFA-Kategorien.",
-      "SCHREIBVARIANTE SCHWEIZ: Die App ist auf die Schweizer Rechtschreibung eingestellt – in den Chat-Prompts entsteht also nie ein ß. Damit können die Kategorien 13 (s für ß) und 15 (ss für ß) im Diktat gar nicht auftreten: Sie beschreiben, dass ein ß NICHT geschrieben wurde, und genau das ist in der Schweiz richtig. Die Kategorien 14 (ß für s) und 16 (ß für ss) bleiben dagegen sinnvoll – sie erfassen, dass ein Kind fälschlich ein ß setzt. Die vier Nummern bleiben erhalten, damit die Nummerierung mit dem Auswertungsbogen übereinstimmt."
+      "NUR SCHWEIZ: Das Werkzeug ist ausschliesslich auf die Schweizer Rechtschreibung ausgelegt – in keinem Auftrag an das Sprachmodell darf ein ß entstehen. Die Kategorien 13 (s für ß) und 15 (ss für ß) sind deshalb gesperrt: Sie beschreiben, dass ein ß NICHT geschrieben wurde, und genau das ist hier richtig. 14 (ß für s) und 16 (ß für ss) bleiben wählbar – sie erfassen ein fälschlich gesetztes ß. Gesperrte Nummern bleiben der Nummerierung wegen in der Liste."
     ],
     "lesehilfe": "Die Bezeichnungen folgen dem Muster «X für Y»: geschrieben wurde X, richtig wäre Y. «Klein- für Großschreibung» heißt also: kleingeschrieben, obwohl groß richtig wäre.",
     "feld_erklaerung": {
@@ -22,7 +22,8 @@
       "gruppe": "Entwicklungsgruppe I, II oder III – hier noch nicht hinterlegt.",
       "bereich": "Übergeordneter Rechtschreibbereich zur Gruppierung in der Oberfläche.",
       "heuristik": "Technische Marker für die automatischen Kategorie-Vorschläge beim Abgleich. Ein Marker darf auf mehrere Kategorien zeigen; dann schlägt die App beide vor.",
-      "geprueft": "true = von der Lehrperson gegen das Fachmaterial geprüft."
+      "geprueft": "true = von der Lehrperson gegen das Fachmaterial geprüft.",
+      "gesperrt": "true = nicht mehr auswählbar (unbesetzt oder in der Schweiz nicht anwendbar); der Eintrag bleibt nur erhalten, damit die Nummerierung stimmt."
     }
   },
   "kategorien": [
@@ -36,7 +37,9 @@
       "heuristik": [
         "klein_statt_gross"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "02",
@@ -48,7 +51,9 @@
       "heuristik": [
         "gross_statt_klein"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "03",
@@ -60,7 +65,9 @@
       "heuristik": [
         "gross_im_wort"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "04",
@@ -72,7 +79,9 @@
       "heuristik": [
         "getrennt_statt_zusammen"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "05",
@@ -84,7 +93,9 @@
       "heuristik": [
         "zusammen_statt_getrennt"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "06",
@@ -96,7 +107,9 @@
       "heuristik": [
         "wortgrenze"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "07",
@@ -110,7 +123,9 @@
         "ck",
         "tz"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "08",
@@ -122,7 +137,9 @@
       "heuristik": [
         "doppelkonsonant_zuviel"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "09",
@@ -136,7 +153,9 @@
         "doppelvokal_fehlt",
         "ie_fehlt"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "10",
@@ -149,7 +168,9 @@
         "dehnungs_h_zuviel",
         "doppelvokal_zuviel"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "11",
@@ -161,7 +182,9 @@
       "heuristik": [
         "doppelkonsonant_zuviel"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "12",
@@ -174,7 +197,9 @@
         "ie_zuviel",
         "laenge_bei_kurzvokal"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "13",
@@ -186,7 +211,9 @@
       "heuristik": [
         "s_statt_sz"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": true,
+      "grund": "in der Schweiz nicht anwendbar – ohne ß zu schreiben ist hier korrekt"
     },
     {
       "nr": "14",
@@ -198,7 +225,9 @@
       "heuristik": [
         "sz_statt_s"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "15",
@@ -210,7 +239,9 @@
       "heuristik": [
         "ss_statt_sz"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": true,
+      "grund": "in der Schweiz nicht anwendbar – ss ist hier die korrekte Schreibung"
     },
     {
       "nr": "16",
@@ -222,7 +253,9 @@
       "heuristik": [
         "sz_statt_ss"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "17",
@@ -235,7 +268,9 @@
         "e_statt_ae",
         "eu_statt_aeu"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "18",
@@ -248,7 +283,9 @@
         "ae_statt_e",
         "aeu_statt_eu"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "19",
@@ -260,7 +297,9 @@
       "heuristik": [
         "auslautverhaertung"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "20",
@@ -272,7 +311,9 @@
       "heuristik": [
         "stimmhaft_statt_stimmlos"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "21",
@@ -282,7 +323,9 @@
       "gruppe": null,
       "bereich": "unbesetzt",
       "heuristik": [],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": true,
+      "grund": "im Original unbesetzt"
     },
     {
       "nr": "22",
@@ -292,7 +335,9 @@
       "gruppe": null,
       "bereich": "unbesetzt",
       "heuristik": [],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": true,
+      "grund": "im Original unbesetzt"
     },
     {
       "nr": "23",
@@ -304,7 +349,9 @@
       "heuristik": [
         "f_statt_v"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "24",
@@ -316,7 +363,9 @@
       "heuristik": [
         "v_statt_f"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "25",
@@ -328,7 +377,9 @@
       "heuristik": [
         "w_statt_v"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "26",
@@ -340,7 +391,9 @@
       "heuristik": [
         "v_statt_w"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "27",
@@ -352,7 +405,9 @@
       "heuristik": [
         "ch_statt_g"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "28",
@@ -364,7 +419,9 @@
       "heuristik": [
         "g_statt_ch"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "29",
@@ -376,7 +433,9 @@
       "heuristik": [
         "konsonant_fehlt"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "30",
@@ -388,7 +447,9 @@
       "heuristik": [
         "konsonant_zuviel"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "31",
@@ -400,7 +461,9 @@
       "heuristik": [
         "vokal_fehlt"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "32",
@@ -412,7 +475,9 @@
       "heuristik": [
         "vokal_zuviel"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "33",
@@ -424,7 +489,9 @@
       "heuristik": [
         "konsonant_verwechselt"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "34",
@@ -436,7 +503,9 @@
       "heuristik": [
         "vokal_verwechselt"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "35",
@@ -448,7 +517,9 @@
       "heuristik": [
         "dreher"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "36",
@@ -460,7 +531,9 @@
       "heuristik": [
         "umlaut_fehlt"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     },
     {
       "nr": "37",
@@ -474,7 +547,9 @@
         "wort_fehlt",
         "fremdwort"
       ],
-      "geprueft": true
+      "geprueft": true,
+      "gesperrt": false,
+      "grund": ""
     }
   ]
 }

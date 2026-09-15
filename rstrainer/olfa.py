@@ -26,6 +26,10 @@ class Kategorie:
     bereich: str = "Sonstiges"
     heuristik: tuple[str, ...] = ()
     geprueft: bool = False
+    #: Gesperrte Nummern bleiben in der Liste, sind aber nicht mehr wählbar –
+    #: entweder im Original unbesetzt oder in der Schweiz nicht anwendbar.
+    gesperrt: bool = False
+    grund: str = ""
 
     @property
     def label(self) -> str:
@@ -42,6 +46,8 @@ class Kategorie:
             "bereich": self.bereich,
             "heuristik": list(self.heuristik),
             "geprueft": self.geprueft,
+            "gesperrt": self.gesperrt,
+            "grund": self.grund,
         }
 
 
@@ -78,6 +84,11 @@ class Kategorienliste:
         return [k for k in self.kategorien if marker in k.heuristik]
 
     @property
+    def waehlbar(self) -> list[Kategorie]:
+        """Kategorien, die für neue Einträge zur Verfügung stehen."""
+        return [k for k in self.kategorien if not k.gesperrt]
+
+    @property
     def alle_geprueft(self) -> bool:
         return bool(self.kategorien) and all(k.geprueft for k in self.kategorien)
 
@@ -96,6 +107,8 @@ def _kategorie_aus_dict(roh: dict[str, Any]) -> Kategorie:
         bereich=str(roh.get("bereich") or "Sonstiges"),
         heuristik=tuple(roh.get("heuristik") or ()),
         geprueft=bool(roh.get("geprueft", False)),
+        gesperrt=bool(roh.get("gesperrt", False)),
+        grund=str(roh.get("grund", "") or ""),
     )
 
 

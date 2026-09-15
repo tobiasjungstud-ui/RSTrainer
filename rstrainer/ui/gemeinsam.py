@@ -8,11 +8,9 @@ from typing import Any
 
 import streamlit as st
 
-from .. import config, db, olfa
+from .. import config, db, kategorien, olfa, taxonomie
+from ..kategorien import Register
 from ..validation import Befund
-
-NAMENSMODUS_SCHLUESSEL = "namensmodus"
-VARIANTE_SCHLUESSEL = "rechtschreibvariante"
 
 
 @st.cache_resource
@@ -22,29 +20,42 @@ def verbindung() -> sqlite3.Connection:
 
 
 def kategorienliste() -> olfa.Kategorienliste:
-    """Kategorienliste aus dem Sitzungsspeicher (nach Änderungen neu laden)."""
-    if "kategorienliste" not in st.session_state:
-        st.session_state["kategorienliste"] = olfa.laden()
-    return st.session_state["kategorienliste"]
+    """Nur die feste OLFA-Liste – für die Heuristiken der Plausibilitätsprüfung."""
+    return register().liste
+
+
+def sammlung() -> taxonomie.Sammlung:
+    """Nur die gelernten Fehlerarten."""
+    return register().sammlung
+
+
+def register() -> Register:
+    """Beide Kategoriensysteme aus dem Sitzungsspeicher.
+
+    Die gelernten Arten ändern sich im Betrieb – nach jedem Schreiben muss
+    :func:`kategorien_neu_laden` aufgerufen werden, sonst zeigt die Oberfläche
+    den Stand vom Seitenaufbau.
+    """
+    if "register" not in st.session_state:
+        st.session_state["register"] = kategorien.laden()
+    return st.session_state["register"]
 
 
 def kategorien_neu_laden() -> None:
-    st.session_state.pop("kategorienliste", None)
+    st.session_state.pop("register", None)
 
 
-def namensmodus(con) -> str:
-    """``klarname`` oder ``kuerzel`` – bestimmt, was auf Blättern erscheint."""
-    return db.einstellung_holen(con, NAMENSMODUS_SCHLUESSEL, "kuerzel")
-
-
-def rechtschreibvariante(con) -> str:
-    return db.einstellung_holen(con, VARIANTE_SCHLUESSEL, "schweiz")
+def sammlung_speichern(neue: taxonomie.Sammlung) -> None:
+    taxonomie.speichern(neue)
+    kategorien_neu_laden()
 
 
 def anzeigename(con, schueler: sqlite3.Row) -> str:
-    """Name für Ausdrucke und Exporte – je nach Einstellung Kürzel oder Klarname."""
-    if namensmodus(con) == "kuerzel" and schueler["kuerzel"]:
-        return schueler["kuerzel"]
+    """Name für Ausdrucke und Exporte.
+
+    Ein eigenes Kürzelfeld gibt es nicht mehr: Wer den Klarnamen nicht auf dem
+    Blatt haben will, trägt schon als Anzeigename ein Pseudonym ein.
+    """
     return schueler["anzeigename"]
 
 
@@ -52,13 +63,18 @@ def aktive_schueler_id() -> int | None:
     return st.session_state.get("schueler_id")
 
 
-def kategorien_auswahl(liste: olfa.Kategorienliste, beschriftung: str,
+def kategorien_auswahl(reg: Register, beschriftung: str,
                        vorauswahl: list[str] | None = None,
                        schluessel: str = "kategorien",
                        hoechstens: int | None = None) -> list[str]:
-    """Mehrfachauswahl über alle Kategorien, gruppiert nach Bereich."""
-    optionen = [k.nr for k in liste]
-    beschriftungen = {k.nr: f"{k.bereich} · {k.label}" for k in liste}
+    """Mehrfachauswahl über beide Kategoriensysteme.
+
+    Gesperrte OLFA-Kategorien stehen nicht zur Wahl: 13 und 15 beschreiben,
+    dass ein ß *nicht* geschrieben wurde – in der Schweiz ist genau das richtig.
+    """
+    optionen = [k.nr for k in reg.liste.waehlbar] + [a.id for a in reg.sammlung]
+    beschriftungen = {k.nr: f"{k.bereich} · {k.label}" for k in reg.liste.waehlbar}
+    beschriftungen.update({a.id: f"{a.oberbegriff} · {a.label}" for a in reg.sammlung})
     gewaehlt = st.multiselect(
         beschriftung, optionen,
         default=[nr for nr in (vorauswahl or []) if nr in optionen],

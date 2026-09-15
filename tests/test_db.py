@@ -12,11 +12,18 @@ from rstrainer import db
 # --- Profile ----------------------------------------------------------------
 
 def test_profil_anlegen_und_holen(con):
-    sid = db.schueler_anlegen(con, "Testkind", "TK", "5a", "Notiz")
+    sid = db.schueler_anlegen(con, "Testkind", "Notiz")
     schueler = db.schueler_holen(con, sid)
     assert schueler["anzeigename"] == "Testkind"
-    assert schueler["kuerzel"] == "TK"
+    assert schueler["notiz"] == "Notiz"
     assert schueler["aktiv"] == 1
+
+
+def test_profil_hat_kein_kuerzel_und_keine_klasse(con, schueler_id):
+    """Beides wurde bewusst entfernt: zwei personenbezogene Felder weniger."""
+    schueler = db.schueler_holen(con, schueler_id)
+    assert set(schueler.keys()) == {"id", "anzeigename", "notiz", "angelegt_am",
+                                    "aktiv"}
 
 
 def test_leerer_name_wird_abgelehnt(con):
@@ -31,9 +38,9 @@ def test_profile_werden_alphabetisch_sortiert(con):
 
 
 def test_profil_aktualisieren(con, schueler_id):
-    db.schueler_aktualisieren(con, schueler_id, klasse="6b", notiz="neu")
+    db.schueler_aktualisieren(con, schueler_id, anzeigename="Neu", notiz="neu")
     schueler = db.schueler_holen(con, schueler_id)
-    assert schueler["klasse"] == "6b" and schueler["notiz"] == "neu"
+    assert schueler["anzeigename"] == "Neu" and schueler["notiz"] == "neu"
 
 
 def test_unbekannte_felder_werden_ignoriert(con, schueler_id):
@@ -85,7 +92,6 @@ def test_diktat_ist_ohne_freigabe_angelegt(con, schueler_id):
     diktat = db.diktat_holen(con, did)
     assert diktat["freigegeben"] == 0
     assert diktat["freigegeben_am"] is None
-    assert diktat["korrektur_gelesen"] == 0
 
 
 def test_wortzahl_wird_automatisch_berechnet(con, schueler_id):
@@ -101,15 +107,49 @@ def test_freigabe_wird_mit_zeitstempel_festgehalten(con, schueler_id):
     assert diktat["freigegeben_am"]
 
 
-def test_korrekturlesen_ist_ein_eigener_nachweis(con, schueler_id):
-    """Freigabe und Korrekturlesen müssen getrennt nachvollziehbar sein."""
+def test_korrekturlesen_ist_kein_eigener_schritt_mehr(con, schueler_id):
+    """Die Sperre wurde entfernt – die Freigabe ist der einzige Nachweis."""
     did = db.diktat_anlegen(con, schueler_id, "D", "Text")
-    db.diktat_freigeben(con, did)
-    assert db.diktat_holen(con, did)["korrektur_gelesen"] == 0
-    db.diktat_korrektur_bestaetigen(con, did)
+    assert "korrektur_gelesen" not in db.diktat_holen(con, did).keys()
+    assert not hasattr(db, "diktat_korrektur_bestaetigen")
+
+
+# --- Freie Texte ------------------------------------------------------------
+
+def test_freitext_zaehlt_die_woerter_des_kindes(con, schueler_id):
+    """Ohne Vorlage gibt es nichts anderes zu zählen als den Text selbst."""
+    did = db.diktat_anlegen(con, schueler_id, "Aufsatz", "",
+                            art="freitext", schuelertext="Eins zwei drei.")
     diktat = db.diktat_holen(con, did)
-    assert diktat["korrektur_gelesen"] == 1
-    assert diktat["korrektur_gelesen_am"]
+    assert diktat["art"] == "freitext"
+    assert diktat["wortzahl"] == 3
+    assert diktat["text_original"] == ""
+
+
+def test_freitext_fuehrt_die_wortzahl_nach(con, schueler_id):
+    did = db.diktat_anlegen(con, schueler_id, "Aufsatz", "",
+                            art="freitext", schuelertext="Eins zwei.")
+    db.diktat_aktualisieren(con, did, schuelertext="Eins zwei drei vier fünf.")
+    assert db.diktat_holen(con, did)["wortzahl"] == 5
+
+
+def test_diktat_zaehlt_die_vorlage_nicht_die_abschrift(con, schueler_id):
+    did = db.diktat_anlegen(con, schueler_id, "D", "Eins zwei drei vier.")
+    db.diktat_aktualisieren(con, did, schuelertext="Eins zwei.")
+    assert db.diktat_holen(con, did)["wortzahl"] == 4
+
+
+def test_fehler_umhaengen_greift_ueber_alle_profile(con, schueler_id):
+    """Beim Zusammenlegen gelernter Arten zeigten sonst die Einträge fremder
+    Profile ins Leere."""
+    anderes = db.schueler_anlegen(con, "Zweites Kind")
+    db.fehler_anlegen(con, schueler_id, "X-alt")
+    db.fehler_anlegen(con, anderes, "X-alt")
+    db.fehler_anlegen(con, anderes, "07")
+
+    assert db.fehler_umhaengen(con, "X-alt", "X-neu") == 2
+    assert {f["kategorie_nr"] for f in db.fehler_liste(con, schueler_id)} == {"X-neu"}
+    assert {f["kategorie_nr"] for f in db.fehler_liste(con, anderes)} == {"X-neu", "07"}
 
 
 def test_freigabe_kann_zurueckgenommen_werden(con, schueler_id):

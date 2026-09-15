@@ -4,19 +4,22 @@ from __future__ import annotations
 
 import streamlit as st
 
-from .. import config, db, demo_data, export, olfa
+from .. import auftraege, config, db, demo_data, export, olfa, taxonomie
 from . import gemeinsam as g
 
 
 def zeichnen(con) -> None:
     st.header("Einstellungen")
-    reiter_allg, reiter_olfa, reiter_demo, reiter_export = st.tabs(
-        ["⚙️ Allgemein", "📖 OLFA-Kategorien", "🧪 Testmodus", "💾 Datenexport"]
+    reiter_allg, reiter_olfa, reiter_arten, reiter_demo, reiter_export = st.tabs(
+        ["⚙️ Allgemein", "📖 OLFA-Kategorien", "🌱 Gelernte Fehlerarten",
+         "🧪 Testmodus", "💾 Datenexport"]
     )
     with reiter_allg:
         _allgemein(con)
     with reiter_olfa:
         _olfa(con)
+    with reiter_arten:
+        _fehlerarten(con)
     with reiter_demo:
         _testmodus(con)
     with reiter_export:
@@ -26,47 +29,35 @@ def zeichnen(con) -> None:
 def _allgemein(con) -> None:
     st.subheader("Namen auf Ausdrucken")
     st.markdown(
-        "**Empfehlung: Kürzel/Pseudonym.** Es geht um Daten minderjähriger "
-        "Schüler:innen. Ein Übungsblatt landet schnell im Lehrerzimmer, im "
-        "Drucker oder im Papierkorb. Mit einem Kürzel ist der Bezug zur Person "
-        "nur für Sie selbst herstellbar. Für ein Elterngespräch lässt sich der "
-        "Klarname jederzeit kurz einschalten."
+        "Was als **Anzeigename** im Profil steht, erscheint auch auf "
+        "Übungsblättern, Informationsblättern und Berichten. Es gibt bewusst "
+        "kein zweites Kürzelfeld: Ein Blatt landet schnell im Lehrerzimmer, im "
+        "Drucker oder im Papierkorb. Wer den Klarnamen dort nicht haben will, "
+        "trägt schon im Profil ein Pseudonym ein – dann gibt es gar keine Datei "
+        "mit dem Klarnamen darin."
     )
-    aktuell = g.namensmodus(con)
-    modus = st.radio(
-        "Was erscheint auf Übungsblättern, Informationsblättern und Berichten?",
-        ["kuerzel", "klarname"],
-        index=0 if aktuell == "kuerzel" else 1,
-        format_func=lambda m: ("Kürzel / Pseudonym (empfohlen)"
-                               if m == "kuerzel" else "Klarname"),
-    )
-    if modus != aktuell:
-        db.einstellung_setzen(con, g.NAMENSMODUS_SCHLUESSEL, modus)
-        g.merken("Gespeichert.")
 
     st.divider()
-    st.subheader("Rechtschreibvariante")
-    st.caption(
-        "Bestimmt, welche Vorgabe in den Chat-Prompts steht. Die Voreinstellung "
-        "ist die Schweizer Variante ohne ß."
+    st.subheader("Rechtschreibung")
+    st.markdown(
+        "Das Werkzeug ist ausschliesslich auf die **Schweizer Rechtschreibung** "
+        "ausgelegt: kein ß, durchgehend ss. Eine Umschaltung gibt es nicht. "
+        "Entsprechend sind die OLFA-Kategorien **13** und **15** gesperrt – sie "
+        "beschreiben, dass ein ß *nicht* geschrieben wurde, und genau das ist "
+        "hier richtig. Setzt ein Kind fälschlich ein ß, greifen 14 und 16."
     )
-    aktuelle_variante = g.rechtschreibvariante(con)
-    variante = st.radio(
-        "Variante", ["schweiz", "deutschland_oesterreich"],
-        index=0 if aktuelle_variante == "schweiz" else 1,
-        format_func=lambda v: ("Schweiz (immer ss, kein ß)" if v == "schweiz"
-                               else "Deutschland / Österreich (mit ß)"),
-    )
-    if variante != aktuelle_variante:
-        db.einstellung_setzen(con, g.VARIANTE_SCHLUESSEL, variante)
-        st.success("Gespeichert.")
+    gesperrt = [k for k in g.kategorienliste() if k.gesperrt]
+    if gesperrt:
+        for k in gesperrt:
+            st.caption(f"🔒 **{k.nr} – {k.name}** — {k.grund}")
 
     st.divider()
     st.subheader("Speicherorte")
     st.code(
         f"Datenbank:        {config.DB_PFAD}\n"
         f"Exporte:          {config.EXPORT_DIR}\n"
-        f"Kategorienliste:  {g.kategorienliste().quelle}",
+        f"Kategorienliste:  {g.kategorienliste().quelle}\n"
+        f"Gelernte Arten:   {taxonomie.dateipfad()}",
         language="text",
     )
     g.datenschutz_fussnote()
@@ -136,6 +127,11 @@ def _olfa(con) -> None:
                      "gelb = II, grün = III). Noch nicht hinterlegt."),
             "bereich": st.column_config.TextColumn("Bereich"),
             "heuristik": st.column_config.TextColumn("heuristik (technisch)"),
+            "gesperrt": st.column_config.CheckboxColumn(
+                "gesperrt",
+                help="Nicht wählbar und für das Sprachmodell verboten. Die "
+                     "Nummer bleibt erhalten, damit die Zählung stimmt."),
+            "grund": st.column_config.TextColumn("Grund der Sperre"),
             "geprueft": st.column_config.CheckboxColumn("geprüft"),
         },
     )
@@ -161,6 +157,8 @@ def _olfa(con) -> None:
                         if t.strip()
                     ),
                     geprueft=bool(zeile["geprueft"]),
+                    gesperrt=bool(zeile.get("gesperrt", False)),
+                    grund=str(zeile.get("grund") or ""),
                 ))
             nummern = [k.nr for k in neue]
             if len(set(nummern)) != len(nummern):
@@ -189,18 +187,237 @@ def _olfa(con) -> None:
             st.rerun()
 
 
+def _fehlerarten(con) -> None:
+    """Verwaltung der Arten, die das Sprachmodell selbst benannt hat.
+
+    Angelegt werden sie ohne Rückfrage – das war ausdrücklich so gewollt. Der
+    Preis dafür ist eine Sammlung, die wächst. Hier lässt sie sich wieder
+    ordnen: umbenennen, zusammenlegen, löschen.
+    """
+    sammlung = g.sammlung()
+    st.subheader("Vom Sprachmodell gelernte Fehlerarten")
+    st.caption(
+        "Alles, wofür die OLFA-Liste keine Kategorie hat – vor allem Grammatik. "
+        "Die Arten entstehen bei der Analyse und werden ohne Rückfrage angelegt."
+    )
+
+    if not len(sammlung):
+        st.info(
+            "Noch keine gelernten Fehlerarten. Sie entstehen, sobald das "
+            "Sprachmodell unter **Fehlererfassung** einen Text auswertet."
+        )
+        return
+
+    ungesehen = sammlung.ungesehen
+    if ungesehen:
+        st.info(f"**{len(ungesehen)} Art(en)** sind neu und noch nicht angesehen.")
+
+    for oberbegriff, arten in sorted(sammlung.nach_oberbegriff().items()):
+        st.markdown(f"**{oberbegriff}**")
+        for art in arten:
+            with st.container(border=True):
+                kopf, knopf = st.columns([5, 1])
+                with kopf:
+                    st.markdown(
+                        ("🆕 " if art.neu else "") + f"**{art.label}**"
+                        + f"  \n`{art.id}`"
+                    )
+                    if art.beschreibung:
+                        st.caption(art.beschreibung)
+                    anzahl = con.execute(
+                        "SELECT COUNT(*) FROM fehler WHERE kategorie_nr = ?",
+                        (art.id,),
+                    ).fetchone()[0]
+                    st.caption(f"{anzahl} zugeordnete Fehler · angelegt {art.angelegt}")
+                with knopf:
+                    if art.neu and st.button("Gesehen", key=f"gesehen_{art.id}"):
+                        art.neu = False
+                        g.sammlung_speichern(sammlung)
+                        st.rerun()
+
+    st.divider()
+    _arten_umbenennen(con, sammlung)
+    st.divider()
+    _arten_zusammenlegen(con, sammlung)
+    st.divider()
+    _arten_aufraeumen(con, sammlung)
+
+
+def _arten_umbenennen(con, sammlung) -> None:
+    st.subheader("Umbenennen")
+    namen = {a.id: a.label for a in sammlung}
+    art_id = st.selectbox("Fehlerart", list(namen),
+                          format_func=lambda i: namen[i], key="tax_umbenennen")
+    art = sammlung.get(art_id)
+    if art is None:
+        return
+    with st.form("tax_umbenennen_form"):
+        spalten = st.columns(3)
+        oberbegriff = spalten[0].selectbox(
+            "Oberbegriff", taxonomie.OBERBEGRIFFE,
+            index=taxonomie.OBERBEGRIFFE.index(art.oberbegriff)
+            if art.oberbegriff in taxonomie.OBERBEGRIFFE else 0,
+        )
+        mitte = spalten[1].text_input(
+            "Untergruppe", value=art.pfad[1] if len(art.pfad) > 1 else "")
+        unten = spalten[2].text_input(
+            "Genaue Art", value=art.pfad[2] if len(art.pfad) > 2 else "")
+        beschreibung = st.text_input("Beschreibung", value=art.beschreibung)
+        if st.form_submit_button("Umbenennen", type="primary"):
+            pfad = [oberbegriff, mitte, unten]
+            if not mitte.strip():
+                st.error("Die Untergruppe darf nicht leer sein.")
+            else:
+                sammlung.umbenennen(art.id, pfad)
+                art.beschreibung = beschreibung.strip()
+                g.sammlung_speichern(sammlung)
+                g.merken("Umbenannt.")
+                st.rerun()
+
+
+def _arten_zusammenlegen(con, sammlung) -> None:
+    st.subheader("Zusammenlegen")
+    st.caption(
+        "Hängt alle Fehler der einen Art auf die andere um – **über alle "
+        "Profile hinweg**, sonst zeigten die Einträge fremder Kinder ins Leere. "
+        "Das lässt sich nicht rückgängig machen."
+    )
+
+    paare = sammlung.aehnliche_paare()
+    if paare:
+        st.markdown("**Möglicherweise doppelt**")
+        for a, b, wert in paare[:10]:
+            st.caption(f"{wert} % gemeinsame Wörter: «{a.label}» ↔ «{b.label}»")
+        st.caption(
+            "⚠️ Das ist nur ein Wortvergleich. «Dativ statt Akkusativ» und "
+            "«Akkusativ statt Dativ» teilen alle Wörter und meinen das "
+            "Gegenteil – deshalb wird hier nie automatisch zusammengelegt."
+        )
+
+    namen = {a.id: a.label for a in sammlung}
+    with st.form("tax_zusammenlegen_form"):
+        spalte_a, spalte_b = st.columns(2)
+        von = spalte_a.selectbox("Verschwindet", list(namen),
+                                 format_func=lambda i: namen[i], key="tax_von")
+        nach = spalte_b.selectbox("Bleibt", list(namen),
+                                  format_func=lambda i: namen[i], key="tax_nach")
+        if st.form_submit_button("Zusammenlegen", type="primary"):
+            if von == nach:
+                st.error("Bitte zwei verschiedene Fehlerarten wählen.")
+            else:
+                anzahl = db.fehler_umhaengen(con, von, nach)
+                sammlung.loeschen(von)
+                g.sammlung_speichern(sammlung)
+                g.merken(f"Zusammengelegt, {anzahl} Fehlereinträge umgehängt.")
+                st.rerun()
+
+    st.markdown("**Löschen**")
+    st.caption(
+        "Fehler dieser Art fallen auf die Auffangkategorie **37** zurück. "
+        "Löschen Sie nur, was wirklich unbrauchbar ist – zusammenlegen erhält "
+        "die Information."
+    )
+    weg = st.selectbox("Fehlerart löschen", list(namen),
+                       format_func=lambda i: namen[i], key="tax_loeschen")
+    if st.button("Endgültig löschen"):
+        anzahl = db.fehler_umhaengen(con, weg, "37")
+        sammlung.loeschen(weg)
+        g.sammlung_speichern(sammlung)
+        g.merken(f"Gelöscht, {anzahl} Fehlereinträge auf Kategorie 37 gesetzt.")
+        st.rerun()
+
+
+def _arten_aufraeumen(con, sammlung) -> None:
+    st.subheader("Vom Sprachmodell aufräumen lassen")
+    st.caption(
+        "Das Modell, das die Arten benannt hat, kann sie auch wieder ordnen. "
+        "Angewendet wird erst nach Ihrer Bestätigung: Anders als beim Anlegen "
+        "ist ein Fehlgriff hier teuer, weil er bestehende Fehlerdaten umhängt."
+    )
+
+    if st.button("Aufräum-Prompt erzeugen"):
+        st.session_state["tax_aufraeum_prompt"] = \
+            auftraege.aufraeum_prompt_bauen(sammlung)
+        st.rerun()
+
+    prompt_text = st.session_state.get("tax_aufraeum_prompt")
+    if not prompt_text:
+        return
+    st.code(prompt_text, language="markdown")
+
+    roh = st.text_area("Antwort des Sprachmodells", height=180, key="tax_aufraeum_roh")
+    if st.button("Vorschlag auswerten"):
+        plan = auftraege.aufraeum_lesen(roh, sammlung)
+        if plan.fehler:
+            st.error(plan.fehler)
+        elif plan.ist_leer:
+            st.success("Das Modell sieht nichts, was zusammengehört oder anders heissen müsste.")
+        else:
+            st.session_state["tax_aufraeum_plan"] = plan
+            st.rerun()
+
+    plan = st.session_state.get("tax_aufraeum_plan")
+    if plan is None:
+        return
+
+    with st.form("tax_aufraeum_form"):
+        entscheidungen = []
+        for i, x in enumerate(plan.zusammenlegen):
+            haken = st.checkbox(
+                f"Zusammenlegen: «{sammlung.label(x['von'])}» → "
+                f"«{sammlung.label(x['nach'])}»"
+                + (f" — {x['warum']}" if x["warum"] else ""),
+                value=False, key=f"tax_plan_z_{i}",
+            )
+            entscheidungen.append(("zusammen", haken, x))
+        for i, x in enumerate(plan.umbenennen):
+            haken = st.checkbox(
+                f"Umbenennen: «{sammlung.label(x['id'])}» → "
+                f"«{' › '.join(x['pfad'])}»"
+                + (f" — {x['warum']}" if x["warum"] else ""),
+                value=False, key=f"tax_plan_u_{i}",
+            )
+            entscheidungen.append(("umbenennen", haken, x))
+
+        st.caption(
+            "Nichts ist vorausgewählt. Jede Zeile bewusst anhaken – "
+            "eine zu Unrecht zusammengelegte Art zerstört die Statistik."
+        )
+        if st.form_submit_button("Angehakte anwenden", type="primary"):
+            umgehaengt = 0
+            geaendert = 0
+            for art, haken, x in entscheidungen:
+                if not haken:
+                    continue
+                if art == "zusammen":
+                    umgehaengt += db.fehler_umhaengen(con, x["von"], x["nach"])
+                    sammlung.loeschen(x["von"])
+                else:
+                    sammlung.umbenennen(x["id"], x["pfad"])
+                geaendert += 1
+            g.sammlung_speichern(sammlung)
+            for key in ("tax_aufraeum_plan", "tax_aufraeum_prompt", "tax_aufraeum_roh"):
+                st.session_state.pop(key, None)
+            g.merken(f"{geaendert} Änderung(en) angewendet, "
+                     f"{umgehaengt} Fehlereinträge umgehängt.")
+            st.rerun()
+
+
 def _testmodus(con) -> None:
     st.subheader("Testmodus mit Beispieldaten")
     st.markdown(
-        "Legt drei **frei erfundene** Demoprofile mit Diktaten und Fehlern an. "
-        "Damit lassen sich Abgleich, Empfehlungslogik, Trendanalyse und "
-        "Docx-Export ausprobieren, ohne echte Schülerdaten anzufassen."
+        "Legt drei **frei erfundene** Demoprofile mit Diktaten, freien Texten "
+        "und Fehlern an. Damit lassen sich Abgleich, Empfehlungslogik, "
+        "Trendanalyse und Docx-Export ausprobieren, ohne echte Schülerdaten "
+        "anzufassen."
     )
     st.caption(
         "Die Demodaten sind mit einem festen Zufallsstartwert erzeugt und daher "
         "reproduzierbar. Die eingebauten Entwicklungen (abnehmend / stagnierend "
         "/ zunehmend) sollen genau so in der Auswertung erscheinen – wenn nicht, "
-        "stimmt etwas mit der Trendberechnung nicht."
+        "stimmt etwas mit der Trendberechnung nicht. Gelernte Fehlerarten legt "
+        "der Testmodus keine an: Die stehen ausserhalb der Profile und blieben "
+        "nach dem Entfernen der Demodaten stehen."
     )
 
     vorhanden = demo_data.demodaten_vorhanden(con)
@@ -245,23 +462,23 @@ def _export(con) -> None:
     if schueler is None:
         return
 
-    liste = g.kategorienliste()
-    basis = f"{schueler['kuerzel'] or schueler['id']}"
+    reg = g.register()
+    basis = str(schueler["id"])
 
     spalte_a, spalte_b, spalte_c = st.columns(3)
     with spalte_a:
         st.download_button(
-            "Fehler als CSV", export.fehler_csv(con, schueler["id"], liste),
+            "Fehler als CSV", export.fehler_csv(con, schueler["id"], reg),
             file_name=f"fehler_{basis}.csv", mime="text/csv",
         )
     with spalte_b:
         st.download_button(
-            "Diktate als CSV", export.diktate_csv(con, schueler["id"]),
-            file_name=f"diktate_{basis}.csv", mime="text/csv",
+            "Texte als CSV", export.diktate_csv(con, schueler["id"]),
+            file_name=f"texte_{basis}.csv", mime="text/csv",
         )
     with spalte_c:
         st.download_button(
-            "Alles als JSON", export.gesamt_json(con, schueler["id"], liste),
+            "Alles als JSON", export.gesamt_json(con, schueler["id"], reg),
             file_name=f"gesamt_{basis}.json", mime="application/json",
         )
     st.caption("CSV mit Semikolon als Trennzeichen – Excel öffnet das direkt richtig.")

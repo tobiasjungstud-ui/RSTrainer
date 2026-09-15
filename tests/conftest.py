@@ -9,14 +9,27 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from rstrainer import db, olfa  # noqa: E402
+from rstrainer import db, olfa, taxonomie  # noqa: E402
 from rstrainer.analysis import Diktatpunkt  # noqa: E402
+from rstrainer.kategorien import Register  # noqa: E402
 
 
 @pytest.fixture
 def liste() -> olfa.Kategorienliste:
     """Die mitgelieferte Kategorienliste."""
     return olfa.laden(Path(__file__).resolve().parent.parent / "data" / "olfa_kategorien.json")
+
+
+@pytest.fixture
+def sammlung() -> taxonomie.Sammlung:
+    """Leere Sammlung gelernter Fehlerarten – nie die echte Datei anfassen."""
+    return taxonomie.Sammlung()
+
+
+@pytest.fixture
+def register(liste, sammlung) -> Register:
+    """Beide Kategoriensysteme, wie die App sie sieht."""
+    return Register(liste=liste, sammlung=sammlung)
 
 
 @pytest.fixture
@@ -29,7 +42,7 @@ def con():
 
 @pytest.fixture
 def schueler_id(con) -> int:
-    return db.schueler_anlegen(con, "Testkind", kuerzel="TK", klasse="5a")
+    return db.schueler_anlegen(con, "Testkind", notiz="Testprofil")
 
 
 def diktatpunkte(anzahl: int, wortzahl: int = 100) -> list[Diktatpunkt]:

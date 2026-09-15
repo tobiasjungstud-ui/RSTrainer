@@ -15,6 +15,12 @@ import streamlit as st
 from .. import analysis, auftraege, config, db, docx_export, validation
 from . import gemeinsam as g
 
+SCHWIERIGKEITEN = {
+    "leicht": "leicht — 7. Klasse",
+    "mittel": "mittel — 8. Klasse",
+    "anspruchsvoll": "anspruchsvoll — 9. Klasse",
+}
+
 
 def zeichnen(con, schueler) -> None:
     st.header("Übungsblätter und Mini-Tests")
@@ -32,7 +38,8 @@ def zeichnen(con, schueler) -> None:
 def _empfehlungen_holen(con, schueler) -> list[analysis.Empfehlung]:
     diktate = db.diktat_liste(con, schueler["id"])
     punkte = [
-        analysis.Diktatpunkt(d["id"], d["datum"], d["titel"], d["wortzahl"])
+        analysis.Diktatpunkt(d["id"], d["datum"], d["titel"], d["wortzahl"],
+                             tuple(g.json_liste(d["ziel_kategorien"])))
         for d in diktate
     ]
     fehler = [dict(f) for f in db.fehler_liste(con, schueler["id"])]
@@ -40,7 +47,7 @@ def _empfehlungen_holen(con, schueler) -> list[analysis.Empfehlung]:
 
 
 def _neues_blatt(con, schueler) -> None:
-    liste = g.kategorienliste()
+    reg = g.register()
 
     st.subheader("Schritt 1 · Förderschwerpunkte festlegen")
     vorschlaege = _empfehlungen_holen(con, schueler)
@@ -49,7 +56,7 @@ def _neues_blatt(con, schueler) -> None:
         for e in vorschlaege:
             with st.container(border=True):
                 st.markdown(
-                    f"**{liste.label(e.kategorie_nr)}** {e.trend.symbol} "
+                    f"**{reg.label(e.kategorie_nr)}** {e.trend.symbol} "
                     f"*{e.trend.text}* · Priorität {e.punktzahl}"
                 )
                 st.caption(e.begruendung)
@@ -70,14 +77,15 @@ def _neues_blatt(con, schueler) -> None:
 
     with st.form("blatt_prompt"):
         kategorien = g.kategorien_auswahl(
-            liste, "Förderschwerpunkte (1–3)", vorauswahl=vorauswahl,
+            reg, "Förderschwerpunkte (1–3)", vorauswahl=vorauswahl,
             schluessel="blatt_kategorien", hoechstens=3,
         )
         spalte_a, spalte_b = st.columns(2)
         with spalte_a:
-            klassenstufe = st.text_input(
-                "Klassenstufe / Alter",
-                value=f"Klasse {schueler['klasse']}" if schueler["klasse"] else "5. Klasse",
+            schwierigkeit = st.selectbox(
+                "Schwierigkeitsgrad", list(SCHWIERIGKEITEN), index=1,
+                format_func=lambda x: SCHWIERIGKEITEN[x],
+                help="Bestimmt zugleich die Zielstufe im Prompt.",
             )
             aufgaben = st.number_input("Aufgaben je Schwerpunkt", 2, 8, 3)
         with spalte_b:
@@ -90,15 +98,14 @@ def _neues_blatt(con, schueler) -> None:
             else:
                 parameter = {
                     "kategorien": kategorien,
-                    "klassenstufe": klassenstufe,
+                    "schwierigkeit": schwierigkeit,
                     "bearbeitungszeit": bearbeitungszeit,
                     "aufgaben_pro_kategorie": int(aufgaben),
                     "test_aufgaben": int(test_aufgaben),
                 }
                 try:
                     code, prompt = auftraege.prompt_bauen(
-                        "uebungsblatt", parameter, liste,
-                        rechtschreibvariante=g.rechtschreibvariante(con),
+                        "uebungsblatt", parameter, reg.liste, sammlung=reg.sammlung,
                     )
                 except KeyError as fehler:
                     st.error(str(fehler))
@@ -151,7 +158,7 @@ def _neues_blatt(con, schueler) -> None:
 # ---------------------------------------------------------------------------
 
 def _vorschau_und_freigabe(con, schueler, auftrag, ergebnis) -> None:
-    liste = g.kategorienliste()
+    reg = g.register()
     parameter = json.loads(auftrag["parameter"] or "{}")
     kategorien = [str(k) for k in parameter.get("kategorien", [])]
 
@@ -172,7 +179,7 @@ def _vorschau_und_freigabe(con, schueler, auftrag, ergebnis) -> None:
 
     st.markdown("**Automatische Plausibilitätsprüfung**")
     g.befunde_anzeigen(
-        validation.blatt_pruefen(uebung, test, loesungen, kategorien, liste)
+        validation.blatt_pruefen(uebung, test, loesungen, kategorien, reg)
     )
 
     st.divider()
@@ -228,7 +235,7 @@ def _vorschau_und_freigabe(con, schueler, auftrag, ergebnis) -> None:
 # ---------------------------------------------------------------------------
 
 def _archiv(con, schueler) -> None:
-    liste = g.kategorienliste()
+    reg = g.register()
     blaetter = db.blatt_liste(con, schueler["id"])
     if not blaetter:
         st.info("Noch keine Übungsblätter gespeichert.")
@@ -238,7 +245,7 @@ def _archiv(con, schueler) -> None:
         kategorien = g.json_liste(blatt["kategorien"])
         with st.expander(f"{blatt['datum']} · {blatt['titel']}"):
             st.caption("Förderschwerpunkte: "
-                       + ", ".join(liste.label(nr) for nr in kategorien))
+                       + ", ".join(reg.label(nr) for nr in kategorien))
             st.caption(
                 f"Freigegeben am {blatt['freigegeben_am'] or '–'} · "
                 f"Lösungen geprüft: {'ja' if blatt['pruef_loesungen'] else 'nein'} · "
@@ -260,7 +267,7 @@ def _archiv(con, schueler) -> None:
                 )
                 docx_export.uebungsblatt_schreiben(
                     pfad, g.anzeigename(con, schueler), blatt["titel"], kategorien,
-                    liste, blatt["inhalt_uebung"], blatt["inhalt_test"],
+                    reg, blatt["inhalt_uebung"], blatt["inhalt_test"],
                     blatt["loesungen"], datum=_datum_deutsch(blatt["datum"]),
                     loesungen_anhaengen=mit_loesungen,
                 )

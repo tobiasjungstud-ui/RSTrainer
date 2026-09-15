@@ -15,32 +15,36 @@ from pathlib import Path
 from typing import Any
 
 from . import db
+from .kategorien import Register
 
 FEHLER_SPALTEN = [
     "fehler_id", "datum", "diktat_id", "diktat_titel", "kategorie_nr",
-    "kategorie_name", "wort_original", "wort_schueler", "kontext", "notiz",
+    "kategorie_name", "oberbegriff", "wort_original", "wort_schueler",
+    "kontext", "notiz",
 ]
 DIKTAT_SPALTEN = [
-    "diktat_id", "datum", "titel", "wortzahl", "ziel_kategorien", "quelle",
-    "freigegeben", "freigegeben_am", "korrektur_gelesen", "korrektur_gelesen_am",
-    "notiz",
+    "diktat_id", "datum", "art", "titel", "wortzahl", "ziel_kategorien",
+    "quelle", "freigegeben", "freigegeben_am", "notiz",
 ]
 
 
-def _zeilen_fehler(con: sqlite3.Connection, schueler_id: int, liste) -> list[dict]:
+def _zeilen_fehler(con: sqlite3.Connection, schueler_id: int,
+                   register: Register) -> list[dict]:
     diktattitel = {
         z["id"]: z["titel"] for z in db.diktat_liste(con, schueler_id)
     }
     zeilen = []
     for f in db.fehler_liste(con, schueler_id):
-        kategorie = liste.get(f["kategorie_nr"])
+        # Über das Register, nicht über die OLFA-Liste allein: Ein Fehler kann
+        # auch einer gelernten Art zugeordnet sein, die dort nicht steht.
         zeilen.append({
             "fehler_id": f["id"],
             "datum": f["datum"],
             "diktat_id": f["diktat_id"],
             "diktat_titel": diktattitel.get(f["diktat_id"], ""),
             "kategorie_nr": f["kategorie_nr"],
-            "kategorie_name": kategorie.name if kategorie else "",
+            "kategorie_name": register.name(f["kategorie_nr"]),
+            "oberbegriff": register.oberbegriff(f["kategorie_nr"]),
             "wort_original": f["wort_original"],
             "wort_schueler": f["wort_schueler"],
             "kontext": f["kontext"],
@@ -55,14 +59,13 @@ def _zeilen_diktate(con: sqlite3.Connection, schueler_id: int) -> list[dict]:
         zeilen.append({
             "diktat_id": d["id"],
             "datum": d["datum"],
+            "art": d["art"],
             "titel": d["titel"],
             "wortzahl": d["wortzahl"],
             "ziel_kategorien": ", ".join(json.loads(d["ziel_kategorien"] or "[]")),
             "quelle": d["quelle"],
             "freigegeben": bool(d["freigegeben"]),
             "freigegeben_am": d["freigegeben_am"] or "",
-            "korrektur_gelesen": bool(d["korrektur_gelesen"]),
-            "korrektur_gelesen_am": d["korrektur_gelesen_am"] or "",
             "notiz": d["notiz"],
         })
     return zeilen
@@ -78,15 +81,15 @@ def csv_text(zeilen: list[dict], spalten: list[str]) -> str:
     return puffer.getvalue()
 
 
-def fehler_csv(con: sqlite3.Connection, schueler_id: int, liste) -> str:
-    return csv_text(_zeilen_fehler(con, schueler_id, liste), FEHLER_SPALTEN)
+def fehler_csv(con: sqlite3.Connection, schueler_id: int, register: Register) -> str:
+    return csv_text(_zeilen_fehler(con, schueler_id, register), FEHLER_SPALTEN)
 
 
 def diktate_csv(con: sqlite3.Connection, schueler_id: int) -> str:
     return csv_text(_zeilen_diktate(con, schueler_id), DIKTAT_SPALTEN)
 
 
-def gesamt_json(con: sqlite3.Connection, schueler_id: int, liste,
+def gesamt_json(con: sqlite3.Connection, schueler_id: int, register: Register,
                 mit_texten: bool = True) -> str:
     """Vollständiger Datenbestand eines Profils als JSON."""
     schueler = db.schueler_holen(con, schueler_id)
@@ -97,6 +100,7 @@ def gesamt_json(con: sqlite3.Connection, schueler_id: int, liste,
     for d in db.diktat_liste(con, schueler_id):
         eintrag: dict[str, Any] = {
             "id": d["id"],
+            "art": d["art"],
             "titel": d["titel"],
             "datum": d["datum"],
             "wortzahl": d["wortzahl"],
@@ -105,8 +109,6 @@ def gesamt_json(con: sqlite3.Connection, schueler_id: int, liste,
             "notiz": d["notiz"],
             "freigegeben": bool(d["freigegeben"]),
             "freigegeben_am": d["freigegeben_am"],
-            "korrektur_gelesen": bool(d["korrektur_gelesen"]),
-            "korrektur_gelesen_am": d["korrektur_gelesen_am"],
         }
         if mit_texten:
             eintrag["text_original"] = d["text_original"]
@@ -120,17 +122,17 @@ def gesamt_json(con: sqlite3.Connection, schueler_id: int, liste,
         "schueler": {
             "id": schueler["id"],
             "anzeigename": schueler["anzeigename"],
-            "kuerzel": schueler["kuerzel"],
-            "klasse": schueler["klasse"],
             "notiz": schueler["notiz"],
         },
         "kategorienliste": {
-            "quelle": str(liste.quelle) if liste.quelle else None,
-            "anzahl": len(liste),
-            "ungeprueft": liste.anzahl_ungeprueft,
+            "quelle": str(register.liste.quelle) if register.liste.quelle else None,
+            "anzahl": len(register.liste),
+            "ungeprueft": register.liste.anzahl_ungeprueft,
+            "gesperrt": [k.nr for k in register.liste if k.gesperrt],
         },
+        "gelernte_fehlerarten": [a.as_dict() for a in register.sammlung],
         "diktate": diktate,
-        "fehler": _zeilen_fehler(con, schueler_id, liste),
+        "fehler": _zeilen_fehler(con, schueler_id, register),
         "blaetter": [
             {
                 "id": b["id"],

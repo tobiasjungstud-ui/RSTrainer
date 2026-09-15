@@ -1,14 +1,25 @@
 # RSTrainer
 
 Lokales Werkzeug für die Rechtschreibförderung im Deutschunterricht: Diktate
-verwalten, Fehler systematisch nach OLFA-Kategorien erfassen, daraus
+und frei geschriebene Texte verwalten, Fehler systematisch erfassen, daraus
 passgenaue Übungsblätter samt Mini-Test erzeugen und den Lernverlauf sichtbar
 machen.
 
+Ausgelegt auf die **Sekundarstufe I** (7.–9. Klasse) und ausschliesslich auf
+die **Schweizer Rechtschreibung**: kein ß, durchgehend ss. Eine
+Variantenumschaltung gibt es nicht.
+
 **Ohne Sprachmodell-Schnittstelle.** Die App enthält keinen API-Schlüssel und
-ruft zur Laufzeit keinen externen Dienst auf. Die Texterzeugung passiert in
-einem gewöhnlichen Claude-Chat; die App liefert dafür fertige Prompts und
-nimmt das Ergebnis kontrolliert wieder entgegen.
+ruft zur Laufzeit keinen externen Dienst auf. Texterzeugung *und*
+Fehleranalyse passieren in einem gewöhnlichen Claude-Chat; die App liefert
+dafür fertige Prompts und nimmt das Ergebnis kontrolliert wieder entgegen.
+
+> **Hinweis:** Es gibt daneben eine Fassung als Claude-Artefakt, in der das
+> Sprachmodell direkt in der Seite arbeitet und die Daten bei Claude liegen.
+> Die beiden Fassungen sind fachlich deckungsgleich – dieselbe Kategorienliste,
+> dieselbe Trend- und Empfehlungsrechnung, dieselben Prompts. Der Unterschied
+> ist, wo die Daten liegen und wer das Modell aufruft. Diese hier bleibt
+> vollständig lokal.
 
 ---
 
@@ -37,20 +48,21 @@ Nachtragen lässt sie sich unter *Einstellungen → OLFA-Kategorien*. Die App
 funktioniert auch ohne; es fehlt lediglich die Gruppierung nach
 Entwicklungsphase.
 
-**2. Zwei der vier ß-Kategorien greifen in der Schweiz nicht.** Die App ist
-auf die **Schweizer Rechtschreibung** eingestellt – in den Chat-Prompts
-entsteht also nie ein ß. Damit gilt für die Kategorien 13–16:
+**2. Zwei der vier ß-Kategorien sind gesperrt.** Die App kennt nur die
+Schweizer Rechtschreibung – in den Prompts entsteht nie ein ß. Damit gilt für
+die Kategorien 13–16:
 
 | Nr. | Kategorie | In der Schweiz |
 |---|---|---|
-| 13 | s für ß | **nicht anwendbar** – die Schreibung ohne ß ist hier richtig |
+| 13 | s für ß | **gesperrt** – die Schreibung ohne ß ist hier richtig |
 | 14 | ß für s | **relevant** – erfasst ein fälschlich gesetztes ß |
-| 15 | ss für ß | **nicht anwendbar** – ss ist hier die korrekte Schreibung |
+| 15 | ss für ß | **gesperrt** – ss ist hier die korrekte Schreibung |
 | 16 | ß für ss | **relevant** – etwa `*daß` statt `dass` |
 
-Die vier Nummern bleiben trotzdem erhalten, damit die Nummerierung mit dem
-Auswertungsbogen übereinstimmt. Wer mit ß unterrichtet, stellt die Variante
-unter *Einstellungen* um; dann sind alle vier anwendbar.
+«Gesperrt» heisst: nicht auswählbar, und der Analyse-Prompt untersagt dem
+Modell diese beiden Nummern ausdrücklich. Die Nummern bleiben trotzdem
+erhalten, damit die Zählung mit dem Auswertungsbogen übereinstimmt – ebenso
+wie die unbesetzten 21 und 22.
 
 ### Eigene Änderungen
 
@@ -118,7 +130,7 @@ unverändert als Fliesstext übernommen, mit einem entsprechenden Hinweis.
 
 ### Die vier Schritte
 
-1. **Parameter wählen** – Länge, Zielkategorien, Klassenstufe, Thema.
+1. **Parameter wählen** – Länge, Zielkategorien, Schwierigkeitsgrad, Thema.
 2. **Prompt kopieren** – ein Klick aufs Kopier-Symbol, ab in den Chat.
 3. **Ergebnis einfügen** – die App zeigt eine Vorschau und prüft automatisch.
 4. **Freigeben** – erst jetzt wird gespeichert.
@@ -136,17 +148,16 @@ Speichern-Knopf bleibt gesperrt, bis Sie «Geprüft und freigegeben» ankreuzen.
 Das Freigabedatum wird mitgespeichert, sodass im Archiv nachvollziehbar bleibt,
 dass nichts durchgerutscht ist.
 
-### Korrekturlesen ist ein eigener Schritt
+### Korrekturlesen: Hinweis statt Sperre
 
-Beim Diktat ist das Korrekturlesen des Originaltexts **vom allgemeinen
-Freigabehäkchen getrennt** und in der App eigens hervorgehoben. Der Grund:
-Dieser Text ist später die **Referenzwahrheit** für den maschinellen Abgleich
-mit dem Schülertext. Ein Tippfehler darin würde der Schülerin oder dem Schüler
-als Fehler angerechnet.
+Der Diktattext ist später die **Referenzwahrheit** für den maschinellen
+Abgleich; ein Tippfehler darin würde der Schülerin oder dem Schüler als Fehler
+angerechnet. Die Plausibilitätsprüfung weist bei jedem Diktat darauf hin.
 
-Solange das Korrekturlesen nicht bestätigt ist, bleibt der diff-gestützte
-Abgleich für dieses Diktat **gesperrt**. Nachholen lässt es sich jederzeit
-unter *Diktate → Archiv*.
+Ein **eigenes Häkchen mit Sperre** gab es in einer früheren Fassung; es ist
+bewusst wieder entfernt worden. Zwei Bestätigungen für denselben Blick aufs
+Blatt werden zur Formalie, und eine gesperrte Funktion, die man mit einem
+zweiten Klick aufschliesst, schützt niemanden.
 
 ### Plausibilitätsprüfungen (Hinweise, keine Sperren)
 
@@ -172,15 +183,58 @@ Beide Antworten werden mit dem Freigabedatum in der Datenbank festgehalten.
 
 ---
 
-## Fehlererfassung mit Diff-Unterstützung
+## Zwei Arten von Texten
 
-Statt jeden Fehler von Hand zu suchen: Schülertext abtippen, einfügen,
-**Abgleich starten**. Die App richtet beide Texte wortweise aneinander aus und
-schlägt Abweichungen samt passender OLFA-Kategorie vor. Sie bestätigen jede
+**Diktat** – die Lehrperson gibt eine fehlerfreie Vorlage vor, das Kind
+schreibt sie ab. Was von der Vorlage abweicht, ist objektiv ein Fehler.
+
+**Freier Text** – alles, was im Unterricht sonst entsteht: Aufsatz, Bericht,
+Antwort auf eine Frage. Es gibt keine Vorlage; die Beurteilung übernimmt das
+Sprachmodell. Die Wortzahl richtet sich hier nach dem Text des Kindes, denn
+etwas anderes gibt es nicht zu zählen.
+
+Beide landen in derselben Auswertung und im selben Lernverlauf.
+
+---
+
+## Fehlererfassung: drei Wege, eine Bestätigungsliste
+
+### 1. Analyse durch das Sprachmodell
+
+Die App erzeugt einen Analyse-Prompt mit dem Text, der vollständigen
+OLFA-Liste und allen bereits gelernten Fehlerarten. Im Chat ausgewertet,
+kommt ein JSON-Array zurück, das die App einliest – auch wenn ein Code-Zaun
+oder einleitendes Geplauder mitkommt.
+
+Das Modell leistet zweierlei, was der mechanische Abgleich nicht kann: Es
+ordnet die Kategorien **inhaltlich** zu statt nach dem Buchstabenbild, und es
+darf für alles, was die OLFA-Liste nicht abdeckt – vor allem **Grammatik** –
+eigene Fehlerarten benennen (siehe unten). Für freie Texte ist es der einzige
+Weg.
+
+Bei freien Texten warnt der Prompt ausdrücklich vor Stilkritik: Ohne Vorlage
+ist die Versuchung gross, zu viel anzustreichen. Umständliche Formulierungen,
+Wortwahl, Wiederholungen und Umgangssprache sind **keine** Fehler.
+
+### 2. Mechanischer Abgleich (nur Diktat)
+
+Schülertext abtippen, einfügen, **Abgleich starten**. Die App richtet beide
+Texte wortweise aneinander aus und schlägt Abweichungen samt Kategorie vor.
+Sie sieht nur das Buchstabenbild – die Kategorie ist geraten, nicht
+verstanden.
+
+### 3. Von Hand
+
+Für alles, was beide nicht sehen: Satzzeichen, Silbentrennung am Zeilenende,
+unleserliche Stellen.
+
+---
+
+Alle drei Wege enden in **derselben Bestätigungsliste**: Sie bestätigen jede
 Zeile einzeln und ändern die Kategorie, wo nötig – **vorgeschlagen wird, nie
 automatisch übernommen**.
 
-Beispiele für die Kategorie-Vorschläge:
+Beispiele für die Kategorie-Vorschläge des mechanischen Abgleichs:
 
 | Original | Geschrieben | Vorschlag |
 |---|---|---|
@@ -198,6 +252,66 @@ Beispiele für die Kategorie-Vorschläge:
 | Bücher | Bucher | 36 – Umlautbezeichnung |
 
 Ein Test prüft jedes dieser Paare gegen die Kategorienliste.
+
+---
+
+## Gelernte Fehlerarten
+
+Die OLFA-Liste deckt die Rechtschreibung ab. Für alles andere – vor allem
+Grammatik – benennt das Sprachmodell die Fehlerart selbst und ordnet sie
+hierarchisch ein:
+
+```
+Grammatik › Kasus › Dativ statt Akkusativ
+Zeichensetzung › Komma › Komma vor Nebensatz fehlt
+```
+
+Sie werden **ohne Rückfrage angelegt** (mit dem Übernehmen der Fehlerzeilen,
+die sie tragen) und liegen in `daten/fehlerarten.json`. Das war ausdrücklich
+so gewollt; der Preis dafür ist eine Sammlung, die wächst. Vier Vorkehrungen
+halten sie in Form:
+
+1. **Die oberste Ebene ist nicht frei**, sondern auf fünf Oberbegriffe
+   beschränkt: Grammatik, Zeichensetzung, Wortschatz, Formales, Sonstiges.
+   Sonst stünden nach zwanzig Texten «Grammatik», «Grammatikalisch» und
+   «Sprachrichtigkeit» nebeneinander.
+2. **Pfade werden begradigt**, bevor sie verglichen werden – Leerraum weg,
+   erster Buchstabe gross. Exakt gleiche werden zusammengelegt.
+3. **Ähnliche Paare werden gemeldet, nie automatisch verschmolzen.**
+   «Dativ statt Akkusativ» und «Akkusativ statt Dativ» teilen alle Wörter und
+   meinen das Gegenteil. Der Wortvergleich ist ein Hinweis an die Lehrperson,
+   kein Automatismus.
+4. **Aufräumen lassen.** Unter *Einstellungen → Gelernte Fehlerarten* erzeugt
+   die App einen Prompt, mit dem das Modell seine eigene Sammlung ordnet.
+   Angewendet wird erst nach Bestätigung, Zeile für Zeile und nichts
+   vorausgewählt: Anders als beim Anlegen ist ein Fehlgriff hier teuer, weil
+   er bestehende Fehlerdaten umhängt.
+
+Zusammenlegen und Löschen wirken **über alle Profile hinweg** – sonst zeigten
+die Einträge fremder Kinder ins Leere. Eine gelöschte Art fällt auf die
+Auffangkategorie 37 zurück; zusammenlegen erhält die Information, löschen
+nicht.
+
+---
+
+## Klassiker oder Sondierung?
+
+Beim Erzeugen eines Diktats steht ein Regler zwischen zwei Polen:
+
+* **Alte Klassiker** – gezielt üben, was nicht sitzt. Die Kategorien kommen
+  aus der Empfehlungslogik unten.
+* **Neues prüfen** – schauen, wo es sonst noch hakt. Die Kategorien kommen aus
+  dem Sondierungsvorrat: alles, wozu dieses Kind noch keinen Fehler hat.
+
+Der Vorrat ist breit über die Rechtschreibbereiche gestreut, stellt nie
+geprüfte Kategorien nach vorn, und das Fenster wandert mit der Zahl der Texte
+weiter – sonst kämen immer dieselben Kandidaten. Fehlt eine der beiden Seiten
+(ein neues Profil hat noch keine Klassiker), füllt die andere auf.
+
+Der Regler **setzt** die Auswahl, er erzwingt sie nicht: Darunter steht die
+Kategorienliste zum Anpassen von Hand. Im Prompt sind Sondierungskategorien
+als solche ausgewiesen, damit das Modell dort nicht ebenso viele Zielwörter
+platziert wie bei den bekannten Schwerpunkten.
 
 ---
 
@@ -272,10 +386,30 @@ damit sie nicht stillschweigend gelten:
 * Ein Kategorie-«Treffer» heisst *könnte passen*, nicht *passt*. Die Prüfung
   arbeitet mit Wortmustern, nicht mit Wortbedeutungen.
 
-**Rechtschreibvariante**
-* Voreingestellt ist die **Schweizer Variante ohne ß** (ss durchgehend). Unter
-  Einstellungen lässt sich auf die deutsch-österreichische Variante mit ß
-  umstellen; die Einstellung fliesst in alle Chat-Prompts ein.
+**Gelernte Fehlerarten** (`rstrainer/taxonomie.py`)
+* Die oberste Ebene ist auf fünf feste Oberbegriffe beschränkt. Alles, was das
+  Modell darüber hinaus vorschlägt, landet unter *Sonstiges*.
+* Ein Pfad hat **zwei oder drei Stufen**; ein einstufiger ist keine Fehlerart,
+  sondern ein Oberbegriff, und wird verworfen.
+* Die Ähnlichkeit zweier Arten wird als **Anteil gemeinsamer Wörter** gemessen.
+  Das ist grob und dient allein der Anzeige – zusammengelegt wird nie
+  automatisch.
+* Eine Kennung, die es nicht mehr gibt, lenkt die Auswertung auf die
+  **Auffangkategorie 37**. Nichts verschwindet stillschweigend aus der Statistik.
+
+**Modell-Analyse** (`rstrainer/auftraege.py`)
+* Eine Antwort, die kein verwertbares JSON enthält, führt zu einer **Meldung**,
+  nie zu geratenen Fehlern. Code-Zaun und Begleittext werden abgeschnitten.
+* Eine OLFA-Nummer, die es nicht gibt oder die gesperrt ist, fällt auf **37**
+  zurück. Ebenso eine erfundene Kennung einer gelernten Art.
+* Neue Fehlerarten werden erst mit dem **Übernehmen der Fehlerzeilen** angelegt,
+  die sie tragen. Ein verworfener Abgleich hinterlässt nichts.
+* Beim Diktat wird die Fundstelle im **Original** gesucht, beim freien Text im
+  **Text des Kindes** – dort steht die falsche Form. Die App versucht beides.
+
+**Schweizer Rechtschreibung**
+* Es gibt **keine Variantenumschaltung**. Alle Prompts verlangen durchgehend
+  ss; die Kategorien 13 und 15 sind gesperrt.
 
 ---
 
@@ -286,11 +420,17 @@ Es geht um Daten minderjähriger Schüler:innen.
 * **Nichts Persönliches im Repository.** Die Datenbank liegt unter `daten/`,
   Exporte unter `daten/export/`. Beide Pfade stehen in `.gitignore`, zusammen
   mit `*.sqlite3`, `*.db` und `*.docx`. Ein Test wacht darüber.
-* **Empfehlung: Kürzel statt Klarnamen.** Ein Übungsblatt landet schnell im
-  Lehrerzimmer, im Drucker oder im Papierkorb. Mit einem Kürzel ist der Bezug
-  zur Person nur für Sie herstellbar. Unter *Einstellungen → Namen auf
-  Ausdrucken* lässt sich zwischen **Kürzel/Pseudonym** (Voreinstellung) und
-  **Klarname** umschalten – für ein Elterngespräch etwa kurzzeitig.
+* **Empfehlung: Pseudonym als Anzeigename.** Ein Übungsblatt landet schnell im
+  Lehrerzimmer, im Drucker oder im Papierkorb. Der Anzeigename ist zugleich
+  das, was auf Ausdrucken erscheint – wer dort keinen Klarnamen haben will,
+  trägt schon im Profil ein Pseudonym ein. Dann gibt es gar keine Datei mit dem
+  Klarnamen darin.
+* **Ein Profil trägt nur Anzeigename und Notiz.** Kürzel, Klasse und
+  Klassenstufe gab es in einer früheren Fassung und sind bewusst entfernt
+  worden: drei personenbezogene Felder ohne Nutzen für eine Lehrperson, die
+  die wenigen Kinder kennt, die sie einzeln fördert.
+* **`daten/fehlerarten.json` enthält keine Namen**, lässt aber Rückschlüsse auf
+  den Unterricht zu. Die Datei liegt deshalb ebenfalls unter `daten/`.
 * **Der Code darf öffentlich sein, die Daten nie.** Exportdateien enthalten
   Klartext und gehören weder in einen Cloud-Ordner noch unverschlüsselt in
   einen E-Mail-Anhang.
@@ -304,14 +444,22 @@ Es geht um Daten minderjähriger Schüler:innen.
 ## Testmodus
 
 Unter *Einstellungen → Testmodus* legen Sie drei **frei erfundene**
-Demoprofile mit Diktaten, Schülertexten und Fehlern an. Damit lassen sich
-Abgleich, Empfehlungslogik, Trendanalyse und Word-Export ausprobieren, ohne
-echte Schülerdaten anzufassen. Die Profile tragen das Präfix `DEMO – ` und
-lassen sich in einem Zug wieder entfernen.
+Demoprofile mit Diktaten, freien Texten, Schülertexten und Fehlern an. Damit
+lassen sich Abgleich, Empfehlungslogik, Trendanalyse und Word-Export
+ausprobieren, ohne echte Schülerdaten anzufassen. Die Profile tragen das
+Präfix `DEMO – ` und lassen sich in einem Zug wieder entfernen.
 
 Die Demodaten sind mit festem Zufallsstartwert erzeugt und damit
 reproduzierbar. Die eingebauten Entwicklungen (abnehmend / stagnierend /
 zunehmend) sollen genau so in der Auswertung erscheinen – ein Test prüft das.
+Deshalb schreibt auch der freie Text, als jüngster Eintrag, die Entwicklung
+auf dem Stand des letzten Diktats fort: Ein Fixwert am Ende machte aus jedem
+«abnehmend» ein «stagnierend», und der Testmodus prüfte dann seine eigene
+Verzerrung.
+
+**Gelernte Fehlerarten legt der Testmodus keine an.** Die stehen ausserhalb
+der Profile und blieben nach dem Entfernen der Demodaten stehen. Sie entstehen
+erst, wenn das Sprachmodell einen Text auswertet.
 
 ---
 
@@ -321,7 +469,7 @@ zunehmend) sollen genau so in der Auswertung erscheinen – ein Test prüft das.
 python3 -m pytest tests/ -q
 ```
 
-**Stand: 208 Tests, alle grün.** Abgedeckt sind:
+**Stand: 287 Tests, alle grün.** Abgedeckt sind:
 
 | Datei | Prüft |
 |---|---|
@@ -330,19 +478,23 @@ python3 -m pytest tests/ -q
 | `test_docx_export.py` | Gültige .docx, Seitenumbruch Vorder-/Rückseite, keine Lösungen auf der Aufgabenseite |
 | `test_auftraege.py` | Prompt-Aufbau, Auftragsnummern, Zerlegen der Chat-Antwort, Rückfall auf Fliesstext |
 | `test_validation.py` | Plausibilitätsprüfungen für Diktat und Blatt |
-| `test_db.py` | Datentrennung zwischen Profilen, Freigabe- und Korrekturlese-Nachweise |
+| `test_db.py` | Datentrennung zwischen Profilen, Freigabe, freie Texte, Umhängen über Profile hinweg |
 | `test_olfa_und_export.py` | Kategorienliste, unbesetzte Nummern 21/22, Testmodus, CSV/JSON-Export, `.gitignore` |
 | `test_charts.py` | Diagramme, feste Farbreihenfolge, Serienbegrenzung |
+| `test_taxonomie.py` | Pfade begradigen, Dubletten, Gegenteile nicht verschmelzen, Register, Schwerpunkte |
+| `test_analyse.py` | Analyse-Prompts, JSON zurücklesen, neue Fehlerarten, Aufräumplan, Regler Klassiker/Sondierung |
 
-Zusätzlich wurde die Oberfläche im Browser durchgespielt: alle sechs Bereiche
-rendern fehlerfrei, und der komplette Diktat-Ablauf (Prompt erzeugen →
-Ergebnis einfügen → Prüfung → Freigabe → Archiv) läuft durch. Dabei wurde
-geprüft, dass der Speichern-Knopf ohne Freigabe tatsächlich gesperrt bleibt.
+Zusätzlich wurde die Oberfläche durchgespielt – von Hand im Browser und
+kopfrechnend über `streamlit.testing`: Alle sechs Bereiche rendern
+fehlerfrei, der komplette Diktat-Ablauf (Prompt erzeugen → Ergebnis einfügen
+→ Prüfung → Freigabe → Archiv) läuft durch, und ebenso der Analyse-Ablauf für
+einen freien Text (Prompt → JSON einfügen → Bestätigungsliste → Übernehmen),
+inklusive Anlegen einer neuen Fehlerart und Wiederverwenden einer bestehenden.
 
 **Noch offen / bewusst nicht gebaut:**
 * Die Gruppenzuordnung I / II / III der Kategorien fehlt noch (siehe oben).
-* Die Oberfläche selbst hat keine automatisierten Tests; geprüft wurde sie
-  von Hand im Browser.
+* Die Oberfläche hat keine automatisierten Tests in der Suite; geprüft wurde
+  sie von Hand und mit einem Skript ausserhalb des Repositorys.
 * Es gibt keine Mehrbenutzer-Funktion und keine Synchronisierung zwischen
   Geräten – bewusst, weil das den Datenschutzaufwand vervielfachen würde.
 
@@ -354,15 +506,20 @@ geprüft, dass der Speichern-Knopf ohne Freigabe tatsächlich gesperrt bleibt.
 app.py                        Einstiegspunkt (Streamlit)
 data/olfa_kategorien.json     Die 37 OLFA-Fehlerkategorien (editierbar)
 daten/                        Lokale Daten – NICHT im Repository
+  rstrainer.sqlite3           Profile, Texte, Fehler, Blätter, Aufträge
+  fehlerarten.json            Vom Modell gelernte Fehlerarten
+  export/                     CSV, JSON, .docx, Diagramme
 rstrainer/
   config.py                   Pfade und fachliche Voreinstellungen
   db.py                       SQLite-Schema und Zugriffe
   olfa.py                     Kategorienliste laden, speichern, abfragen
+  taxonomie.py                Gelernte Fehlerarten: anlegen, begradigen, ordnen
+  kategorien.py               Gemeinsame Sicht auf beide Kategoriensysteme
   textwerkzeuge.py            Tokenisierung, Normalisierung, Kontext
   diffing.py                  Wort- und Buchstabenabgleich
   analysis.py                 Trendberechnung und Empfehlungslogik
   prompt_templates.py         >> Die Prompt-Vorlagen – zum Anpassen gedacht <<
-  auftraege.py                Prompt bauen, Chat-Ergebnis zerlegen
+  auftraege.py                Prompts bauen, Chat-Ergebnis und Analyse zerlegen
   validation.py               Plausibilitätsprüfungen vor der Freigabe
   docx_export.py              Übungsblatt, Informationsblatt, Verlaufsbericht
   charts.py                   Diagramme

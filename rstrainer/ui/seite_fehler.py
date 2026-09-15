@@ -1,18 +1,27 @@
-"""Seite: Fehlererfassung – diff-gestützt oder von Hand.
+"""Seite: Fehlererfassung – durch das Sprachmodell, per Abgleich oder von Hand.
 
-Der Diff schlägt Abweichungen und passende Kategorien vor; bestätigt und
-zugeordnet wird von der Lehrperson. Vorschläge werden nie automatisch
-übernommen.
+Drei Wege, dieselbe Bestätigungsliste:
+
+**Sprachmodell** – ordnet inhaltlich zu und darf für alles, was die OLFA-Liste
+nicht abdeckt (vor allem Grammatik), eigene Fehlerarten benennen. Der einzige
+Weg, der auch bei freien Texten ohne Vorlage funktioniert.
+
+**Mechanischer Abgleich** – vergleicht Original und Abschrift Wort für Wort
+und rät die Kategorie aus dem Buchstabenbild. Braucht zwingend eine Vorlage,
+also ein Diktat.
+
+**Von Hand** – für alles, was beide nicht sehen.
+
+Was aus diesen Wegen kommt, ist immer nur ein Vorschlag. Bestätigt und
+zugeordnet wird von der Lehrperson; nichts wird ungeprüft übernommen.
 """
 
 from __future__ import annotations
 
-from datetime import date
-
 import streamlit as st
 
-from .. import db, diffing, docx_export
-from .. import config
+from .. import auftraege, config, db, diffing, docx_export, taxonomie
+from ..kategorien import schwerpunkte
 from . import gemeinsam as g
 
 
@@ -21,71 +30,175 @@ def zeichnen(con, schueler) -> None:
 
     diktate = db.diktat_liste(con, schueler["id"])
     if not diktate:
-        st.info("Bitte zuerst unter **Diktate** ein Diktat erfassen.")
+        st.info("Bitte zuerst unter **Texte** ein Diktat oder einen freien Text erfassen.")
         return
 
     # Streamlit kopiert Widget-Werte tief; sqlite3.Row lässt sich nicht picklen.
     # Deshalb immer nur die ID als Option übergeben und den Text nachschlagen.
-    beschriftung = {d["id"]: f"{d['datum']} · {d['titel']}" for d in diktate}
+    beschriftung = {
+        d["id"]: f"{'📝' if d['art'] == 'freitext' else '📄'} {d['datum']} · {d['titel']}"
+        for d in diktate
+    }
     diktat_id = st.selectbox(
-        "Diktat", [d["id"] for d in reversed(diktate)],
+        "Text", [d["id"] for d in reversed(diktate)],
         format_func=lambda i: beschriftung.get(i, str(i)),
         key="fehler_diktat",
     )
     diktat = db.diktat_holen(con, diktat_id) if diktat_id else None
     if diktat is None:
         return
+    ist_frei = diktat["art"] == "freitext"
 
-    reiter_diff, reiter_hand, reiter_liste = st.tabs(
-        ["🔍 Abgleich mit Schülertext", "✍️ Fehler von Hand", "📋 Erfasste Fehler & Infoblatt"]
-    )
-    with reiter_diff:
-        _diff_ablauf(con, schueler, diktat)
-    with reiter_hand:
-        _von_hand(con, schueler, diktat)
-    with reiter_liste:
-        _fehlerliste(con, schueler, diktat)
+    namen = ["🤖 Analyse durch das Sprachmodell"]
+    if not ist_frei:
+        namen.append("🔍 Mechanischer Abgleich")
+    namen += ["✍️ Fehler von Hand", "📋 Erfasste Fehler & Infoblatt"]
+    reiter = st.tabs(namen)
+
+    with reiter[0]:
+        _analyse_ablauf(con, schueler, diktat)
+    if ist_frei:
+        with reiter[1]:
+            _von_hand(con, schueler, diktat)
+        with reiter[2]:
+            _fehlerliste(con, schueler, diktat)
+    else:
+        with reiter[1]:
+            _diff_ablauf(con, schueler, diktat)
+        with reiter[2]:
+            _von_hand(con, schueler, diktat)
+        with reiter[3]:
+            _fehlerliste(con, schueler, diktat)
 
 
 # ---------------------------------------------------------------------------
-# Diff
+# Schülertext – Grundlage aller drei Wege
+# ---------------------------------------------------------------------------
+
+def _schuelertext_feld(con, diktat, schluessel: str) -> str:
+    ist_frei = diktat["art"] == "freitext"
+    text = st.text_area(
+        "Text des Kindes" if ist_frei else "Abgetippter Schülertext",
+        value=diktat["schuelertext"] or "", height=200,
+        key=f"{schluessel}_{diktat['id']}",
+    )
+    if st.button("Text speichern", key=f"{schluessel}_speichern_{diktat['id']}",
+                 disabled=not text.strip()):
+        db.diktat_aktualisieren(con, diktat["id"], schuelertext=text)
+        g.merken("Text gespeichert.")
+        st.rerun()
+    return text
+
+
+# ---------------------------------------------------------------------------
+# Weg 1: Analyse durch das Sprachmodell
+# ---------------------------------------------------------------------------
+
+def _analyse_ablauf(con, schueler, diktat) -> None:
+    reg = g.register()
+    ist_frei = diktat["art"] == "freitext"
+    st.caption(
+        "Das Sprachmodell liest den Text und benennt jeden Fehler – Rechtschreibung "
+        "und Grammatik. Wofür die OLFA-Liste keine Kategorie hat, legt es selbst "
+        "eine an und ordnet sie hierarchisch ein "
+        "(z. B. «Grammatik › Kasus › Dativ statt Akkusativ»)."
+        + ("" if ist_frei else
+           " Beim Diktat zählt nur, was von der Vorlage abweicht.")
+    )
+
+    text = _schuelertext_feld(con, diktat, "analyse_text")
+
+    st.divider()
+    st.subheader("Schritt 1 · Prompt erzeugen und in den Chat kopieren")
+    if st.button("Analyse-Prompt erzeugen", type="primary",
+                 disabled=not text.strip(), key=f"analyse_prompt_{diktat['id']}"):
+        db.diktat_aktualisieren(con, diktat["id"], schuelertext=text)
+        st.session_state[f"analyse_prompt_text_{diktat['id']}"] = \
+            auftraege.analyse_prompt_bauen(
+                text, "" if ist_frei else diktat["text_original"],
+                reg.liste, reg.sammlung,
+            )
+        st.rerun()
+
+    prompt_text = st.session_state.get(f"analyse_prompt_text_{diktat['id']}")
+    if not prompt_text:
+        return
+    st.code(prompt_text, language="markdown")
+    st.caption(
+        "In einen Claude-Chat einfügen und die komplette Antwort – das JSON – "
+        "hierher zurückkopieren."
+    )
+
+    st.divider()
+    st.subheader("Schritt 2 · Antwort einfügen")
+    roh = st.text_area("Antwort des Sprachmodells", height=220,
+                       key=f"analyse_roh_{diktat['id']}")
+    if st.button("Antwort auswerten", key=f"analyse_lesen_{diktat['id']}"):
+        if not (roh or "").strip():
+            st.warning("Das Eingabefeld ist noch leer. Bitte die Antwort einfügen "
+                       "und einmal neben das Feld klicken.")
+        else:
+            ergebnis = auftraege.analyse_lesen(roh, reg.liste, reg.sammlung)
+            if ergebnis.fehler:
+                st.error(
+                    f"{ergebnis.fehler} Bitte erneut versuchen – oder den "
+                    "mechanischen Abgleich nutzen."
+                )
+            else:
+                st.session_state[f"analyse_ergebnis_{diktat['id']}"] = ergebnis
+                st.rerun()
+
+    ergebnis = st.session_state.get(f"analyse_ergebnis_{diktat['id']}")
+    if ergebnis is None:
+        return
+
+    st.divider()
+    if not ergebnis.zeilen:
+        st.success("Das Sprachmodell hat keinen Fehler gefunden.")
+        return
+
+    bezug = text if ist_frei else diktat["text_original"]
+    abweichungen = auftraege.analyse_zu_abweichungen(ergebnis.zeilen, bezug, reg.liste)
+
+    if ergebnis.neue_arten:
+        st.info(
+            f"**{len(ergebnis.neue_arten)} neue Fehlerart(en)** wurden benannt. Sie "
+            "werden mit dem Übernehmen angelegt und sind danach unter "
+            "**Einstellungen → Gelernte Fehlerarten** zu sehen:\n"
+            + "\n".join(f"- **{' › '.join(n.pfad)}** ({n.anzahl}×)"
+                        + (f" – {n.beschreibung}" if n.beschreibung else "")
+                        for n in ergebnis.neue_arten)
+        )
+
+    st.markdown(
+        f"### {len(abweichungen)} vorgeschlagene Fehler  \n"
+        "Jede Zeile einzeln bestätigen. Nicht angehakte Zeilen werden ignoriert."
+    )
+    _bestaetigungsliste(con, schueler, diktat, abweichungen,
+                        schluessel="analyse", ergebnis=ergebnis)
+
+
+# ---------------------------------------------------------------------------
+# Weg 2: mechanischer Abgleich
 # ---------------------------------------------------------------------------
 
 def _diff_ablauf(con, schueler, diktat) -> None:
-    if not diktat["korrektur_gelesen"]:
-        st.error(
-            "**Abgleich gesperrt.** Der Originaltext dieses Diktats ist noch nicht "
-            "als korrekturgelesen bestätigt. Da er die Referenzwahrheit für den "
-            "Abgleich ist, würde jeder Tippfehler darin als Schülerfehler gezählt. "
-            "Bitte unter **Diktate → Archiv** bestätigen."
-        )
-        return
-
-    liste = g.kategorienliste()
+    reg = g.register()
     st.caption(
-        "Den abgetippten Schülertext einfügen. Die App richtet ihn wortweise am "
-        "Original aus und schlägt Abweichungen vor. Satzzeichen werden dabei "
-        "nicht verglichen."
+        "Die App richtet den Schülertext wortweise am Original aus und schlägt "
+        "Abweichungen vor. Sie sieht nur das Buchstabenbild – die Kategorie ist "
+        "geraten, nicht verstanden. Satzzeichen werden nicht verglichen."
     )
 
-    schuelertext = st.text_area(
-        "Schülertext", value=diktat["schuelertext"] or "", height=200,
-        key=f"schuelertext_{diktat['id']}",
-    )
+    schuelertext = _schuelertext_feld(con, diktat, "diff_text")
 
-    spalte_a, spalte_b = st.columns([1, 3])
-    with spalte_a:
-        if st.button("Text speichern", disabled=not schuelertext.strip()):
-            db.diktat_aktualisieren(con, diktat["id"], schuelertext=schuelertext)
-            g.merken("Schülertext gespeichert.")
-    with spalte_b:
-        if st.button("Abgleich starten", type="primary",
-                     disabled=not schuelertext.strip()):
-            db.diktat_aktualisieren(con, diktat["id"], schuelertext=schuelertext)
-            st.session_state[f"abweichungen_{diktat['id']}"] = diffing.vergleiche(
-                diktat["text_original"], schuelertext, liste
-            )
-            st.rerun()
+    if st.button("Abgleich starten", type="primary",
+                 disabled=not schuelertext.strip(), key=f"diff_start_{diktat['id']}"):
+        db.diktat_aktualisieren(con, diktat["id"], schuelertext=schuelertext)
+        st.session_state[f"abweichungen_{diktat['id']}"] = diffing.vergleiche(
+            diktat["text_original"], schuelertext, reg.liste
+        )
+        st.rerun()
 
     abweichungen = st.session_state.get(f"abweichungen_{diktat['id']}")
     if abweichungen is None:
@@ -99,7 +212,7 @@ def _diff_ablauf(con, schueler, diktat) -> None:
     spalten[3].metric("Fehlerquote", f"{kennzahlen['fehlerquote_prozent']} %")
 
     if not abweichungen:
-        g.merken("Keine Abweichungen gefunden.")
+        st.success("Keine Abweichungen gefunden.")
         return
 
     st.divider()
@@ -108,58 +221,117 @@ def _diff_ablauf(con, schueler, diktat) -> None:
         "Jede Zeile einzeln bestätigen und die Kategorie zuordnen. "
         "Nicht angehakte Zeilen werden ignoriert."
     )
+    _bestaetigungsliste(
+        con, schueler, diktat,
+        [
+            {
+                "wort_original": a.wort_original, "wort_schueler": a.wort_schueler,
+                "kontext": a.kontext, "darstellung": a.darstellung,
+                "vorgabe": a.vorschlaege[0].nr if a.vorschlaege else "37",
+                "vorschlaege": a.vorschlaege, "begruendung": "", "neue_art": None,
+            }
+            for a in abweichungen
+        ],
+        schluessel="diff",
+    )
 
+
+# ---------------------------------------------------------------------------
+# Gemeinsame Bestätigungsliste
+# ---------------------------------------------------------------------------
+
+def _bestaetigungsliste(con, schueler, diktat, abweichungen, schluessel: str,
+                        ergebnis=None) -> None:
+    """Eine Zeile je Vorschlag, jede einzeln abwählbar und umkategorisierbar."""
+    reg = g.register()
     bereits_erfasst = {
         (f["wort_original"], f["wort_schueler"])
         for f in db.fehler_liste(con, schueler["id"], diktat["id"])
     }
 
-    optionen = [k.nr for k in liste]
-    with st.form(f"diff_form_{diktat['id']}"):
+    # Von diesem Durchlauf vorgeschlagene, noch nicht angelegte Arten gehören
+    # in die Auswahl – sonst liesse sich eine Zeile nicht auf ihre eigene neue
+    # Art setzen.
+    optionen = [nr for nr, _ in reg.waehlbar()]
+    zusatz = {}
+    if ergebnis is not None:
+        for n in ergebnis.neue_arten:
+            optionen.append(n.id)
+            zusatz[n.id] = "🆕 " + " › ".join(n.pfad)
+
+    def beschriften(nr: str) -> str:
+        return zusatz.get(nr) or reg.label(nr)
+
+    with st.form(f"{schluessel}_form_{diktat['id']}"):
         auswahl: list[tuple] = []
         for i, a in enumerate(abweichungen):
-            schon_da = (a.wort_original, a.wort_schueler) in bereits_erfasst
+            schon_da = (a["wort_original"], a["wort_schueler"]) in bereits_erfasst
             spalte_haken, spalte_wort, spalte_kat = st.columns([1, 3, 4])
             with spalte_haken:
                 uebernehmen = st.checkbox(
-                    "übernehmen", value=not schon_da, key=f"diff_ok_{diktat['id']}_{i}",
+                    "übernehmen", value=not schon_da,
+                    key=f"{schluessel}_ok_{diktat['id']}_{i}",
                     label_visibility="collapsed",
                 )
             with spalte_wort:
-                st.markdown(f"**{a.darstellung}**")
-                st.caption(a.kontext or "–")
+                st.markdown(f"**{a['darstellung']}**")
+                st.caption(a["kontext"] or "–")
+                if a.get("begruendung"):
+                    st.caption(f"💬 {a['begruendung']}")
                 if schon_da:
                     st.caption("⚠️ bereits erfasst")
             with spalte_kat:
-                vorgabe = a.vorschlaege[0].nr if a.vorschlaege else optionen[-1]
+                vorgabe = a.get("vorgabe") or "37"
                 kategorie = st.selectbox(
                     "Kategorie", optionen,
                     index=optionen.index(vorgabe) if vorgabe in optionen else 0,
-                    format_func=liste.label, key=f"diff_kat_{diktat['id']}_{i}",
+                    format_func=beschriften,
+                    key=f"{schluessel}_kat_{diktat['id']}_{i}",
                     label_visibility="collapsed",
                 )
-                if a.vorschlaege:
-                    st.caption("Vorschlag: "
-                               + ", ".join(k.nr for k in a.vorschlaege[:3]))
+                if a.get("vorschlaege"):
+                    st.caption("Aus dem Wortbild: "
+                               + ", ".join(k.nr for k in a["vorschlaege"][:3]))
             auswahl.append((uebernehmen, a, kategorie))
             st.divider()
 
         if st.form_submit_button("Ausgewählte Fehler übernehmen", type="primary"):
-            eintraege = [
-                {
-                    "diktat_id": diktat["id"],
-                    "kategorie_nr": kategorie,
-                    "wort_original": a.wort_original,
-                    "wort_schueler": a.wort_schueler,
-                    "kontext": a.kontext,
-                    "datum": diktat["datum"],
-                }
-                for uebernehmen, a, kategorie in auswahl if uebernehmen
-            ]
-            anzahl = db.fehler_mehrere_anlegen(con, schueler["id"], eintraege)
-            st.session_state.pop(f"abweichungen_{diktat['id']}", None)
-            g.merken(f"{anzahl} Fehler übernommen.")
-            st.rerun()
+            _uebernehmen(con, schueler, diktat, auswahl, schluessel, ergebnis)
+
+
+def _uebernehmen(con, schueler, diktat, auswahl, schluessel: str, ergebnis) -> None:
+    genommen = [(a, kat) for nehmen, a, kat in auswahl if nehmen]
+
+    angelegt = []
+    if ergebnis is not None and ergebnis.neue_arten:
+        # Nur Arten anlegen, die auch wirklich in einer übernommenen Zeile
+        # stehen – abgewählte Vorschläge sollen die Sammlung nicht aufblähen.
+        gebraucht = {kat for _, kat in genommen}
+        ergebnis.neue_arten = [n for n in ergebnis.neue_arten if n.id in gebraucht]
+        sammlung = taxonomie.laden()
+        angelegt = auftraege.analyse_uebernehmen(ergebnis, sammlung)
+        g.sammlung_speichern(sammlung)
+
+    eintraege = [
+        {
+            "diktat_id": diktat["id"],
+            "kategorie_nr": kategorie,
+            "wort_original": a["wort_original"],
+            "wort_schueler": a["wort_schueler"],
+            "kontext": a["kontext"],
+            "datum": diktat["datum"],
+        }
+        for a, kategorie in genommen
+    ]
+    anzahl = db.fehler_mehrere_anlegen(con, schueler["id"], eintraege)
+    for key in (f"abweichungen_{diktat['id']}", f"analyse_ergebnis_{diktat['id']}",
+                f"analyse_prompt_text_{diktat['id']}", f"analyse_roh_{diktat['id']}"):
+        st.session_state.pop(key, None)
+    meldung = f"{anzahl} Fehler übernommen."
+    if angelegt:
+        meldung += f" {len(angelegt)} neue Fehlerart(en) angelegt."
+    g.merken(meldung)
+    st.rerun()
 
 
 # ---------------------------------------------------------------------------
@@ -167,19 +339,19 @@ def _diff_ablauf(con, schueler, diktat) -> None:
 # ---------------------------------------------------------------------------
 
 def _von_hand(con, schueler, diktat) -> None:
-    liste = g.kategorienliste()
+    reg = g.register()
     st.caption(
-        "Für Fehler, die der Abgleich nicht findet – zum Beispiel Satzzeichen, "
+        "Für Fehler, die keiner der beiden Wege findet – zum Beispiel Satzzeichen, "
         "Silbentrennung am Zeilenende oder unleserliche Stellen."
     )
-    optionen = [k.nr for k in liste]
+    optionen = [nr for nr, _ in reg.waehlbar()]
     with st.form(f"fehler_hand_{diktat['id']}", clear_on_submit=True):
         spalte_a, spalte_b = st.columns(2)
         with spalte_a:
             richtig = st.text_input("Richtige Schreibung")
         with spalte_b:
             falsch = st.text_input("Geschriebene Form")
-        kategorie = st.selectbox("OLFA-Kategorie", optionen, format_func=liste.label)
+        kategorie = st.selectbox("Fehlerart", optionen, format_func=reg.label)
         kontext = st.text_input("Kontext / Satzausschnitt")
         notiz = st.text_input("Notiz")
         if st.form_submit_button("Fehler erfassen", type="primary"):
@@ -201,30 +373,31 @@ def _von_hand(con, schueler, diktat) -> None:
 def _fehlerliste(con, schueler, diktat) -> None:
     import pandas as pd
 
-    liste = g.kategorienliste()
+    reg = g.register()
+    ist_frei = diktat["art"] == "freitext"
     fehler = db.fehler_liste(con, schueler["id"], diktat["id"])
     if not fehler:
-        st.info("Zu diesem Diktat sind noch keine Fehler erfasst.")
+        st.info("Zu diesem Text sind noch keine Fehler erfasst.")
         return
+
+    punkte = schwerpunkte([dict(f) for f in fehler], hoechstens=8)
+    st.markdown("**Schwerpunkte**")
+    for nr, anzahl in punkte.liste:
+        st.markdown(f"- {reg.label(nr)}: **{anzahl}×**")
+    if punkte.rest:
+        st.caption(f"Dazu {punkte.rest} weitere Fehlerarten mit einzelnen Vorkommen.")
 
     tabelle = pd.DataFrame([
         {
             "Nr.": f["id"],
             "Richtig": f["wort_original"],
             "Geschrieben": f["wort_schueler"],
-            "Kategorie": liste.label(f["kategorie_nr"]),
-            "Kontext": f["kontext"],
+            "Fehlerart": reg.label(f["kategorie_nr"]),
+            "Im Text": f["kontext"],
         }
         for f in fehler
     ])
     st.dataframe(tabelle, hide_index=True, width="stretch")
-
-    haeufigkeit: dict[str, int] = {}
-    for f in fehler:
-        haeufigkeit[f["kategorie_nr"]] = haeufigkeit.get(f["kategorie_nr"], 0) + 1
-    st.markdown("**Verteilung**")
-    for nr, anzahl in sorted(haeufigkeit.items(), key=lambda x: (-x[1], x[0])):
-        st.markdown(f"- {liste.label(nr)}: **{anzahl}×**")
 
     zu_loeschen = st.selectbox(
         "Einzelnen Fehler löschen", [0] + [f["id"] for f in fehler],
@@ -236,27 +409,39 @@ def _fehlerliste(con, schueler, diktat) -> None:
         st.rerun()
 
     st.divider()
-    st.subheader("Informationsblatt zum Diktat")
+    st.subheader("Informationsblatt zu diesem Text")
     kommentar = st.text_area(
         "Kurzkommentar für das Blatt", key=f"kommentar_{diktat['id']}",
         placeholder="z. B. «Die Kürzemarkierung sitzt deutlich besser als im Vormonat.»",
     )
-    mit_text = st.checkbox("Diktattext anhängen", value=True,
+    mit_text = st.checkbox("Text anhängen", value=True,
                            key=f"mit_text_{diktat['id']}")
     if st.button("Informationsblatt erzeugen", type="primary",
                  key=f"infoblatt_{diktat['id']}"):
-        kennzahlen = (
-            diffing.kennzahlen(diktat["text_original"], diktat["schuelertext"])
-            if diktat["schuelertext"]
-            else {"wortzahl_original": diktat["wortzahl"], "fehlerquote_prozent": None}
-        )
+        if ist_frei:
+            # Ohne Vorlage gibt es keine Abweichungszählung; die Quote ergibt
+            # sich direkt aus den erfassten Fehlern.
+            kennzahlen = {
+                "wortzahl_original": diktat["wortzahl"],
+                "fehlerquote_prozent": (
+                    round(100.0 * len(fehler) / diktat["wortzahl"], 1)
+                    if diktat["wortzahl"] else None
+                ),
+            }
+        elif diktat["schuelertext"]:
+            kennzahlen = diffing.kennzahlen(diktat["text_original"],
+                                            diktat["schuelertext"])
+        else:
+            kennzahlen = {"wortzahl_original": diktat["wortzahl"],
+                          "fehlerquote_prozent": None}
         pfad = config.EXPORT_DIR / (
             f"Infoblatt_{schueler['id']}_{diktat['datum']}_{diktat['id']}.docx"
         )
+        anhang = diktat["schuelertext"] if ist_frei else diktat["text_original"]
         docx_export.informationsblatt_schreiben(
             pfad, g.anzeigename(con, schueler), diktat["titel"], diktat["datum"],
-            [dict(f) for f in fehler], liste, kennzahlen, kommentar,
-            diktat["text_original"] if mit_text else "",
+            [dict(f) for f in fehler], reg, kennzahlen, kommentar,
+            anhang if mit_text else "", art=diktat["art"],
         )
         with open(pfad, "rb") as datei:
             st.download_button(

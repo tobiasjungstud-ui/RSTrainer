@@ -20,7 +20,7 @@ from rstrainer.ui import (
 
 SEITEN = {
     "👤 Profile": "profile",
-    "📝 Diktate": "diktate",
+    "📝 Texte": "diktate",
     "🔍 Fehlererfassung": "fehler",
     "📄 Übungsblätter": "blaetter",
     "📊 Auswertung": "auswertung",
@@ -56,14 +56,21 @@ def main() -> None:
         st.divider()
         auswahl = st.radio("Bereich", list(SEITEN), label_visibility="collapsed")
 
-        liste = g.kategorienliste()
-        if liste.anzahl_ungeprueft:
+        reg = g.register()
+        if reg.liste.anzahl_ungeprueft:
             st.divider()
             st.warning(
-                f"⚠️ {liste.anzahl_ungeprueft} von {len(liste)} OLFA-Kategorien "
-                "sind noch ungeprüft. Die mitgelieferte Liste ist ein "
-                "Platzhalter – bitte unter **Einstellungen** gegen Ihr "
+                f"⚠️ {reg.liste.anzahl_ungeprueft} von {len(reg.liste)} "
+                "OLFA-Kategorien sind noch ungeprüft. Die mitgelieferte Liste "
+                "ist ein Platzhalter – bitte unter **Einstellungen** gegen Ihr "
                 "Fachmaterial abgleichen."
+            )
+        ungesehen = reg.sammlung.ungesehen
+        if ungesehen:
+            st.divider()
+            st.info(
+                f"🌱 {len(ungesehen)} neue Fehlerart(en) vom Sprachmodell. "
+                "Unter **Einstellungen → Gelernte Fehlerarten** ansehen."
             )
 
     g.meldungen_anzeigen()

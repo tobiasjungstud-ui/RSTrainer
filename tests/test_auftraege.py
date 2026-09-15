@@ -31,6 +31,11 @@ def test_vorlage_hat_alle_pflichtplatzhalter(typ):
     assert pt.PFLICHTPLATZHALTER[typ] <= felder
 
 
+def test_analysekopf_hat_alle_pflichtplatzhalter():
+    felder = {f for _, f, _, _ in string.Formatter().parse(pt.ANALYSE_KOPF) if f}
+    assert pt.KOPF_PLATZHALTER <= felder
+
+
 def test_kategorienblock_nennt_nummer_name_und_beschreibung(liste):
     block = auftraege.kategorienblock(["07", "19"], liste)
     assert "07 – Einfachschreibung für Konsonantenverdoppelung" in block
@@ -49,35 +54,70 @@ def test_kategorienblock_ohne_auswahl(liste):
 
 def test_diktatprompt_enthaelt_alle_parameter(liste):
     code, prompt = auftraege.prompt_bauen("diktat", {
-        "kategorien": ["07"], "klassenstufe": "5. Klasse", "wortzahl": 95,
+        "kategorien": ["07"], "wortzahl": 95,
         "textsorte": "Erzählung", "thema": "Im Zirkus", "schwierigkeit": "mittel",
         "treffer_pro_kategorie": 4,
     }, liste)
     assert code in prompt
     assert "95 Wörter" in prompt
     assert "Im Zirkus" in prompt
-    assert "5. Klasse" in prompt
     assert "07 – Einfachschreibung für Konsonantenverdoppelung" in prompt
     assert pt.MARKE_ANFANG in prompt and pt.MARKE_ENDE in prompt
 
 
-def test_schweizer_variante_ist_voreingestellt(liste):
-    """In der Schweiz gibt es kein ß – der Prompt muss das verlangen."""
+@pytest.mark.parametrize("grad,stufe", [
+    ("leicht", "7. Klasse"), ("mittel", "8. Klasse"), ("anspruchsvoll", "9. Klasse"),
+])
+def test_stufe_folgt_dem_schwierigkeitsgrad(liste, grad, stufe):
+    """Es gibt kein eigenes Stufenfeld – die Stufe leitet sich ab."""
+    parameter = _diktatparameter() | {"schwierigkeit": grad}
+    _, prompt = auftraege.prompt_bauen("diktat", parameter, liste)
+    assert stufe in prompt
+
+
+def test_schweizer_rechtschreibung_ist_die_einzige(liste):
+    """In der Schweiz gibt es kein ß – der Prompt muss das verlangen.
+
+    Eine Variantenumschaltung gibt es nicht; ``prompt_bauen`` nimmt dafür auch
+    keinen Parameter mehr entgegen.
+    """
     _, prompt = auftraege.prompt_bauen("diktat", _diktatparameter(), liste)
     assert "KEIN ß" in prompt
     assert "Strasse" in prompt
+    with pytest.raises(TypeError):
+        auftraege.prompt_bauen("diktat", _diktatparameter(), liste,
+                               rechtschreibvariante="deutschland_oesterreich")
 
 
-def test_deutsche_variante_waehlbar(liste):
-    _, prompt = auftraege.prompt_bauen(
-        "diktat", _diktatparameter(), liste,
-        rechtschreibvariante="deutschland_oesterreich")
-    assert "Straße" in prompt
+def test_sondierungskategorien_sind_ausgewiesen(liste):
+    """Sondierung und bekannter Schwerpunkt dürfen nicht gleich aussehen –
+    sonst platziert das Modell überall gleich viele Zielwörter."""
+    parameter = _diktatparameter() | {"kategorien": ["07", "19"],
+                                      "sondierung": ["19"]}
+    _, prompt = auftraege.prompt_bauen("diktat", parameter, liste)
+    zeilen = [z for z in prompt.splitlines() if z.startswith("- **")]
+    sieben = next(z for z in zeilen if "**07" in z)
+    neunzehn = next(z for z in zeilen if "**19" in z)
+    assert "bekannter Schwerpunkt" in sieben
+    assert "Sondierung" in neunzehn
+
+
+def test_gelernte_art_kommt_in_den_kategorienblock(liste):
+    from rstrainer import taxonomie
+
+    sammlung = taxonomie.Sammlung()
+    art = sammlung.anlegen(["Grammatik", "Kasus", "Dativ statt Akkusativ"],
+                           "Falscher Fall nach Präposition")
+    parameter = _diktatparameter() | {"kategorien": ["07", art.id]}
+    _, prompt = auftraege.prompt_bauen("diktat", parameter, liste,
+                                       sammlung=sammlung)
+    assert "Grammatik › Kasus › Dativ statt Akkusativ" in prompt
+    assert "Falscher Fall nach Präposition" in prompt
 
 
 def test_uebungsblattprompt_verbietet_loesungen_auf_der_aufgabenseite(liste):
     _, prompt = auftraege.prompt_bauen("uebungsblatt", {
-        "kategorien": ["07", "11"], "klassenstufe": "5. Klasse",
+        "kategorien": ["07", "11"], "schwierigkeit": "mittel",
         "bearbeitungszeit": "20 Minuten", "aufgaben_pro_kategorie": 3,
         "test_aufgaben": 6,
     }, liste)
@@ -106,7 +146,7 @@ def test_vorgegebener_code_wird_uebernommen(liste):
 
 def _diktatparameter() -> dict:
     return {
-        "kategorien": ["07"], "klassenstufe": "5. Klasse", "wortzahl": 90,
+        "kategorien": ["07"], "wortzahl": 90,
         "textsorte": "Erzählung", "thema": "Wald", "schwierigkeit": "mittel",
         "treffer_pro_kategorie": 4,
     }

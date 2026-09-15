@@ -52,19 +52,30 @@ Arbeite präzise und zurückhaltend. Erfinde keine Zusatzaufgaben, die nicht \
 verlangt sind, und liefere keine Erklärtexte ausserhalb des geforderten \
 Rückgabeformats."""
 
-RECHTSCHREIBHINWEIS = {
-    "schweiz": (
-        "Verwende durchgehend die Schweizer Rechtschreibung: KEIN ß, "
-        "stattdessen immer ss (also «Strasse», «gross», "
-        "«dass», «heisst»)."
-    ),
-    "deutschland_oesterreich": (
-        "Verwende die in Deutschland und Österreich gültige "
-        "Rechtschreibung mit ß nach langem Vokal und Diphthong "
-        "(also «Straße», «groß», "
-        "«heißt», aber «dass»)."
-    ),
+#: Das Werkzeug ist ausschliesslich auf die Schweizer Rechtschreibung
+#: ausgelegt. Es gibt keine Variantenumschaltung – ein ß darf nirgends
+#: entstehen, und die Kategorien 13 und 15 sind entsprechend gesperrt.
+RECHTSCHREIBHINWEIS = (
+    "Verwende durchgehend die Schweizer Rechtschreibung: KEIN ß, stattdessen "
+    "immer ss (also «Strasse», «gross», «dass», «heisst»). Ein ß ist in keinem "
+    "Wort zulässig."
+)
+
+#: Aus dem Schwierigkeitsgrad leitet sich die Zielstufe ab – ein Regler
+#: weniger, und das Modell bekommt trotzdem eine konkrete Angabe.
+STUFE = {
+    "leicht": "7. Klasse Sekundarstufe I (ca. 13 Jahre)",
+    "mittel": "8. Klasse Sekundarstufe I (ca. 14 Jahre)",
+    "anspruchsvoll": "9. Klasse Sekundarstufe I (ca. 15 Jahre)",
 }
+
+#: Die oberste Ebene gelernter Fehlerarten, siehe rstrainer.taxonomie.
+SCHWEIZ_REGEL = (
+    "WICHTIG – Schweizer Rechtschreibung: Es gibt kein ß. «Strasse», «gross», "
+    "«heisst», «dass» sind KORREKT und keine Fehler. Die Kategorien 13 und 15 "
+    "dürfen NIE vergeben werden. Setzt das Kind fälschlich ein ß, sind 14 oder "
+    "16 richtig."
+)
 
 QUALITAETSREGELN = """\
 Zwingende Vorgaben:
@@ -90,7 +101,7 @@ DIKTAT = """\
 Auftragsnummer: {auftrag_code}
 
 ### Rahmen
-- Klassenstufe / Alter: {klassenstufe}
+- Zielgruppe: {stufe}
 - Textsorte: {textsorte}
 - Thema: {thema}
 - Umfang: {wortzahl} Wörter (Toleranz ±10 %)
@@ -140,7 +151,7 @@ UEBUNGSBLATT = """\
 Auftragsnummer: {auftrag_code}
 
 ### Rahmen
-- Klassenstufe / Alter: {klassenstufe}
+- Zielgruppe: {stufe}
 - Bearbeitungszeit Übungsblatt: {bearbeitungszeit}
 - Das Blatt wird beidseitig gedruckt: Vorderseite Übungsteil, Rückseite Mini-Test.
 - Die Schülerin / der Schüler arbeitet selbstständig, ohne Lehrerhilfe.
@@ -207,7 +218,7 @@ MINITEST = """\
 Auftragsnummer: {auftrag_code}
 
 ### Rahmen
-- Klassenstufe / Alter: {klassenstufe}
+- Zielgruppe: {stufe}
 - Zweck: Überprüfung, ob die geübten Schwerpunkte sitzen.
 - Umfang: {test_aufgaben} Aufgaben, in {bearbeitungszeit} lösbar.
 
@@ -251,3 +262,154 @@ PFLICHTPLATZHALTER = {
     "minitest": {"auftrag_code", "kategorienblock", "marke_anfang", "marke_ende",
                  "marke_test", "marke_loesung"},
 }
+
+
+# ---------------------------------------------------------------------------
+# Fehleranalyse durch das Sprachmodell
+# ---------------------------------------------------------------------------
+# Anders als der mechanische Abgleich ordnet das Modell die Kategorien
+# inhaltlich zu und darf für alles, was die OLFA-Liste nicht abdeckt – vor
+# allem Grammatik –, eigene Fehlerarten benennen und hierarchisch einordnen.
+
+ANALYSE_KOPF = """\
+Du bist eine erfahrene Lehrperson für Deutsch auf der Sekundarstufe I.
+
+## Weg 1: die feste OLFA-Liste (Rechtschreibung)
+Die Bezeichnungen folgen dem Muster «X für Y»: geschrieben wurde X, richtig wäre Y.
+
+{olfa_liste}
+
+{schweiz_regel}
+
+## Weg 2: bereits angelegte eigene Fehlerarten
+Verwende sie bevorzugt weiter, statt gleichbedeutende neue anzulegen:
+
+{bekannte_arten}
+
+## Weg 3: eine neue Fehlerart benennen
+Deckt weder die OLFA-Liste noch eine bestehende Art den Fehler ab – insbesondere \
+bei **Grammatik** –, benennst du selbst eine neue Art mit hierarchischem Pfad, \
+zum Beispiel ["Grammatik", "Kasus", "Dativ statt Akkusativ"].
+
+**Die oberste Stufe MUSS genau eines dieser Wörter sein** – andere werden verworfen:
+{oberbegriffe}
+
+Formuliere die unterste Stufe nach dem Muster «X statt Y» oder «X fehlt», damit \
+gleichartige Fehler später gleich heissen. Lege keine neue Art an, wenn eine \
+OLFA-Kategorie oder eine bestehende Art passt – die Sammlung wächst sonst mit \
+Bedeutungsgleichem zu."""
+
+ANALYSE_FORMAT = """\
+## Ausgabe
+Antworte ausschliesslich mit einem JSON-Array, ohne Vor- oder Nachtext und ohne \
+Code-Zaun. Ein Objekt je Fehler, in der Reihenfolge des Textes:
+
+[{{
+  "richtig": "<die korrekte Form>",
+  "geschrieben": "<was im Text steht>",
+  "typ": "olfa" | "bekannt" | "neu",
+  "kategorie": "<OLFA-Nummer bei typ olfa, Kennung wie X-abc12345 bei typ bekannt, sonst null>",
+  "pfad": ["<Oberbegriff>", "<Untergruppe>", "<genaue Art>"],
+  "beschreibung": "<bei typ neu: ein Satz, was diese Art bezeichnet>",
+  "begruendung": "<höchstens 12 Wörter>"
+}}]
+
+Bei typ "olfa" und "bekannt" lässt du "pfad" und "beschreibung" weg."""
+
+ANALYSE_DIKTAT = """\
+{analyse_kopf}
+
+## Allgemeine Regeln
+- Beurteile ausschliesslich die Abweichungen vom Originaltext. Was mit dem Original \
+übereinstimmt, ist richtig – auch wenn du es anders schreiben würdest.
+- Ein Wort kann mehrere Fehler enthalten. Dann gib pro Fehler eine eigene Zeile an.
+- Vergib die SPEZIFISCHSTE passende Kategorie. Nimm OLFA 37 nur, wenn wirklich \
+nichts passt und auch keine eigene Art sinnvoll ist.
+- Reine Satzzeichenunterschiede zählen NICHT als Fehler.
+- Ist die Abschrift fehlerfrei, gib eine leere Liste zurück.
+
+## Originaldiktat
+{originaltext}
+
+## Abschrift des Kindes
+{schuelertext}
+
+{analyse_format}
+"""
+
+ANALYSE_FREITEXT = """\
+{analyse_kopf}
+
+Du wertest einen **frei geschriebenen Text** aus. Es gibt keine Vorlage – du musst \
+selbst beurteilen, was falsch ist, und die richtige Form angeben.
+
+## Was KEIN Fehler ist – hier bitte streng mit dir sein
+Ohne Vorlage ist die Versuchung gross, zu viel anzustreichen. Es zählt nur, was \
+objektiv falsch ist:
+- **Kein Stil.** Umständliche, einfache oder kindliche Formulierungen sind keine Fehler.
+- **Keine Wortwahl**, solange das Wort existiert und passt.
+- **Kein Satzbau**, solange der Satz grammatikalisch zulässig ist.
+- **Keine Wiederholungen**, kein «besser wäre».
+- Umgangssprache und Helvetismen sind zulässig, solange sie korrekt geschrieben sind.
+- Im Zweifel: **nicht** als Fehler werten.
+
+Ist der Text fehlerfrei, gib eine leere Liste zurück.
+
+## Text des Kindes
+{schuelertext}
+
+{analyse_format}
+"""
+
+# ---------------------------------------------------------------------------
+# Aufräumen der gelernten Fehlerarten
+# ---------------------------------------------------------------------------
+
+AUFRAEUMEN = """\
+Du ordnest eine gewachsene Sammlung von Fehlerarten aus dem Deutschunterricht.
+
+Die Sammlung ist im Lauf mehrerer Auswertungen entstanden. Dabei sind mutmasslich \
+Einträge entstanden, die dasselbe meinen, aber verschieden heissen.
+
+## Die Sammlung
+{sammlung}
+
+## Auftrag
+Finde Einträge, die inhaltlich dasselbe bezeichnen, und schlage vor, sie \
+zusammenzulegen. Schlage ausserdem einheitlichere Benennungen vor, wo sie sich anbieten.
+
+Sei streng mit dir:
+- Zusammenlegen NUR bei echter Bedeutungsgleichheit. «Dativ statt Akkusativ» und \
+«Akkusativ statt Dativ» sind GEGENTEILE und dürfen niemals zusammengelegt werden.
+- Ebenso wenig zusammenlegen: Ober- und Unterbegriff.
+- Im Zweifel nichts vorschlagen. Eine zu Unrecht zusammengelegte Art zerstört die Statistik.
+- Die oberste Ebene muss eines dieser Wörter bleiben: {oberbegriffe}.
+
+## Ausgabe
+Antworte ausschliesslich mit einem JSON-Objekt, ohne Vor- oder Nachtext und ohne Code-Zaun:
+
+{{
+  "zusammenlegen": [
+    {{"von": "<Kennung, die verschwindet>", "nach": "<Kennung, die bleibt>", "warum": "<kurz>"}}
+  ],
+  "umbenennen": [
+    {{"id": "<Kennung>", "pfad": ["<Oberbegriff>", "<Untergruppe>", "<genaue Art>"], "warum": "<kurz>"}}
+  ]
+}}
+
+Ist nichts zu tun, gib leere Listen zurück.
+"""
+
+VORLAGEN["analyse_diktat"] = ANALYSE_DIKTAT
+VORLAGEN["analyse_freitext"] = ANALYSE_FREITEXT
+VORLAGEN["aufraeumen"] = AUFRAEUMEN
+
+PFLICHTPLATZHALTER.update({
+    "analyse_diktat": {"analyse_kopf", "analyse_format", "originaltext", "schuelertext"},
+    "analyse_freitext": {"analyse_kopf", "analyse_format", "schuelertext"},
+    "aufraeumen": {"sammlung", "oberbegriffe"},
+})
+
+#: Auch der gemeinsame Kopf braucht seine Platzhalter – er wird von
+#: :func:`rstrainer.auftraege.analyse_prompt_bauen` separat gefüllt.
+KOPF_PLATZHALTER = {"olfa_liste", "schweiz_regel", "bekannte_arten", "oberbegriffe"}

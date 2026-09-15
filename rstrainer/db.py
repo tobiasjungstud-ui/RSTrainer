@@ -8,6 +8,11 @@ wäre gleichwertig, aber deutlich umständlicher bei Auswertungen).
 Freigaben: Generierte Inhalte werden IMMER mit ``freigegeben = 0`` angelegt.
 Erst ``diktat_freigeben`` bzw. ``blatt_freigeben`` setzt das Häkchen samt
 Zeitstempel. Nichts gelangt ungeprüft in den Verlauf.
+
+Ein Profil trägt nur Anzeigename und Notiz. Kürzel und Klasse hat die
+Lehrperson bewusst nicht gewollt: Sie kennt die wenigen Kinder, die sie
+einzeln fördert, und jedes zusätzliche Feld wäre ein weiteres
+personenbezogenes Datum ohne Nutzen.
 """
 
 from __future__ import annotations
@@ -27,8 +32,6 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS schueler (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     anzeigename   TEXT    NOT NULL,
-    kuerzel       TEXT,
-    klasse        TEXT,
     notiz         TEXT    DEFAULT '',
     angelegt_am   TEXT    NOT NULL,
     aktiv         INTEGER NOT NULL DEFAULT 1
@@ -44,11 +47,10 @@ CREATE TABLE IF NOT EXISTS diktate (
     ziel_kategorien      TEXT    NOT NULL DEFAULT '[]',
     notiz                TEXT    DEFAULT '',
     quelle               TEXT    DEFAULT 'manuell',
+    art                  TEXT    NOT NULL DEFAULT 'diktat',
     erstellt_am          TEXT    NOT NULL,
     freigegeben          INTEGER NOT NULL DEFAULT 0,
     freigegeben_am       TEXT,
-    korrektur_gelesen    INTEGER NOT NULL DEFAULT 0,
-    korrektur_gelesen_am TEXT,
     schuelertext         TEXT    DEFAULT ''
 );
 
@@ -100,6 +102,7 @@ CREATE TABLE IF NOT EXISTS einstellungen (
 );
 
 CREATE INDEX IF NOT EXISTS idx_diktate_schueler ON diktate(schueler_id, datum);
+CREATE INDEX IF NOT EXISTS idx_diktate_art      ON diktate(schueler_id, art);
 CREATE INDEX IF NOT EXISTS idx_fehler_schueler  ON fehler(schueler_id, datum);
 CREATE INDEX IF NOT EXISTS idx_fehler_diktat    ON fehler(diktat_id);
 CREATE INDEX IF NOT EXISTS idx_blaetter_schueler ON blaetter(schueler_id, datum);
@@ -140,16 +143,14 @@ def transaktion(con: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
 # Schülerprofile
 # --------------------------------------------------------------------------
 
-def schueler_anlegen(con, anzeigename: str, kuerzel: str = "", klasse: str = "",
-                     notiz: str = "") -> int:
+def schueler_anlegen(con, anzeigename: str, notiz: str = "") -> int:
     anzeigename = anzeigename.strip()
     if not anzeigename:
         raise ValueError("Der Anzeigename darf nicht leer sein.")
     with transaktion(con):
         cur = con.execute(
-            "INSERT INTO schueler (anzeigename, kuerzel, klasse, notiz, angelegt_am)"
-            " VALUES (?,?,?,?,?)",
-            (anzeigename, kuerzel.strip(), klasse.strip(), notiz, _jetzt()),
+            "INSERT INTO schueler (anzeigename, notiz, angelegt_am) VALUES (?,?,?)",
+            (anzeigename, notiz, _jetzt()),
         )
     return int(cur.lastrowid)
 
@@ -167,7 +168,7 @@ def schueler_holen(con, schueler_id: int) -> sqlite3.Row | None:
 
 
 def schueler_aktualisieren(con, schueler_id: int, **felder) -> None:
-    erlaubt = {"anzeigename", "kuerzel", "klasse", "notiz", "aktiv"}
+    erlaubt = {"anzeigename", "notiz", "aktiv"}
     felder = {k: v for k, v in felder.items() if k in erlaubt}
     if not felder:
         return
@@ -221,23 +222,30 @@ def schueler_uebersicht(con, schueler_id: int) -> dict[str, Any]:
 def diktat_anlegen(con, schueler_id: int, titel: str, text_original: str,
                    datum: str | None = None, ziel_kategorien: list[str] | None = None,
                    notiz: str = "", quelle: str = "manuell",
-                   freigegeben: bool = False, korrektur_gelesen: bool = False) -> int:
-    """Legt ein Diktat an – standardmäßig OHNE Freigabe."""
+                   freigegeben: bool = False, art: str = "diktat",
+                   schuelertext: str = "") -> int:
+    """Legt einen Text an – standardmäßig OHNE Freigabe.
+
+    ``art='diktat'``: ``text_original`` ist die fehlerfreie Vorlage, die
+    Wortzahl richtet sich nach ihr.
+    ``art='freitext'``: es gibt keine Vorlage; der Text des Kindes steht in
+    ``schuelertext`` und bestimmt die Wortzahl.
+    """
     from .textwerkzeuge import woerter_zaehlen
 
+    bezug = schuelertext if art == "freitext" else text_original
     with transaktion(con):
         cur = con.execute(
             "INSERT INTO diktate (schueler_id, titel, text_original, wortzahl, datum,"
-            " ziel_kategorien, notiz, quelle, erstellt_am, freigegeben, freigegeben_am,"
-            " korrektur_gelesen, korrektur_gelesen_am)"
+            " ziel_kategorien, notiz, quelle, art, schuelertext, erstellt_am,"
+            " freigegeben, freigegeben_am)"
             " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 schueler_id, titel.strip(), text_original,
-                woerter_zaehlen(text_original), datum or _heute(),
+                woerter_zaehlen(bezug), datum or _heute(),
                 json.dumps(ziel_kategorien or [], ensure_ascii=False),
-                notiz, quelle, _jetzt(),
+                notiz, quelle, art, schuelertext, _jetzt(),
                 int(freigegeben), _jetzt() if freigegeben else None,
-                int(korrektur_gelesen), _jetzt() if korrektur_gelesen else None,
             ),
         )
     return int(cur.lastrowid)
@@ -265,6 +273,9 @@ def diktat_aktualisieren(con, diktat_id: int, **felder) -> None:
         felder["ziel_kategorien"] = json.dumps(felder["ziel_kategorien"], ensure_ascii=False)
     if "text_original" in felder:
         felder.setdefault("wortzahl", woerter_zaehlen(felder["text_original"]))
+    if "schuelertext" in felder and diktat_holen(con, diktat_id) is not None \
+            and diktat_holen(con, diktat_id)["art"] == "freitext":
+        felder["wortzahl"] = woerter_zaehlen(felder["schuelertext"])
     if not felder:
         return
     setzen = ", ".join(f"{k} = ?" for k in felder)
@@ -279,16 +290,6 @@ def diktat_freigeben(con, diktat_id: int, freigegeben: bool = True) -> None:
         con.execute(
             "UPDATE diktate SET freigegeben = ?, freigegeben_am = ? WHERE id = ?",
             (int(freigegeben), _jetzt() if freigegeben else None, diktat_id),
-        )
-
-
-def diktat_korrektur_bestaetigen(con, diktat_id: int, gelesen: bool = True) -> None:
-    """Eigener Prüfschritt: Der Originaltext wurde Wort für Wort gegengelesen."""
-    with transaktion(con):
-        con.execute(
-            "UPDATE diktate SET korrektur_gelesen = ?, korrektur_gelesen_am = ?"
-            " WHERE id = ?",
-            (int(gelesen), _jetzt() if gelesen else None, diktat_id),
         )
 
 
@@ -350,6 +351,20 @@ def fehler_liste(con, schueler_id: int, diktat_id: int | None = None) -> list[sq
 def fehler_loeschen(con, fehler_id: int) -> None:
     with transaktion(con):
         con.execute("DELETE FROM fehler WHERE id = ?", (fehler_id,))
+
+
+def fehler_umhaengen(con, von_nr: str, nach_nr: str) -> int:
+    """Hängt alle Fehler einer Kategorie auf eine andere um – über ALLE Profile.
+
+    Beim Zusammenlegen zweier gelernter Fehlerarten würden sonst die Einträge
+    fremder Profile ins Leere zeigen.
+    """
+    with transaktion(con):
+        cur = con.execute(
+            "UPDATE fehler SET kategorie_nr = ? WHERE kategorie_nr = ?",
+            (nach_nr, von_nr),
+        )
+    return cur.rowcount
 
 
 def fehler_haeufigkeit(con, schueler_id: int) -> list[sqlite3.Row]:

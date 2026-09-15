@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from .kategorien import Register
 from .olfa import Kategorienliste
 from .textwerkzeuge import woerter
 
@@ -128,7 +129,7 @@ def kategorie_treffer(text: str, kategorie_nr: str,
 # ---------------------------------------------------------------------------
 
 def diktat_pruefen(text: str, soll_wortzahl: int, kategorien: list[str],
-                   liste: Kategorienliste,
+                   register: Register,
                    toleranz: float = 0.20,
                    mindesttreffer: int = 3) -> list[Befund]:
     """Prüft einen frisch eingefügten Diktattext.
@@ -159,9 +160,8 @@ def diktat_pruefen(text: str, soll_wortzahl: int, kategorien: list[str],
         befunde.append(Befund(OK, "Wortanzahl", f"{ist} Wörter."))
 
     for nr in kategorien:
-        kategorie = liste.get(nr)
-        name = kategorie.label if kategorie else nr
-        treffer = kategorie_treffer(text, nr, liste)
+        name = register.label(nr)
+        treffer = kategorie_treffer(text, nr, register.liste)
         if len(treffer) >= mindesttreffer:
             beispiele = ", ".join(treffer[:6])
             befunde.append(Befund(
@@ -202,7 +202,7 @@ LOESUNGS_SIGNALE = [
 
 
 def blatt_pruefen(inhalt_uebung: str, inhalt_test: str, loesungen: str,
-                  kategorien: list[str], liste: Kategorienliste,
+                  kategorien: list[str], register: Register,
                   mindestnennungen: int = 1) -> list[Befund]:
     """Prüft ein frisch eingefügtes Übungsblatt samt Mini-Test."""
     befunde: list[Befund] = []
@@ -216,10 +216,9 @@ def blatt_pruefen(inhalt_uebung: str, inhalt_test: str, loesungen: str,
 
     # 1) Sind die Aufgaben erkennbar den gewählten Kategorien zugeordnet?
     for nr in kategorien:
-        kategorie = liste.get(nr)
-        name = kategorie.label if kategorie else nr
+        name = register.label(nr)
         nennungen = len(re.findall(rf"\b{re.escape(nr)}\b", aufgabenseiten))
-        treffer = kategorie_treffer(aufgabenseiten, nr, liste)
+        treffer = kategorie_treffer(aufgabenseiten, nr, register.liste)
         if nennungen >= mindestnennungen:
             befunde.append(Befund(
                 OK, f"Zuordnung {name}",

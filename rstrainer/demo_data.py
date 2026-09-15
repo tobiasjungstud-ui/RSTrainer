@@ -5,6 +5,11 @@ dazu, neue Funktionen auszuprobieren, ohne echte Schülerdaten anzufassen.
 
 Die Demoprofile sind am Namenspräfix erkennbar (``DEMO –``) und lassen sich
 mit :func:`demodaten_entfernen` in einem Zug wieder löschen.
+
+Gelernte Fehlerarten legt der Testmodus bewusst **keine** an: Die liegen in
+``daten/fehlerarten.json`` und damit ausserhalb der Profile – erfundene
+Einträge würden dort stehen bleiben, auch nachdem die Demoprofile gelöscht
+sind. Sie entstehen erst, wenn das Sprachmodell einen Text auswertet.
 """
 
 from __future__ import annotations
@@ -21,20 +26,17 @@ DEMO_PRAEFIX = "DEMO – "
 #: Entwicklung: "abnehmend", "stagnierend", "zunehmend"
 DEMO_PROFILE = {
     "Lena B.": {
-        "klasse": "5a",
         "notiz": "Frei erfundenes Demoprofil. Schwerpunkt Vokallänge und Silbenrand.",
         "muster": {"07": (6, "abnehmend"), "09": (5, "stagnierend"),
                     "01": (3, "zunehmend"), "19": (6, "stagnierend"),
                     "36": (5, "abnehmend")},
     },
     "Tim K.": {
-        "klasse": "6b",
         "notiz": "Frei erfundenes Demoprofil. Schwerpunkt Groß-/Kleinschreibung.",
         "muster": {"01": (8, "stagnierend"), "02": (6, "stagnierend"),
                     "27": (4, "zunehmend"), "07": (3, "abnehmend")},
     },
     "Sara M.": {
-        "klasse": "4c",
         "notiz": "Frei erfundenes Demoprofil. Wenige Diktate, noch keine Trendaussage.",
         "muster": {"36": (4, "stagnierend"), "29": (4, "stagnierend")},
     },
@@ -80,6 +82,22 @@ DEMO_DIKTATE = [
      "alle gingen zum Abendessen hinein."),
 ]
 
+#: Frei geschriebene Texte ohne Vorlage. Sie zeigen den zweiten Weg der
+#: Erfassung: Hier gibt es kein Original, der Text des Kindes ist alles, was
+#: vorliegt. Die Wortzahl richtet sich deshalb nach ihm.
+DEMO_FREITEXTE = [
+    ("Mein Wochenende",
+     "Am Samstag bin ich mit meinem Bruder auf den Spielplatz gegangen. Wir haben "
+     "lange geschaukelt und danach haben wir uns ein Eis gekauft. Auf dem Rückweg "
+     "hat es angefangen zu regnen und wir sind gerannt. Zuhause hat meine Mutter "
+     "Suppe gekocht. Am Abend habe ich noch ein Buch gelesen."),
+    ("Der Bericht über den Wandertag",
+     "Unsere Klasse ist am Dienstag auf den Berg gewandert. Der Weg war steil und "
+     "einige waren schnell müde. Oben haben wir eine Pause gemacht und die "
+     "Aussicht angeschaut. Der Lehrer hat uns etwas über die Pflanzen erzählt. "
+     "Nach dem Abstieg sind alle zufrieden nach Hause gefahren."),
+]
+
 #: Beispielhafte Falschschreibungen je Kategorie (erfunden, aber realistisch).
 DEMO_FEHLERWOERTER = {
     "01": [("Wald", "wald"), ("Kinder", "kinder"), ("Sonne", "sonne"),
@@ -116,9 +134,7 @@ def demodaten_anlegen(con: sqlite3.Connection, seed: int = 20260911) -> list[int
 
     for name, profil in DEMO_PROFILE.items():
         schueler_id = db.schueler_anlegen(
-            con, f"{DEMO_PRAEFIX}{name}",
-            kuerzel="".join(teil[0] for teil in name.split() if teil),
-            klasse=profil["klasse"], notiz=profil["notiz"],
+            con, f"{DEMO_PRAEFIX}{name}", notiz=profil["notiz"],
         )
         angelegt.append(schueler_id)
 
@@ -131,7 +147,7 @@ def demodaten_anlegen(con: sqlite3.Connection, seed: int = 20260911) -> list[int
                 con, schueler_id, titel, text, datum=datum,
                 ziel_kategorien=ziel,
                 notiz="Demodaten – frei erfunden.",
-                quelle="demo", freigegeben=True, korrektur_gelesen=True,
+                quelle="demo", freigegeben=True,
             )
             db.diktat_aktualisieren(
                 con, diktat_id, schuelertext=_schuelertext_bauen(text, profil, i, anzahl, zufall)
@@ -167,7 +183,50 @@ def demodaten_anlegen(con: sqlite3.Connection, seed: int = 20260911) -> list[int
                     })
             db.fehler_mehrere_anlegen(con, schueler_id, eintraege)
 
+        # Ein frei geschriebener Text je Profil mit mindestens drei Diktaten –
+        # sonst liesse sich der zweite Erfassungsweg im Testmodus nicht ansehen.
+        if anzahl >= 3:
+            _freitext_anlegen(con, schueler_id, profil, anzahl, heute, zufall)
+
     return angelegt
+
+
+def _freitext_anlegen(con: sqlite3.Connection, schueler_id: int, profil: dict,
+                      anzahl: int, heute: date, zufall: random.Random) -> int:
+    """Legt einen freien Text samt Fehlern an – ohne Vorlage."""
+    titel, text = zufall.choice(DEMO_FREITEXTE)
+    datum = (heute - timedelta(days=3)).isoformat()
+    diktat_id = db.diktat_anlegen(
+        con, schueler_id, titel, "", datum=datum,
+        notiz="Demodaten – frei erfunden. Im Unterricht entstandener Text.",
+        quelle="demo", freigegeben=True, art="freitext", schuelertext=text,
+    )
+    wortzahl = db.diktat_holen(con, diktat_id)["wortzahl"]
+    eintraege = []
+    # Alle Kategorien des Profils, nicht nur die geübten: Ein freier Text
+    # entsteht ohne Zielvorgabe und zeigt deshalb das ganze Fehlerbild. Liesse
+    # man welche aus, stünde für sie am jüngsten Messpunkt eine Null – und aus
+    # «stagnierend» würde in der Auswertung «abnehmend».
+    for kategorie_nr, (start, entwicklung) in profil["muster"].items():
+        # Der freie Text ist der jüngste Eintrag und fällt damit ins aktuelle
+        # Trendfenster. Er schreibt deshalb die eingebaute Entwicklung auf dem
+        # Stand des letzten Diktats fort – ein Fixwert oder ein Zuschlag machte
+        # aus «abnehmend» ein «stagnierend» und aus «stagnierend» ein
+        # «zunehmend», und der Testmodus prüfte dann seine eigene Verzerrung.
+        # Auch kein Mindestwert von 1: Bei niedriger Sollrate wäre ein
+        # aufgerundeter Einzelfehler in einem kurzen Text schon ein Ausreisser.
+        faktor = _ENTWICKLUNG[entwicklung](anzahl - 1, anzahl)
+        menge = int(start * faktor * wortzahl / 100.0 + 0.5)
+        woerter = DEMO_FEHLERWOERTER.get(kategorie_nr, [("Wort", "Wor")])
+        for _ in range(menge):
+            richtig, falsch = zufall.choice(woerter)
+            eintraege.append({
+                "diktat_id": diktat_id, "kategorie_nr": kategorie_nr,
+                "wort_original": richtig, "wort_schueler": falsch,
+                "kontext": f"… [{falsch}] …", "datum": datum, "notiz": "",
+            })
+    db.fehler_mehrere_anlegen(con, schueler_id, eintraege)
+    return diktat_id
 
 
 def _schuelertext_bauen(text: str, profil: dict, i: int, anzahl: int,

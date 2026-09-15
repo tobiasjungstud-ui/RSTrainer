@@ -15,65 +15,66 @@ def zeichnen(con, schueler) -> None:
     fehler = [dict(f) for f in db.fehler_liste(con, schueler["id"])]
     if not diktate or not fehler:
         st.info(
-            "Für die Auswertung braucht es mindestens ein Diktat mit erfassten "
+            "Für die Auswertung braucht es mindestens einen Text mit erfassten "
             "Fehlern."
         )
         return
 
-    liste = g.kategorienliste()
+    reg = g.register()
     punkte = [
-        analysis.Diktatpunkt(d["id"], d["datum"], d["titel"], d["wortzahl"])
+        analysis.Diktatpunkt(d["id"], d["datum"], d["titel"], d["wortzahl"],
+                             tuple(g.json_liste(d["ziel_kategorien"])))
         for d in diktate
     ]
     reihen = analysis.zeitreihe(punkte, fehler)
     trends = analysis.trends_bestimmen(punkte, fehler)
 
     spalten = st.columns(3)
-    spalten[0].metric("Diktate", len(punkte))
+    spalten[0].metric("Texte", len(punkte))
     spalten[1].metric("Erfasste Fehler", len(fehler))
-    spalten[2].metric("Betroffene Kategorien", len(reihen))
+    spalten[2].metric("Betroffene Fehlerarten", len(reihen))
 
     if len(punkte) < config.TREND_FENSTER + 1:
         st.info(
             f"Für eine Trendaussage werden mindestens {config.TREND_FENSTER + 1} "
-            f"Diktate verglichen (die letzten {config.TREND_FENSTER} gegen die "
+            f"Texte verglichen (die letzten {config.TREND_FENSTER} gegen die "
             f"{config.TREND_FENSTER} davor). Aktuell sind es {len(punkte)}."
         )
 
     st.divider()
-    st.subheader("Häufigkeit nach Kategorie")
+    st.subheader("Häufigkeit nach Fehlerart")
     haeufigkeit = {nr: sum(reihe) for nr, reihe in reihen.items()}
-    balken = charts.balken_kategorien(haeufigkeit, liste)
+    balken = charts.balken_kategorien(haeufigkeit, reg)
     st.pyplot(balken, width="stretch")
 
     st.divider()
     st.subheader("Entwicklung über die Zeit")
     st.caption(
-        "Dargestellt sind Fehler **pro 100 Wörter** – sonst wäre ein langes "
-        "Diktat automatisch «schlechter» als ein kurzes. Es werden höchstens "
-        f"{charts.MAX_SERIEN} Kategorien gezeichnet; alle übrigen stehen in der "
+        "Dargestellt sind Fehler **pro 100 Wörter** – sonst wäre ein langer "
+        "Text automatisch «schlechter» als ein kurzer. Es werden höchstens "
+        f"{charts.MAX_SERIEN} Fehlerarten gezeichnet; alle übrigen stehen in der "
         "Tabelle darunter."
     )
-    linien, gezeigt = charts.verlauf_linien(punkte, reihen, liste)
+    linien, gezeigt = charts.verlauf_linien(punkte, reihen, reg)
     st.pyplot(linien, width="stretch")
 
     st.divider()
-    st.subheader("Einstufung je Kategorie")
-    _trendtabelle(trends, liste, gezeigt)
+    st.subheader("Einstufung je Fehlerart")
+    _trendtabelle(trends, reg, gezeigt)
 
     st.divider()
-    _export(con, schueler, punkte, trends, liste, balken, linien)
+    _export(con, schueler, punkte, trends, reg, balken, linien)
 
 
-def _trendtabelle(trends, liste, gezeigt: list[str]) -> None:
+def _trendtabelle(trends, reg, gezeigt: list[str]) -> None:
     import pandas as pd
 
     zeilen = []
     for nr, t in sorted(trends.items(), key=lambda x: (-x[1].summe_gesamt, x[0])):
         zeilen.append({
-            "Kategorie": liste.label(nr),
+            "Fehlerart": reg.label(nr),
             "Fehler gesamt": t.summe_gesamt,
-            "In Diktaten": f"{t.diktate_mit_fehler} von {t.diktate_gesamt}",
+            "In Texten": f"{t.diktate_mit_fehler} von {t.diktate_gesamt}",
             "Entwicklung": f"{t.symbol} {t.text}",
             "Vorher": t.rate_vorher,
             "Aktuell": t.rate_aktuell,
@@ -82,14 +83,14 @@ def _trendtabelle(trends, liste, gezeigt: list[str]) -> None:
     st.dataframe(pd.DataFrame(zeilen), hide_index=True, width="stretch")
     st.caption(
         "«Vorher» und «Aktuell» sind Fehler pro 100 Wörter, gemittelt über die "
-        f"jeweils {config.TREND_FENSTER} Diktate. Eine Veränderung gilt erst ab "
+        f"jeweils {config.TREND_FENSTER} Texte. Eine Veränderung gilt erst ab "
         f"{config.TREND_SCHWELLE:.0%} und mindestens "
         f"{config.TREND_MINDESTDIFFERENZ} Fehlern/100 Wörtern als Trend – "
         "darunter ist es Rauschen."
     )
 
 
-def _export(con, schueler, punkte, trends, liste, balken, linien) -> None:
+def _export(con, schueler, punkte, trends, reg, balken, linien) -> None:
     st.subheader("Export für das Elterngespräch")
     kommentar = st.text_area(
         "Einschätzung der Lehrperson (erscheint im Bericht)",
@@ -115,7 +116,7 @@ def _export(con, schueler, punkte, trends, liste, balken, linien) -> None:
             bild = charts.speichern(
                 linien, config.EXPORT_DIR / f"Verlauf_{schueler['id']}.png")
             zeitraum = (f"{punkte[0].datum} bis {punkte[-1].datum} "
-                        f"({len(punkte)} Diktate)")
+                        f"({len(punkte)} Texte)")
             zeilen = [
                 {
                     "kategorie_nr": nr,
@@ -129,7 +130,7 @@ def _export(con, schueler, punkte, trends, liste, balken, linien) -> None:
             ]
             pfad = config.EXPORT_DIR / f"Verlaufsbericht_{schueler['id']}.docx"
             docx_export.verlaufsbericht_schreiben(
-                pfad, g.anzeigename(con, schueler), zeitraum, zeilen, liste,
+                pfad, g.anzeigename(con, schueler), zeitraum, zeilen, reg,
                 bild, kommentar,
             )
             with open(pfad, "rb") as datei:

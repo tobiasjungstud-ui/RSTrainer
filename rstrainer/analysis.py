@@ -68,6 +68,10 @@ class Diktatpunkt:
     datum: str
     titel: str
     wortzahl: int
+    #: Was vor dem Schreiben als Ziel gesetzt war. Nur die Sondierung braucht
+    #: das: Eine Kategorie, die schon einmal Ziel war und trotzdem keinen
+    #: Fehler brachte, ist weniger unerforscht als eine nie geprüfte.
+    ziel_kategorien: tuple[str, ...] = ()
 
 
 @dataclass
@@ -300,3 +304,79 @@ def _begruendung(nr: str, trend: Trend, mit_fehler_jung: int, betrachtet: int) -
     else:
         teile.append("noch zu wenige Diktate für eine Trendaussage")
     return "; ".join(teile) + "."
+
+
+# ---------------------------------------------------------------------------
+# Klassiker gegen Sondierung
+# ---------------------------------------------------------------------------
+
+def sondierungsvorrat(diktate: Sequence[Diktatpunkt], fehler: Iterable[dict],
+                      register) -> list[str]:
+    """Kategorien, zu denen dieses Kind noch keinen Fehler hat.
+
+    Noch nie als Ziel gesetzte kommen zuerst, danach wird breit über die
+    Rechtschreibbereiche gestreut. Das Fenster wandert mit der Zahl der Texte
+    weiter, damit nicht immer dieselben Kandidaten geprüft werden.
+    """
+    gesehen = {str(f["kategorie_nr"]) for f in fehler}
+    war_ziel: set[str] = set()
+    for d in diktate:
+        for nr in d.ziel_kategorien or ():
+            war_ziel.add(str(nr))
+
+    kandidaten = [
+        (k.nr, k.bereich) for k in register.liste.waehlbar if k.nr not in gesehen
+    ] + [
+        (a.id, a.oberbegriff) for a in register.sammlung if a.id not in gesehen
+    ]
+    kandidaten.sort(key=lambda x: (x[0] in war_ziel, x[0]))
+
+    nach_bereich: dict[str, list[str]] = {}
+    for nr, bereich in kandidaten:
+        nach_bereich.setdefault(bereich, []).append(nr)
+
+    gestreut: list[str] = []
+    runde = 0
+    while len(gestreut) < len(kandidaten):
+        for eintraege in nach_bereich.values():
+            if runde < len(eintraege):
+                gestreut.append(eintraege[runde])
+        runde += 1
+
+    if not gestreut:
+        return []
+    versatz = len(diktate) % len(gestreut)
+    return gestreut[versatz:] + gestreut[:versatz]
+
+
+@dataclass
+class Mischung:
+    klassiker: list[str]
+    sondierung: list[str]
+
+    @property
+    def alle(self) -> list[str]:
+        return [*self.klassiker, *self.sondierung]
+
+
+def kategorien_mischen(diktate: Sequence[Diktatpunkt], fehler: Iterable[dict],
+                       register, anzahl: int = 4,
+                       neu_anteil: float = 0.25) -> Mischung:
+    """Mischt bekannte Schwerpunkte und unerprobte Kategorien.
+
+    ``neu_anteil`` 0 liefert nur Klassiker, 1 nur Sondierung. Fehlt eine der
+    beiden Seiten – etwa bei einem neuen Profil ohne Fehler –, füllt die
+    andere auf.
+    """
+    fehler = list(fehler)
+    anzahl = max(1, anzahl)
+    rang = [e.kategorie_nr for e in empfehlungen(diktate, fehler, anzahl=anzahl)]
+    vorrat = sondierungsvorrat(diktate, fehler, register)
+
+    wunsch_neu = min(round(anzahl * neu_anteil), len(vorrat))
+    wunsch_alt = min(anzahl - wunsch_neu, len(rang))
+    wunsch_neu = min(anzahl - wunsch_alt, len(vorrat))
+
+    klassiker = rang[:wunsch_alt]
+    sondierung = [nr for nr in vorrat if nr not in klassiker][:wunsch_neu]
+    return Mischung(klassiker=klassiker, sondierung=sondierung)

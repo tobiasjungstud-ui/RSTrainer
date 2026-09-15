@@ -162,11 +162,31 @@ def test_demodaten_enthalten_schuelertexte_fuer_den_abgleich(con):
     assert diktat["schuelertext"] != diktat["text_original"]
 
 
-def test_demodaten_sind_freigegeben_und_korrekturgelesen(con):
+def test_demodaten_sind_freigegeben(con):
     demo_data.demodaten_anlegen(con)
     for diktat in db.diktat_liste(con, 1):
         assert diktat["freigegeben"] == 1
-        assert diktat["korrektur_gelesen"] == 1
+
+
+def test_demodaten_enthalten_freie_texte(con):
+    """Ohne einen freien Text liesse sich der zweite Erfassungsweg im
+    Testmodus nicht ansehen."""
+    ids = demo_data.demodaten_anlegen(con)
+    arten = {d["art"] for d in db.diktat_liste(con, ids[0])}
+    assert arten == {"diktat", "freitext"}
+    frei = [d for d in db.diktat_liste(con, ids[0]) if d["art"] == "freitext"]
+    assert all(d["schuelertext"] and not d["text_original"] for d in frei)
+    assert all(d["wortzahl"] > 0 for d in frei)
+
+
+def test_demodaten_legen_keine_gelernten_arten_an(con, tmp_path, monkeypatch):
+    """Die Sammlung liegt ausserhalb der Profile – erfundene Einträge blieben
+    nach dem Entfernen der Demodaten stehen."""
+    from rstrainer import config, taxonomie
+
+    monkeypatch.setattr(config, "DATEN_DIR", tmp_path)
+    demo_data.demodaten_anlegen(con)
+    assert not taxonomie.dateipfad().exists()
 
 
 def test_demodaten_entfernen_laesst_echte_profile_stehen(con):
@@ -180,10 +200,10 @@ def test_demodaten_entfernen_laesst_echte_profile_stehen(con):
 
 # --- Export -----------------------------------------------------------------
 
-def test_fehler_csv_hat_kopfzeile_und_kategorienamen(con, schueler_id, liste):
+def test_fehler_csv_hat_kopfzeile_und_kategorienamen(con, schueler_id, register):
     did = db.diktat_anlegen(con, schueler_id, "Wald", "Text")
     db.fehler_anlegen(con, schueler_id, "07", did, "kommen", "komen", "Kontext")
-    text = export.fehler_csv(con, schueler_id, liste)
+    text = export.fehler_csv(con, schueler_id, register)
     zeilen = list(csv.DictReader(io.StringIO(text), delimiter=";"))
     assert len(zeilen) == 1
     assert zeilen[0]["kategorie_nr"] == "07"
@@ -192,8 +212,8 @@ def test_fehler_csv_hat_kopfzeile_und_kategorienamen(con, schueler_id, liste):
     assert zeilen[0]["wort_schueler"] == "komen"
 
 
-def test_csv_nutzt_semikolon(con, schueler_id, liste):
-    assert ";" in export.fehler_csv(con, schueler_id, liste).splitlines()[0]
+def test_csv_nutzt_semikolon(con, schueler_id, register):
+    assert ";" in export.fehler_csv(con, schueler_id, register).splitlines()[0]
 
 
 def test_diktate_csv(con, schueler_id):
@@ -207,11 +227,11 @@ def test_diktate_csv(con, schueler_id):
     assert zeile["freigegeben"] == "True"
 
 
-def test_gesamt_json_enthaelt_alle_bereiche(con, schueler_id, liste):
+def test_gesamt_json_enthaelt_alle_bereiche(con, schueler_id, register):
     did = db.diktat_anlegen(con, schueler_id, "D", "Text", freigegeben=True)
     db.fehler_anlegen(con, schueler_id, "07", did)
     db.blatt_anlegen(con, schueler_id, "B", ["07"], "u", "t")
-    daten = json.loads(export.gesamt_json(con, schueler_id, liste))
+    daten = json.loads(export.gesamt_json(con, schueler_id, register))
     assert daten["schueler"]["anzeigename"] == "Testkind"
     assert len(daten["diktate"]) == 1
     assert len(daten["fehler"]) == 1
@@ -219,29 +239,29 @@ def test_gesamt_json_enthaelt_alle_bereiche(con, schueler_id, liste):
     assert "exportiert_am" in daten
 
 
-def test_json_export_warnt_vor_personenbezug(con, schueler_id, liste):
-    daten = json.loads(export.gesamt_json(con, schueler_id, liste))
+def test_json_export_warnt_vor_personenbezug(con, schueler_id, register):
+    daten = json.loads(export.gesamt_json(con, schueler_id, register))
     assert "personenbezogene Daten" in daten["hinweis"]
 
 
-def test_json_export_ohne_texte(con, schueler_id, liste):
+def test_json_export_ohne_texte(con, schueler_id, register):
     db.diktat_anlegen(con, schueler_id, "D", "Geheimer Text")
-    daten = json.loads(export.gesamt_json(con, schueler_id, liste, mit_texten=False))
+    daten = json.loads(export.gesamt_json(con, schueler_id, register, mit_texten=False))
     assert "text_original" not in daten["diktate"][0]
 
 
-def test_export_meldet_unbekanntes_profil(con, liste):
+def test_export_meldet_unbekanntes_profil(con, register):
     import pytest
     with pytest.raises(ValueError):
-        export.gesamt_json(con, 999, liste)
+        export.gesamt_json(con, 999, register)
 
 
-def test_export_trennt_die_profile(con, liste):
+def test_export_trennt_die_profile(con, register):
     a = db.schueler_anlegen(con, "A")
     b = db.schueler_anlegen(con, "B")
     did = db.diktat_anlegen(con, a, "Nur A", "Text")
     db.fehler_anlegen(con, a, "07", did)
-    daten_b = json.loads(export.gesamt_json(con, b, liste))
+    daten_b = json.loads(export.gesamt_json(con, b, register))
     assert daten_b["diktate"] == []
     assert daten_b["fehler"] == []
 

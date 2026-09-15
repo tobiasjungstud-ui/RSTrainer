@@ -31,7 +31,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.figure import Figure  # noqa: E402
 
 from .analysis import Diktatpunkt  # noqa: E402
-from .olfa import Kategorienliste  # noqa: E402
+from .kategorien import Register  # noqa: E402
 
 # --- Palette (geprüft auf Farbfehlsichtigkeit, helle Fläche) -----------------
 FLAECHE = "#ffffff"
@@ -61,8 +61,8 @@ def _grundgeruest(figur: Figure, achse) -> None:
         beschriftung.set_color(TINTE_ZWEIT)
 
 
-def balken_kategorien(haeufigkeit: dict[str, int], liste: Kategorienliste,
-                      titel: str = "Fehler nach Kategorie",
+def balken_kategorien(haeufigkeit: dict[str, int], register: Register,
+                      titel: str = "Fehler nach Fehlerart",
                       hoechstens: int = 12) -> Figure:
     """Waagrechte Balken: wie oft kam welche Kategorie insgesamt vor."""
     daten = sorted(haeufigkeit.items(), key=lambda x: (-x[1], x[0]))[:hoechstens]
@@ -76,7 +76,9 @@ def balken_kategorien(haeufigkeit: dict[str, int], liste: Kategorienliste,
         achse.set_yticks([])
         return figur
 
-    beschriftungen = [liste.label(nr) for nr, _ in daten]
+    # Gelernte Pfade werden lang («Grammatik › Kasus › Dativ statt …»).
+    # Ungekürzt schieben sie die Balken aus dem Bild.
+    beschriftungen = [register.kurz(nr, 36) for nr, _ in daten]
     werte = [anzahl for _, anzahl in daten]
     stellen = range(len(daten))
 
@@ -102,7 +104,7 @@ def balken_kategorien(haeufigkeit: dict[str, int], liste: Kategorienliste,
 
 
 def verlauf_linien(diktate: Sequence[Diktatpunkt], reihen: dict[str, list[int]],
-                   liste: Kategorienliste,
+                   register: Register,
                    titel: str = "Fehlerentwicklung über die Zeit",
                    hoechstens: int = MAX_SERIEN) -> tuple[Figure, list[str]]:
     """Linien je Kategorie: Fehler pro 100 Wörter über die Diktate hinweg.
@@ -135,7 +137,7 @@ def verlauf_linien(diktate: Sequence[Diktatpunkt], reihen: dict[str, list[int]],
         farbe = SERIENFARBEN[stelle % len(SERIENFARBEN)]
         achse.plot(x, raten, color=farbe, linewidth=2.0, marker="o",
                    markersize=6, markeredgecolor=FLAECHE, markeredgewidth=1.5,
-                   label=liste.label(nr), zorder=3)
+                   label=register.kurz(nr, 40), zorder=3)
         # Direktbeschriftung am rechten Linienende.
         achse.annotate(nr, xy=(x[-1], raten[-1]), xytext=(6, 0),
                        textcoords="offset points", va="center", fontsize=9,
