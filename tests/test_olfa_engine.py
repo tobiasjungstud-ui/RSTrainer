@@ -72,10 +72,10 @@ def test_ohne_lexikon_kein_raten_bei_verschiedenen_foerderbereichen():
 
 def test_konsequenzpruefung_loest_gleichen_foerderbereich(monkeypatch):
     """Ergänzung C.1: 10/12 führen beide in F2 – folgenlos."""
-    r = E.klassifiziere_wort("Bohl", "Bol", {})
+    r = E.klassifiziere_wort("gehrn", "gern", {})
     e = r["ereignisse"][0]
     assert e["kandidaten"] == ["10", "12"]
-    E.abschliessen(e, {"ziel": "Bol"})
+    E.abschliessen(e, {"ziel": "gern"})
     assert e["status"] == "resolved_by_area"
     assert e["foerderbereich"] == "F2"
 

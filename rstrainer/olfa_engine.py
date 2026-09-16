@@ -22,12 +22,33 @@ from typing import Any, Iterable
 
 # ---------------------------------------------------------------- Konstanten
 
-MEHRGRAPHEME = ["sch", "ch", "ck", "tz", "ie", "ah", "eh", "ih", "oh", "uh", "äh", "öh", "üh",
-                "aa", "ee", "oo", "ei", "ai", "au", "eu", "äu", "pf", "qu", "ng", "nk", "ss"]
+# Längste zuerst. <chs> (Fuchs, sechs) und <ks> (links, Keks) stehen für /ks/
+# und müssen als Einheit gelten, sonst zählt «Hekse» für «Hexe» doppelt. <th>,
+# <ph>, <rh> sind Fremdgrapheme; <aah>, <eeh>, <ooh>, <ieh> fangen doppelte
+# Längenzeichen («Baahn») ab, <ieh> ist zudem echt (sieht, Vieh). <nk> ist
+# KEIN Graphem mehr: «Banck» für «Bank» wäre sonst nicht als ck→k lesbar.
+MEHRGRAPHEME = ["sch", "chs", "aah", "eeh", "ooh", "ieh",
+                "ch", "ck", "tz", "ie", "ah", "eh", "ih", "oh", "uh", "äh", "öh", "üh",
+                "aa", "ee", "oo", "ei", "ai", "au", "eu", "äu", "oi", "pf", "qu", "ng", "ss",
+                "ph", "th", "rh", "ks"]
 VOKALBUCHSTABEN = "aeiouäöüy"
-DIPHTHONGE = {"ei", "ai", "au", "eu", "äu"}
+DIPHTHONGE = {"ei", "ai", "au", "eu", "äu", "oi"}
 LAENGENMARKER = {"ah": "a", "eh": "e", "ih": "i", "oh": "o", "uh": "u", "äh": "ä", "öh": "ö", "üh": "ü",
-                 "aa": "a", "ee": "e", "oo": "o", "ie": "i"}
+                 "aa": "a", "ee": "e", "oo": "o", "ie": "i",
+                 "aah": "a", "eeh": "e", "ooh": "o", "ieh": "i"}
+#: Doppelt markiert («Baahn»): Grundvokal plus die einfache Markierung, die
+#: das Zielwort tatsächlich trägt.
+DOPPELMARKER = {"aah", "eeh", "ooh"}
+#: Grapheme, die es nur in Fremdwörtern gibt. Ein Fehler genau an ihnen ist
+#: ein Fremdwortfehler (37), keine Auslassung oder Ersetzung (Manual §9.4).
+FREMDGRAPHEME = {"ph", "th", "rh", "y", "c"}
+#: Nach diesen Graphemen lässt sich die Vokallänge nicht aus der Schreibung
+#: lesen: sie werden nie verdoppelt (Buch/Bach, Fisch/Dusche).
+LAENGE_UNLESBAR_VOR = {"ch", "sch", "chs", "ks", "x", "ß"}
+#: Vor diesen Clustern ist der Vokal trotzdem lang – die Ausnahmen der
+#: Faustregel «zwei Konsonanten, kurzer Vokal».
+CLUSTER_LANG = {"obst", "mond", "trost", "krebs", "magd", "jagd", "vogt", "papst", "propst",
+                "stets", "wüste", "husten", "ostern", "schuster", "kloster", "düster"}
 VERDOPPELUNG = {"bb": "b", "dd": "d", "ff": "f", "gg": "g", "ll": "l", "mm": "m", "nn": "n", "pp": "p",
                 "rr": "r", "ss": "s", "tt": "t", "ck": "k", "tz": "z"}
 UMLAUT = {"ä": "a", "ö": "o", "ü": "u"}
@@ -38,6 +59,12 @@ PRAEFIXE = ["be", "ge", "ver", "ent", "emp", "er", "zer", "miss", "un", "vor", "
 UNSELBSTSTAENDIG = {"be", "ge", "ver", "ent", "emp", "er", "zer", "miss", "un",
                     "im", "mer", "ung", "heit", "keit", "lich", "ig", "chen", "lein", "ten", "te",
                     "en", "es", "st", "t", "e", "n", "s"}
+#: Abgetrennte Suffixe: «Freund in» ist 06, obwohl «in» für sich ein Wort ist.
+SUFFIXE = {"in", "innen", "ig", "lich", "isch", "sam", "bar", "haft", "los", "voll", "ung",
+           "heit", "keit", "schaft", "tum", "chen", "lein", "nis", "ling", "er", "en", "ern"}
+#: Endet ein Teil so und ist er kein bekanntes Wort, ist er unselbstständig
+#: («sichtig» in «vor sichtig»).
+GEBUNDENE_ENDUNGEN = ("ig", "lich", "isch", "sam", "bar", "haft", "ung", "heit", "keit", "schaft")
 
 NEVER_ASSIGN = {"14", "16", "21", "22"}
 REDEFINED_FOR_DE_CH = {"13": "s für ss", "15": "ss für s"}
@@ -176,6 +203,444 @@ VORGABE_LEXIKON: dict[str, dict[str, Any]] = {
     "heute": {"umlaut": False}, "neu": {"umlaut": False}, "treu": {"umlaut": False}, "feuer": {"umlaut": False},
     "teuer": {"umlaut": False},
 }
+
+# Vokallängen, die sich NICHT aus der Schreibung ergeben: ss nach kurzem und
+# nach langem Vokal (Kasse/Strasse – in de-CH gleich geschrieben), einfaches
+# s nach Langvokal (Hase), r + Konsonant (Karte/Erde), Kurzvokal vor
+# einfachem Konsonanten (das, man, Bus), Länge vor ch/sch (Fisch/Buch).
+# Ein Wort, das schon oben steht, behält seinen Eintrag.
+VOKALLAENGEN: dict[str, dict[str, Any]] = {
+    "ab": {"vokale": ['kurz']},
+    "adresse": {"vokale": ['kurz', 'kurz', 'kurz']},
+    "am": {"vokale": ['kurz']},
+    "ameise": {"vokale": ['lang', 'lang', 'kurz']},
+    "an": {"vokale": ['kurz']},
+    "apotheke": {"vokale": ['kurz', 'lang', 'lang', 'kurz']},
+    "arbeit": {"vokale": ['kurz', 'lang']},
+    "arm": {"vokale": ['kurz']},
+    "art": {"vokale": ['lang']},
+    "arzt": {"vokale": ['lang']},
+    "atlas": {"vokale": ['kurz', 'kurz']},
+    "aussen": {"vokale": ['lang', 'kurz']},
+    "ausser": {"vokale": ['lang', 'kurz']},
+    "ausserdem": {"vokale": ['lang', 'kurz', 'lang']},
+    "axt": {"vokale": ['kurz']},
+    "bach": {"vokale": ['kurz']},
+    "bad": {"vokale": ['lang']},
+    "bahn": {"vokale": ['lang']},
+    "bar": {"vokale": ['lang']},
+    "barsch": {"vokale": ['kurz']},
+    "bart": {"vokale": ['lang']},
+    "bass": {"vokale": ['kurz']},
+    "beissen": {"vokale": ['lang', 'kurz']},
+    "beisst": {"vokale": ['lang']},
+    "berg": {"vokale": ['kurz']},
+    "berge": {"vokale": ['kurz', 'kurz']},
+    "besen": {"vokale": ['lang', 'kurz']},
+    "besser": {"vokale": ['kurz', 'kurz']},
+    "beten": {"vokale": ['lang', 'kurz']},
+    "bibel": {"vokale": ['lang', 'kurz']},
+    "biene": {"vokale": ['lang', 'kurz']},
+    "bin": {"vokale": ['kurz']},
+    "birne": {"vokale": ['kurz', 'kurz']},
+    "bis": {"vokale": ['kurz']},
+    "biss": {"vokale": ['kurz']},
+    "bisschen": {"vokale": ['kurz', 'kurz']},
+    "bissen": {"vokale": ['kurz', 'kurz']},
+    "blase": {"vokale": ['lang', 'kurz']},
+    "bloss": {"vokale": ['lang']},
+    "bläser": {"vokale": ['lang', 'kurz']},
+    "blässe": {"vokale": ['kurz', 'kurz']},
+    "bord": {"vokale": ['kurz']},
+    "boss": {"vokale": ['kurz']},
+    "brauch": {"vokale": ['lang']},
+    "brause": {"vokale": ['lang', 'kurz']},
+    "buche": {"vokale": ['lang', 'kurz']},
+    "bum": {"vokale": ['kurz']},
+    "bus": {"vokale": ['kurz']},
+    "busch": {"vokale": ['kurz']},
+    "busse": {"vokale": ['lang', 'kurz']},
+    "böse": {"vokale": ['lang', 'kurz']},
+    "bürste": {"vokale": ['kurz', 'kurz']},
+    "büssen": {"vokale": ['lang', 'kurz']},
+    "chip": {"vokale": ['kurz']},
+    "computer": {"vokale": ['kurz', 'lang', 'kurz']},
+    "cup": {"vokale": ['kurz']},
+    "dach": {"vokale": ['kurz']},
+    "das": {"vokale": ['kurz']},
+    "dem": {"vokale": ['kurz']},
+    "den": {"vokale": ['kurz']},
+    "des": {"vokale": ['kurz']},
+    "dich": {"vokale": ['kurz']},
+    "doch": {"vokale": ['kurz']},
+    "dorf": {"vokale": ['kurz']},
+    "dose": {"vokale": ['lang', 'kurz']},
+    "draussen": {"vokale": ['lang', 'kurz']},
+    "drohen": {"vokale": ['lang', 'kurz']},
+    "durst": {"vokale": ['kurz']},
+    "dusche": {"vokale": ['lang', 'kurz']},
+    "dürfen": {"vokale": ['kurz', 'kurz']},
+    "düster": {"vokale": ['lang', 'kurz']},
+    "ehe": {"vokale": ['lang', 'kurz']},
+    "eis": {"vokale": ['lang']},
+    "erbse": {"vokale": ['kurz', 'kurz']},
+    "erde": {"vokale": ['lang', 'kurz']},
+    "ernte": {"vokale": ['kurz', 'kurz']},
+    "erz": {"vokale": ['lang']},
+    "es": {"vokale": ['kurz']},
+    "essen": {"vokale": ['kurz', 'kurz']},
+    "fabrik": {"vokale": ['kurz', 'lang']},
+    "fach": {"vokale": ['kurz']},
+    "fahrt": {"vokale": ['lang']},
+    "farbe": {"vokale": ['kurz', 'kurz']},
+    "fase": {"vokale": ['lang', 'kurz']},
+    "fass": {"vokale": ['kurz']},
+    "fassade": {"vokale": ['kurz', 'lang', 'kurz']},
+    "fassen": {"vokale": ['kurz', 'kurz']},
+    "fasst": {"vokale": ['kurz']},
+    "ferien": {"vokale": ['lang', 'lang']},
+    "fessel": {"vokale": ['kurz', 'kurz']},
+    "fisch": {"vokale": ['kurz']},
+    "fit": {"vokale": ['kurz']},
+    "flasche": {"vokale": ['kurz', 'kurz']},
+    "fleiss": {"vokale": ['lang']},
+    "fleissig": {"vokale": ['lang', 'kurz']},
+    "fliege": {"vokale": ['lang', 'kurz']},
+    "fliessen": {"vokale": ['lang', 'kurz']},
+    "floss": {"vokale": ['lang']},
+    "fluss": {"vokale": ['kurz']},
+    "flüsse": {"vokale": ['kurz', 'kurz']},
+    "form": {"vokale": ['kurz']},
+    "frosch": {"vokale": ['kurz']},
+    "fuchs": {"vokale": ['kurz']},
+    "fuss": {"vokale": ['lang']},
+    "fussball": {"vokale": ['lang', 'kurz']},
+    "fässer": {"vokale": ['kurz', 'kurz']},
+    "füsse": {"vokale": ['lang', 'kurz']},
+    "gag": {"vokale": ['kurz']},
+    "garten": {"vokale": ['kurz', 'kurz']},
+    "gas": {"vokale": ['lang']},
+    "gasse": {"vokale": ['kurz', 'kurz']},
+    "gefäss": {"vokale": ['kurz', 'lang']},
+    "gegossen": {"vokale": ['kurz', 'kurz', 'kurz']},
+    "gehen": {"vokale": ['lang', 'kurz']},
+    "geiss": {"vokale": ['lang']},
+    "geist": {"vokale": ['lang']},
+    "gemüse": {"vokale": ['kurz', 'lang', 'kurz']},
+    "geniessen": {"vokale": ['kurz', 'lang', 'kurz']},
+    "genuss": {"vokale": ['kurz', 'kurz']},
+    "genüsse": {"vokale": ['kurz', 'kurz', 'kurz']},
+    "gerste": {"vokale": ['kurz', 'kurz']},
+    "geschlossen": {"vokale": ['kurz', 'kurz', 'kurz']},
+    "geste": {"vokale": ['lang', 'kurz']},
+    "gewiss": {"vokale": ['kurz', 'kurz']},
+    "gewusst": {"vokale": ['kurz', 'kurz']},
+    "giessen": {"vokale": ['lang', 'kurz']},
+    "giesst": {"vokale": ['lang']},
+    "glas": {"vokale": ['lang']},
+    "gläser": {"vokale": ['lang', 'kurz']},
+    "gras": {"vokale": ['lang']},
+    "gross": {"vokale": ['lang']},
+    "gruss": {"vokale": ['lang']},
+    "grösse": {"vokale": ['lang', 'kurz']},
+    "grösser": {"vokale": ['lang', 'kurz']},
+    "grüsse": {"vokale": ['lang', 'kurz']},
+    "grüssen": {"vokale": ['lang', 'kurz']},
+    "grüsst": {"vokale": ['lang']},
+    "guss": {"vokale": ['kurz']},
+    "gut": {"vokale": ['lang']},
+    "haken": {"vokale": ['lang', 'kurz']},
+    "hart": {"vokale": ['kurz']},
+    "harz": {"vokale": ['lang']},
+    "hase": {"vokale": ['lang', 'kurz']},
+    "hass": {"vokale": ['kurz']},
+    "hassen": {"vokale": ['kurz', 'kurz']},
+    "hat": {"vokale": ['kurz']},
+    "haus": {"vokale": ['lang']},
+    "heiss": {"vokale": ['lang']},
+    "heissen": {"vokale": ['lang', 'kurz']},
+    "heisst": {"vokale": ['lang']},
+    "herbst": {"vokale": ['kurz']},
+    "herd": {"vokale": ['lang']},
+    "herde": {"vokale": ['lang', 'kurz']},
+    "herr": {"vokale": ['kurz']},
+    "herz": {"vokale": ['kurz']},
+    "hexe": {"vokale": ['kurz', 'kurz']},
+    "hin": {"vokale": ['kurz']},
+    "hoch": {"vokale": ['lang']},
+    "hof": {"vokale": ['lang']},
+    "hose": {"vokale": ['lang', 'kurz']},
+    "hotel": {"vokale": ['kurz', 'lang']},
+    "husten": {"vokale": ['lang', 'kurz']},
+    "hässlich": {"vokale": ['kurz', 'kurz']},
+    "häuser": {"vokale": ['lang', 'kurz']},
+    "hören": {"vokale": ['lang', 'kurz']},
+    "hüte": {"vokale": ['lang', 'kurz']},
+    "im": {"vokale": ['kurz']},
+    "in": {"vokale": ['kurz']},
+    "interesse": {"vokale": ['kurz', 'kurz', 'kurz', 'kurz']},
+    "iris": {"vokale": ['lang', 'kurz']},
+    "isst": {"vokale": ['kurz']},
+    "jagd": {"vokale": ['lang']},
+    "job": {"vokale": ['kurz']},
+    "kam": {"vokale": ['lang']},
+    "kamel": {"vokale": ['kurz', 'lang']},
+    "kanal": {"vokale": ['kurz', 'lang']},
+    "kap": {"vokale": ['kurz']},
+    "karotte": {"vokale": ['kurz', 'kurz', 'kurz']},
+    "karte": {"vokale": ['kurz', 'kurz']},
+    "kasse": {"vokale": ['kurz', 'kurz']},
+    "kassette": {"vokale": ['kurz', 'kurz', 'kurz']},
+    "kerze": {"vokale": ['kurz', 'kurz']},
+    "kessel": {"vokale": ['kurz', 'kurz']},
+    "kino": {"vokale": ['lang', 'kurz']},
+    "kirche": {"vokale": ['kurz', 'kurz']},
+    "kirsche": {"vokale": ['kurz', 'kurz']},
+    "kissen": {"vokale": ['kurz', 'kurz']},
+    "klasse": {"vokale": ['kurz', 'kurz']},
+    "kloster": {"vokale": ['lang', 'kurz']},
+    "klub": {"vokale": ['kurz']},
+    "koch": {"vokale": ['kurz']},
+    "kohl": {"vokale": ['lang']},
+    "kompass": {"vokale": ['kurz', 'kurz']},
+    "kosmos": {"vokale": ['kurz', 'kurz']},
+    "kran": {"vokale": ['lang']},
+    "krebs": {"vokale": ['lang']},
+    "kreis": {"vokale": ['lang']},
+    "kuchen": {"vokale": ['lang', 'kurz']},
+    "kurve": {"vokale": ['kurz', 'kurz']},
+    "kuss": {"vokale": ['kurz']},
+    "käse": {"vokale": ['lang', 'kurz']},
+    "körper": {"vokale": ['kurz', 'kurz']},
+    "küche": {"vokale": ['kurz', 'kurz']},
+    "kühe": {"vokale": ['lang', 'kurz']},
+    "kürbis": {"vokale": ['kurz', 'kurz']},
+    "küsse": {"vokale": ['kurz', 'kurz']},
+    "lachen": {"vokale": ['kurz', 'kurz']},
+    "lassen": {"vokale": ['kurz', 'kurz']},
+    "laus": {"vokale": ['lang']},
+    "leise": {"vokale": ['lang', 'kurz']},
+    "lesen": {"vokale": ['lang', 'kurz']},
+    "liebe": {"vokale": ['lang', 'kurz']},
+    "lob": {"vokale": ['lang']},
+    "loch": {"vokale": ['kurz']},
+    "los": {"vokale": ['lang']},
+    "lose": {"vokale": ['lang', 'kurz']},
+    "lässig": {"vokale": ['kurz', 'kurz']},
+    "lässt": {"vokale": ['kurz']},
+    "löser": {"vokale": ['lang', 'kurz']},
+    "machen": {"vokale": ['kurz', 'kurz']},
+    "magd": {"vokale": ['lang']},
+    "man": {"vokale": ['kurz']},
+    "marke": {"vokale": ['kurz', 'kurz']},
+    "markt": {"vokale": ['kurz']},
+    "marsch": {"vokale": ['kurz']},
+    "maschine": {"vokale": ['kurz', 'lang', 'kurz']},
+    "mass": {"vokale": ['lang']},
+    "masse": {"vokale": ['lang', 'kurz']},
+    "massig": {"vokale": ['lang', 'kurz']},
+    "massstab": {"vokale": ['lang', 'lang']},
+    "maus": {"vokale": ['lang']},
+    "mehl": {"vokale": ['lang']},
+    "mensch": {"vokale": ['kurz']},
+    "messen": {"vokale": ['kurz', 'kurz']},
+    "messer": {"vokale": ['kurz', 'kurz']},
+    "mich": {"vokale": ['kurz']},
+    "missgunst": {"vokale": ['kurz', 'kurz']},
+    "misst": {"vokale": ['kurz']},
+    "missverständnis": {"vokale": ['kurz', 'kurz', 'kurz', 'kurz']},
+    "mit": {"vokale": ['kurz']},
+    "mob": {"vokale": ['kurz']},
+    "mond": {"vokale": ['lang']},
+    "moos": {"vokale": ['lang']},
+    "mord": {"vokale": ['kurz']},
+    "morgen": {"vokale": ['kurz', 'kurz']},
+    "motor": {"vokale": ['lang', 'kurz']},
+    "mus": {"vokale": ['lang']},
+    "museum": {"vokale": ['kurz', 'lang']},
+    "musik": {"vokale": ['kurz', 'lang']},
+    "musiker": {"vokale": ['lang', 'kurz', 'kurz']},
+    "muss": {"vokale": ['kurz']},
+    "musse": {"vokale": ['lang', 'kurz']},
+    "mut": {"vokale": ['lang']},
+    "mäuse": {"vokale": ['lang', 'kurz']},
+    "mühe": {"vokale": ['lang', 'kurz']},
+    "müssen": {"vokale": ['kurz', 'kurz']},
+    "nach": {"vokale": ['lang']},
+    "name": {"vokale": ['lang', 'kurz']},
+    "nase": {"vokale": ['lang', 'kurz']},
+    "nass": {"vokale": ['kurz']},
+    "nation": {"vokale": ['kurz', 'lang', 'lang']},
+    "noch": {"vokale": ['kurz']},
+    "nord": {"vokale": ['kurz']},
+    "not": {"vokale": ['lang']},
+    "nuss": {"vokale": ['kurz']},
+    "nämlich": {"vokale": ['lang', 'kurz']},
+    "nässe": {"vokale": ['kurz', 'kurz']},
+    "nüsse": {"vokale": ['kurz', 'kurz']},
+    "nüstern": {"vokale": ['lang', 'kurz']},
+    "oase": {"vokale": ['kurz', 'lang', 'kurz']},
+    "ob": {"vokale": ['kurz']},
+    "obst": {"vokale": ['lang']},
+    "ort": {"vokale": ['kurz']},
+    "ossi": {"vokale": ['kurz', 'kurz']},
+    "osten": {"vokale": ['kurz', 'kurz']},
+    "ostern": {"vokale": ['lang', 'kurz']},
+    "papier": {"vokale": ['kurz', 'lang']},
+    "papst": {"vokale": ['lang']},
+    "park": {"vokale": ['kurz']},
+    "pass": {"vokale": ['kurz']},
+    "passen": {"vokale": ['kurz', 'kurz']},
+    "passt": {"vokale": ['kurz']},
+    "pause": {"vokale": ['lang', 'kurz']},
+    "pesen": {"vokale": ['lang', 'kurz']},
+    "pferd": {"vokale": ['lang']},
+    "physik": {"vokale": ['kurz', 'lang']},
+    "plan": {"vokale": ['lang']},
+    "politik": {"vokale": ['kurz', 'kurz', 'lang']},
+    "pop": {"vokale": ['kurz']},
+    "prassen": {"vokale": ['kurz', 'kurz']},
+    "preis": {"vokale": ['lang']},
+    "preise": {"vokale": ['lang', 'kurz']},
+    "presse": {"vokale": ['kurz', 'kurz']},
+    "propst": {"vokale": ['lang']},
+    "prozess": {"vokale": ['kurz', 'kurz']},
+    "quarz": {"vokale": ['lang']},
+    "rache": {"vokale": ['lang', 'kurz']},
+    "rad": {"vokale": ['lang']},
+    "rasen": {"vokale": ['lang', 'kurz']},
+    "rasse": {"vokale": ['kurz', 'kurz']},
+    "rassel": {"vokale": ['kurz', 'kurz']},
+    "reihe": {"vokale": ['lang', 'kurz']},
+    "reis": {"vokale": ['lang']},
+    "reise": {"vokale": ['lang', 'kurz']},
+    "reissen": {"vokale": ['lang', 'kurz']},
+    "reisst": {"vokale": ['lang']},
+    "rennrad": {"vokale": ['kurz', 'lang']},
+    "republik": {"vokale": ['kurz', 'kurz', 'lang']},
+    "rhythmus": {"vokale": ['kurz', 'kurz']},
+    "riese": {"vokale": ['lang', 'kurz']},
+    "riss": {"vokale": ['kurz']},
+    "roboter": {"vokale": ['lang', 'kurz', 'kurz']},
+    "rose": {"vokale": ['lang', 'kurz']},
+    "ross": {"vokale": ['kurz']},
+    "rosse": {"vokale": ['kurz', 'kurz']},
+    "rot": {"vokale": ['lang']},
+    "ruhe": {"vokale": ['lang', 'kurz']},
+    "russ": {"vokale": ['kurz']},
+    "russe": {"vokale": ['kurz', 'kurz']},
+    "rösten": {"vokale": ['lang', 'kurz']},
+    "sache": {"vokale": ['kurz', 'kurz']},
+    "salat": {"vokale": ['kurz', 'lang']},
+    "schiessen": {"vokale": ['lang', 'kurz']},
+    "schliessen": {"vokale": ['lang', 'kurz']},
+    "schliesst": {"vokale": ['lang']},
+    "schloss": {"vokale": ['kurz']},
+    "schlösser": {"vokale": ['kurz', 'kurz']},
+    "schlüssel": {"vokale": ['kurz', 'kurz']},
+    "schoss": {"vokale": ['lang']},
+    "schuhe": {"vokale": ['lang', 'kurz']},
+    "schule": {"vokale": ['lang', 'kurz']},
+    "schuss": {"vokale": ['kurz']},
+    "schuster": {"vokale": ['lang', 'kurz']},
+    "schweiss": {"vokale": ['lang']},
+    "schwert": {"vokale": ['lang']},
+    "schüsse": {"vokale": ['kurz', 'kurz']},
+    "schüssel": {"vokale": ['kurz', 'kurz']},
+    "sehen": {"vokale": ['lang', 'kurz']},
+    "sessel": {"vokale": ['kurz', 'kurz']},
+    "sich": {"vokale": ['kurz']},
+    "sorge": {"vokale": ['kurz', 'kurz']},
+    "spass": {"vokale": ['lang']},
+    "spassmacher": {"vokale": ['lang', 'kurz', 'kurz']},
+    "spiess": {"vokale": ['lang']},
+    "sprache": {"vokale": ['lang', 'kurz']},
+    "spässe": {"vokale": ['lang', 'kurz']},
+    "star": {"vokale": ['lang']},
+    "stark": {"vokale": ['kurz']},
+    "stets": {"vokale": ['lang']},
+    "stoss": {"vokale": ['lang']},
+    "stossen": {"vokale": ['lang', 'kurz']},
+    "strasse": {"vokale": ['lang', 'kurz']},
+    "strassen": {"vokale": ['lang', 'kurz']},
+    "strauss": {"vokale": ['lang']},
+    "sträusse": {"vokale": ['lang', 'kurz']},
+    "stuhl": {"vokale": ['lang']},
+    "sturm": {"vokale": ['kurz']},
+    "stösst": {"vokale": ['lang']},
+    "suchen": {"vokale": ['lang', 'kurz']},
+    "system": {"vokale": ['kurz', 'lang']},
+    "süss": {"vokale": ['lang']},
+    "süsse": {"vokale": ['lang', 'kurz']},
+    "tag": {"vokale": ['lang']},
+    "tal": {"vokale": ['lang']},
+    "tasche": {"vokale": ['kurz', 'kurz']},
+    "tasse": {"vokale": ['kurz', 'kurz']},
+    "tennis": {"vokale": ['kurz', 'kurz']},
+    "text": {"vokale": ['kurz']},
+    "theater": {"vokale": ['lang', 'lang', 'kurz']},
+    "thema": {"vokale": ['lang', 'kurz']},
+    "tiger": {"vokale": ['lang', 'kurz']},
+    "tip": {"vokale": ['kurz']},
+    "tomate": {"vokale": ['kurz', 'lang', 'kurz']},
+    "ton": {"vokale": ['lang']},
+    "top": {"vokale": ['kurz']},
+    "tor": {"vokale": ['lang']},
+    "trost": {"vokale": ['lang']},
+    "tuch": {"vokale": ['lang']},
+    "tur": {"vokale": ['lang']},
+    "turm": {"vokale": ['kurz']},
+    "typ": {"vokale": ['lang']},
+    "tür": {"vokale": ['lang']},
+    "türen": {"vokale": ['lang', 'kurz']},
+    "um": {"vokale": ['kurz']},
+    "vase": {"vokale": ['lang', 'kurz']},
+    "vergessen": {"vokale": ['kurz', 'kurz', 'kurz']},
+    "vogt": {"vokale": ['lang']},
+    "vom": {"vokale": ['kurz']},
+    "von": {"vokale": ['kurz']},
+    "wach": {"vokale": ['kurz']},
+    "wal": {"vokale": ['lang']},
+    "warm": {"vokale": ['kurz']},
+    "was": {"vokale": ['kurz']},
+    "waschen": {"vokale": ['kurz', 'kurz']},
+    "wasser": {"vokale": ['kurz', 'kurz']},
+    "weg": {"vokale": ['lang']},
+    "weiss": {"vokale": ['lang']},
+    "weisst": {"vokale": ['lang']},
+    "werden": {"vokale": ['lang', 'kurz']},
+    "werk": {"vokale": ['kurz']},
+    "wert": {"vokale": ['lang']},
+    "wesen": {"vokale": ['lang', 'kurz']},
+    "westen": {"vokale": ['kurz', 'kurz']},
+    "wider": {"vokale": ['lang', 'kurz']},
+    "wiese": {"vokale": ['lang', 'kurz']},
+    "wissen": {"vokale": ['kurz', 'kurz']},
+    "wort": {"vokale": ['kurz']},
+    "wunsch": {"vokale": ['kurz']},
+    "wurm": {"vokale": ['kurz']},
+    "wurst": {"vokale": ['kurz']},
+    "wurzel": {"vokale": ['kurz', 'kurz']},
+    "wusste": {"vokale": ['kurz', 'kurz']},
+    "wässrig": {"vokale": ['kurz', 'kurz']},
+    "wörter": {"vokale": ['kurz', 'kurz']},
+    "wüste": {"vokale": ['lang', 'kurz']},
+    "zahl": {"vokale": ['lang']},
+    "zart": {"vokale": ['lang']},
+    "zebra": {"vokale": ['lang', 'kurz']},
+    "ziege": {"vokale": ['lang', 'kurz']},
+    "zug": {"vokale": ['lang']},
+    "zum": {"vokale": ['kurz']},
+    "zur": {"vokale": ['kurz']},
+    "zwerg": {"vokale": ['kurz']},
+    "äussern": {"vokale": ['lang', 'kurz']},
+    "äusserst": {"vokale": ['lang', 'kurz']},
+}
+for _w, _e in VOKALLAENGEN.items():
+    if _w not in VORGABE_LEXIKON:
+        VORGABE_LEXIKON[_w] = dict(_e)
+    elif "vokale" not in VORGABE_LEXIKON[_w]:
+        VORGABE_LEXIKON[_w]["vokale"] = _e["vokale"]
 for _eintrag in VORGABE_LEXIKON.values():
     _eintrag["quelle"] = "vorgabe"
 
@@ -202,8 +667,10 @@ def segmentiere(wort: str) -> list[dict[str, Any]]:
     verschmolzen: list[dict[str, Any]] = []
     for e in aus:
         letzt = verschmolzen[-1] if verschmolzen else None
+        # Auch <zz>, <kk> werden verschmolzen: «Kazze» ist EINE (falsch
+        # gewählte) Verdoppelung, nicht ein z zu viel plus ein z für tz.
         if (letzt and len(letzt["g"]) == 1 and letzt["g"] == e["g"]
-                and ist_konsonant_graphem(e["g"]) and (letzt["g"] + e["g"]) in VERDOPPELUNG):
+                and ist_konsonant_graphem(e["g"]) and e["g"].isalpha()):
             letzt["g"] = letzt["g"] + e["g"]
         else:
             verschmolzen.append({"g": e["g"], "at": e["at"]})
@@ -216,16 +683,41 @@ def grapheme(wort: str) -> list[str]:
 
 # ----------------------------------------- Damerau-Levenshtein-Alignment
 
+def _verwandt(a: str, b: str) -> bool:
+    """Grapheme, die dieselbe Stelle im Wort besetzen können: eine Verdoppelung
+    und ihr Grundzeichen, zwei Längenmarkierungen desselben Vokals, ein
+    Umlautpaar. Sie werden im Alignment bevorzugt einander zugeordnet – so
+    wird «komn»/«kommen» zu m→mm plus fehlendem e, nicht zu mm fehlt plus
+    m→e."""
+    if VERDOPPELUNG.get(a) == b or VERDOPPELUNG.get(b) == a:
+        return True
+    if LAENGENMARKER.get(a, a) == LAENGENMARKER.get(b, b):
+        return True
+    if UMLAUT.get(a) == b or UMLAUT.get(b) == a:
+        return True
+    return False
+
+
+def _kosten(a: str, b: str) -> float:
+    if a == b:
+        return 0.0
+    if _verwandt(a, b):
+        return 0.9
+    if ist_vokal_graphem(a) != ist_vokal_graphem(b):
+        return 1.1
+    return 1.0
+
+
 def align(s: list[str], t: list[str]) -> tuple[list[dict[str, Any]], int]:
     n, m = len(s), len(t)
-    D = [[0] * (m + 1) for _ in range(n + 1)]
+    D = [[0.0] * (m + 1) for _ in range(n + 1)]
     for i in range(n + 1):
-        D[i][0] = i
+        D[i][0] = float(i)
     for j in range(m + 1):
-        D[0][j] = j
+        D[0][j] = float(j)
     for i in range(1, n + 1):
         for j in range(1, m + 1):
-            kosten = 0 if s[i - 1] == t[j - 1] else 1
+            kosten = _kosten(s[i - 1], t[j - 1])
             D[i][j] = min(D[i - 1][j] + 1, D[i][j - 1] + 1, D[i - 1][j - 1] + kosten)
             if i > 1 and j > 1 and s[i - 1] == t[j - 2] and s[i - 2] == t[j - 1] and s[i - 1] != s[i - 2]:
                 D[i][j] = min(D[i][j], D[i - 2][j - 2] + 1)
@@ -236,16 +728,17 @@ def align(s: list[str], t: list[str]) -> tuple[list[dict[str, Any]], int]:
                 and D[i][j] == D[i - 2][j - 2] + 1):
             ops.append({"op": "trans", "si": i - 2, "ti": j - 2, "s": [s[i - 2], s[i - 1]], "t": [t[j - 2], t[j - 1]]})
             i -= 2; j -= 2
-        elif i > 0 and j > 0 and s[i - 1] == t[j - 1] and D[i][j] == D[i - 1][j - 1]:
+        elif i > 0 and j > 0 and s[i - 1] == t[j - 1] and abs(D[i][j] - D[i - 1][j - 1]) < 1e-9:
             ops.append({"op": "equal", "si": i - 1, "ti": j - 1, "s": s[i - 1], "t": t[j - 1]}); i -= 1; j -= 1
-        elif i > 0 and j > 0 and D[i][j] == D[i - 1][j - 1] + 1:
+        elif i > 0 and j > 0 and abs(D[i][j] - (D[i - 1][j - 1] + _kosten(s[i - 1], t[j - 1]))) < 1e-9:
             ops.append({"op": "sub", "si": i - 1, "ti": j - 1, "s": s[i - 1], "t": t[j - 1]}); i -= 1; j -= 1
-        elif i > 0 and D[i][j] == D[i - 1][j] + 1:
+        elif i > 0 and abs(D[i][j] - (D[i - 1][j] + 1)) < 1e-9:
             ops.append({"op": "ins", "si": i - 1, "ti": j, "s": s[i - 1], "t": None}); i -= 1
         else:
             ops.append({"op": "del", "si": i, "ti": j - 1, "s": None, "t": t[j - 1]}); j -= 1
     ops.reverse()
-    return ops, D[n][m]
+    # Die Distanz zählt Operationen, nicht Kostenbruchteile.
+    return ops, sum(1 for o in ops if o["op"] != "equal")
 
 
 # ------------------------------------------------------ Strukturmerkmale
@@ -274,6 +767,45 @@ def vokallaenge(t_seg: list[dict], idx: int, lex: dict | None) -> dict[str, Any]
         if vokal_index < len(lex["vokale"]) and lex["vokale"][vokal_index] in ("kurz", "lang"):
             w = lex["vokale"][vokal_index]
             return {"wert": w, "quelle": _quelle(lex), "grund": f"Lexikon: Vokal {vokal_index + 1} ist {w}"}
+    return _laenge_heuristisch(t_seg, idx)
+
+
+def _laenge_heuristisch(t_seg: list[dict], idx: int) -> dict[str, Any]:
+    """Zwei Faustregeln der deutschen Orthografie, als Heuristik gekennzeichnet
+    (Konfidenz 0.86 statt 0.97, und die Grenzfallprüfung darf nachfragen):
+
+    1. Vor <ng> und vor zwei verschiedenen Konsonanten ist der Vokal kurz
+       (Hand, Wald, Licht, fast). Ausnahmen stehen in CLUSTER_LANG; nach
+       r + Konsonant gilt die Regel nicht (Karte kurz, Erde lang), dort
+       entscheidet allein das Lexikon.
+    2. Vor einem einzelnen Konsonanten, dem ein Vokal folgt oder der das Wort
+       beendet, ist der Vokal lang (Name, Tal, Tiger) – sonst stünde eine
+       Verdoppelung. Kurze Ausnahmen (das, man, Bus) stehen im Lexikon, das
+       vorher greift. Nach <ch>, <sch>, <x> gilt die Regel nicht, sie werden
+       nie verdoppelt.
+    """
+    wort = "".join(x["g"] for x in t_seg)
+    folgend = [x["g"] for x in t_seg[idx + 1:idx + 3]]
+    if not folgend:
+        return {"wert": None, "quelle": "unbekannt", "grund": "Vokal am Wortende ohne Markierung"}
+    g1 = folgend[0]
+    if g1 in LAENGE_UNLESBAR_VOR:
+        return {"wert": None, "quelle": "unbekannt", "grund": f"vor <{g1}> ist die Vokallänge nicht ablesbar"}
+    if ist_vokal_graphem(g1):
+        return {"wert": None, "quelle": "unbekannt", "grund": "Vokal vor Vokal – Länge nicht ablesbar"}
+    if g1 == "ng":
+        return {"wert": "kurz", "quelle": "heuristik", "grund": "vor <ng> ist der Vokal kurz"}
+    g2 = folgend[1] if len(folgend) > 1 else None
+    if g2 and ist_konsonant_graphem(g2) and g2 != g1:
+        if g1 == "r":
+            return {"wert": None, "quelle": "unbekannt", "grund": "vor r + Konsonant ist die Länge nicht ablesbar (Karte/Erde)"}
+        if wort in CLUSTER_LANG:
+            return {"wert": "lang", "quelle": "heuristik", "grund": f"«{wort}» ist eine bekannte Dehnung vor Konsonantenhäufung"}
+        return {"wert": "kurz", "quelle": "heuristik",
+                "grund": f"vor der Konsonantenhäufung <{g1}{g2}> ist der Vokal in der Regel kurz"}
+    if len(g1) == 1 and g1.isalpha() and (g2 is None or ist_vokal_graphem(g2)):
+        return {"wert": "lang", "quelle": "heuristik",
+                "grund": f"vor einfachem <{g1}> {'am Wortende' if g2 is None else 'mit folgendem Vokal'} ist der Vokal in der Regel lang (sonst stünde eine Verdoppelung)"}
     return {"wert": None, "quelle": "unbekannt", "grund": "Vokallänge weder markiert noch im Lexikon"}
 
 
@@ -445,32 +977,53 @@ def markierung_zuviel(op: dict, t_seg: list[dict], lex: dict | None) -> dict:
     return e
 
 
+def fremdgraphem(op: dict) -> dict:
+    """Ein Fehler genau an einem Fremdgraphem ist ein Fremdwortfehler (37)."""
+    s, t = op.get("s") or "", op.get("t") or ""
+    e = ereignis(studentGrapheme=s, targetGrapheme=t, kategorie="37")
+    fremd = t if t in FREMDGRAPHEME else s
+    e["reason"] = (f"<{s or '∅'}> für <{t or '∅'}>: <{fremd}> ist ein Fremdgraphem – die Schreibung folgt "
+                   "nicht den Regeln des deutschen Grundwortschatzes, sondern ist am Fremdwort zu merken (Manual §9.4).")
+    _excl(e, "29/30/33/34", "Fremdwortfehler werden nicht als Auslassung, Zufügung oder Ersetzung gezählt.")
+    return e
+
+
 def vokalersatz(op: dict, lex: dict | None) -> dict:
     s, t = op["s"], op["t"]
+    if s in FREMDGRAPHEME or t in FREMDGRAPHEME:
+        return fremdgraphem(op)
     e = ereignis(studentGrapheme=s, targetGrapheme=t)
     grund_s, grund_t = LAENGENMARKER.get(s, s), LAENGENMARKER.get(t, t)
     if grund_s == grund_t:
         if t in LAENGENMARKER and s not in LAENGENMARKER:
             return markierung_fehlt(op)
-        e["status"] = "needs_context"; e["kandidaten"] = ["34", "37"]; e["featureSource"] = "schreibung"
-        e["reason"] = f"<{s}> statt <{t}>: gleicher Grundvokal, andere Längenmarkierung – weder 09 noch 10/12 sauber zuordenbar."
+        if s in DOPPELMARKER and t in LAENGENMARKER:
+            # «Baahn» für «Bahn»: Das Zielwort ist bereits markiert lang, die
+            # zweite Markierung ist überflüssig (Manual §6: 10).
+            e["kategorie"] = "10"
+            e["reason"] = f"<{s}> statt <{t}>: doppelte Längenmarkierung; der Zielvokal ist bereits markiert lang."
+            _excl(e, "32", "Kein zusätzliches Vokalphonem, nur eine überzählige Markierung.")
+            return e
+        e["kategorie"] = "37"
+        e["reason"] = (f"<{s}> statt <{t}>: gleicher Vokal, aber die Längenmarkierung vertauscht (z. B. ee/eh) – "
+                       "weder fehlt eine Markierung (09) noch ist eine zu viel (10).")
+        _excl(e, "34", "Der Vokal selbst ist richtig.")
         return e
+    # Die Oppositionen 17/18 sind graphemisch definiert (Manual §7.2): e für ä
+    # ist 17, auch wenn das ä nicht ableitbar ist (Käse, Bär). Das Lexikon
+    # liefert nur die Erklärung für die Förderung.
     um = umlaut_merkmal(lex)
     if (s, t) in {("e", "ä"), ("eu", "äu"), ("eh", "äh"), ("ee", "äh")}:
-        e["kategorie"] = "17"; e["featureSource"] = um["quelle"]
-        e["reason"] = f"<{s}> für <{t}>: Umlautschreibung nicht realisiert{' (Lexikon: Umlautwort)' if um['wert'] is True else ''}."
+        e["kategorie"] = "17"
+        zusatz = " Das Zielwort ist ableitbar (Umlaut vom Grundwort)." if um["wert"] is True else (
+                 " Das ä ist hier nicht ableitbar – ein Merkwort." if um["wert"] is False else "")
+        e["reason"] = f"<{s}> für <{t}>: Umlautschreibung nicht realisiert.{zusatz}"
         _excl(e, "34", "e ↔ ä ist die spezifische Opposition 17 (Manual §7.2).")
-        if um["wert"] is not True:
-            e["status"] = "needs_context"; e["kandidaten"] = ["17", "34"]
-            e["entscheidend"] = "Ist <ä/äu> im Zielwort eine Umlautschreibung (z. B. ableitbar: Hände ← Hand)?"
         return e
     if (s, t) in {("ä", "e"), ("äu", "eu"), ("äh", "eh")}:
-        e["kategorie"] = "18"; e["featureSource"] = um["quelle"]
-        e["reason"] = f"<{s}> für <{t}>: Umlautschreibung gesetzt, wo das Zielwort keinen Umlaut hat{' (Lexikon)' if um['wert'] is False else ''}."
+        e["kategorie"] = "18"
+        e["reason"] = f"<{s}> für <{t}>: Umlautschreibung gesetzt, wo das Zielwort keinen Umlaut hat (Übergeneralisierung)."
         _excl(e, "34", "ä ↔ e ist die spezifische Opposition 18 (Manual §7.2).")
-        if um["wert"] is not False:
-            e["status"] = "needs_context"; e["kandidaten"] = ["18", "34"]
-            e["entscheidend"] = "Hat das Zielwort an dieser Stelle tatsächlich ein e ohne Umlautbezug?"
         return e
     einfach_s = s if len(s) == 1 else None
     einfach_t = t if len(t) == 1 else None
@@ -494,6 +1047,21 @@ def vokalersatz(op: dict, lex: dict | None) -> dict:
 
 def konsonantersatz(op: dict, t_seg: list[dict], lex: dict | None) -> dict:
     s, t = op["s"], op["t"]
+    if s in FREMDGRAPHEME or t in FREMDGRAPHEME:
+        return fremdgraphem(op)
+    rest = "".join(x["g"] for x in t_seg[op["ti"]:])
+    if t == "t" and s in ("z", "tz") and rest.startswith("tion"):
+        e = ereignis(studentGrapheme=s, targetGrapheme=t, kategorie="37")
+        e["reason"] = "<z> für <t> in der Fremdendung -tion: t steht hier für /ts/ – Fremdwortschreibung, kein Konsonantenersatz."
+        _excl(e, "33", "Die Endung -tion ist eine Merkschreibung des Fremdworts.")
+        return e
+    if s in VERDOPPELUNG and t in VERDOPPELUNG and s != t:
+        # «Bladd» für «Blatt»: Die Verdoppelung stimmt, das Zeichen nicht –
+        # beurteilt wird das Grundzeichen (d für t am Silbenrand).
+        innen = konsonantersatz({**op, "s": VERDOPPELUNG[s], "t": VERDOPPELUNG[t]}, t_seg, lex)
+        innen["studentGrapheme"], innen["targetGrapheme"] = s, t
+        innen["reason"] = f"<{s}> für <{t}>, verdoppelt: " + innen["reason"]
+        return innen
     e = ereignis(studentGrapheme=s, targetGrapheme=t)
     rand = am_silbenrand(t_seg, op["ti"])
     if STIMMLOS_FUER_STIMMHAFT.get(s) == t:
@@ -561,7 +1129,12 @@ def konsonantersatz(op: dict, t_seg: list[dict], lex: dict | None) -> dict:
 
 
 def graphem_fehlt(op: dict) -> dict:
+    if op["t"] in FREMDGRAPHEME:
+        return fremdgraphem({"s": "", "t": op["t"]})
     e = ereignis(studentGrapheme="", targetGrapheme=op["t"])
+    if not op["t"].isalpha():
+        e["kategorie"] = "37"; e["reason"] = f"Zeichen <{op['t']}> fehlt – kein Graphem, Sonstiges."
+        return e
     if ist_vokal_graphem(op["t"]):
         e["kategorie"] = "31"; e["reason"] = f"Vokalgraphem <{op['t']}> fehlt – eine vokalische Einheit wurde ausgelassen."
         _excl(e, "09", "Es fehlt nicht nur eine Markierung, sondern der Vokal selbst.")
@@ -572,7 +1145,12 @@ def graphem_fehlt(op: dict) -> dict:
 
 
 def graphem_zuviel(op: dict) -> dict:
+    if op["s"] in FREMDGRAPHEME:
+        return fremdgraphem({"s": op["s"], "t": ""})
     e = ereignis(studentGrapheme=op["s"], targetGrapheme="")
+    if not op["s"].isalpha():
+        e["kategorie"] = "37"; e["reason"] = f"Zeichen <{op['s']}> zugefügt (Apostroph, Bindestrich o. Ä.) – kein Graphem, Sonstiges."
+        return e
     if ist_vokal_graphem(op["s"]):
         e["kategorie"] = "32"; e["reason"] = f"Vokalgraphem <{op['s']}> zugefügt."
         _excl(e, "10/12", "Keine Längenmarkierung, sondern ein zusätzliches Vokalgraphem.")
@@ -611,9 +1189,16 @@ def klassifiziere_op(op: dict, t_seg: list[dict], ziel: str, lex: dict | None) -
     if s in VERDOPPELUNG and VERDOPPELUNG[s] == t:
         return verdoppelung_zuviel(op, t_seg, ziel, lex)
     if t in VERDOPPELUNG and len(s) == 2 and s[0] == s[1] and VERDOPPELUNG[t] == s[0]:
-        e = ereignis(studentGrapheme=s, targetGrapheme=t, kategorie="37")
-        e["reason"] = f"<{s}> für <{t}>: Verdoppelung erkannt, aber mit falschem Zeichen."
+        # «Kazze» für «Katze», «Zukker» für «Zucker»: Manual §6.1 führt das
+        # unter 07 – die Schärfung ist erkannt, das Schärfungsgraphem (tz, ck)
+        # nicht gewählt.
+        e = ereignis(studentGrapheme=s, targetGrapheme=t, kategorie="07")
+        e["reason"] = (f"<{s}> für <{t}>: Die Verdoppelung wurde erkannt, aber mit dem Buchstabenpaar statt "
+                       f"dem Schärfungsgraphem <{t}> geschrieben (Manual §6.1: *Kazze → Katze).")
+        _excl(e, "37", "Kein Sonstiges: Das Phänomen ist die Schärfung.")
         return e
+    if s in FREMDGRAPHEME or t in FREMDGRAPHEME:
+        return fremdgraphem(op)
     if t in LAENGENMARKER and LAENGENMARKER[t] == s:
         return markierung_fehlt(op)
     if s in LAENGENMARKER and LAENGENMARKER[s] == t:
@@ -646,6 +1231,22 @@ def gross_klein(schueler: str, ziel: str) -> list[dict]:
     return aus
 
 
+def _vokalpaar_auftrennen(s_seg: list[dict], ziel: str) -> list[dict]:
+    """«geen» für «gehen»: Das <ee> des Kindes ist keine Längenmarkierung,
+    sondern zwei Silbenkerne, zwischen denen das silbentrennende h fehlt.
+    Steht im Zielwort Vokal + h + Vokal, wird das doppelte Vokalzeichen des
+    Kindes in zwei einfache zerlegt, damit das Alignment «h fehlt» erkennt."""
+    z = ziel.lower()
+    aus = []
+    for x in s_seg:
+        g = x["g"]
+        if g in ("aa", "ee", "oo") and (g[0] + "h" + g[0]) in z and g not in z:
+            aus.append({"g": g[0], "at": x["at"]}); aus.append({"g": g[0], "at": x["at"] + 1})
+        else:
+            aus.append(x)
+    return aus
+
+
 def klassifiziere_wort(schueler: str, ziel: str, lexikon: dict | None = None,
                        erzwingen: bool = False) -> dict[str, Any]:
     lexikon = lexikon or {}
@@ -654,6 +1255,7 @@ def klassifiziere_wort(schueler: str, ziel: str, lexikon: dict | None = None,
     s_seg, t_seg = segmentiere(schueler), segmentiere(ziel)
     if schueler.lower() == ziel.lower():
         return {"ereignisse": aus, "ops": [], "distanz": 0, "wortersetzung": False}
+    s_seg = _vokalpaar_auftrennen(s_seg, ziel)
     ops, distanz = align([x["g"] for x in s_seg], [x["g"] for x in t_seg])
     # Mehr als zwei Fünftel der Zielgrapheme abweichend: eher ein anderes Wort.
     grenze = max(1, math.ceil(0.4 * len(t_seg)))
@@ -812,13 +1414,24 @@ def opcodes(a: list, b: list) -> list[tuple]:
     return [tuple(x) for x in SequenceMatcher(a=a, b=b, autojunk=False).get_opcodes()]
 
 
-def ist_selbststaendig(teil: str) -> bool:
-    return len(teil) >= 3 and teil.lower() not in UNSELBSTSTAENDIG
+def ist_selbststaendig(teil: str, lexikon: dict | None = None) -> bool:
+    """Kann dieser abgetrennte Teil für sich ein Wort sein?
+
+    Gebunden sind Präfixe und Suffixe («ver», «in», «ung»), alles unter drei
+    Buchstaben, und Teile mit gebundener Endung, die nicht als Wort bekannt
+    sind («sichtig»). Bekannt heisst: im Lexikon oder grossgeschrieben
+    (ein Nomen wie «Arzt»)."""
+    t = teil.lower()
+    if len(t) < 3 or t in UNSELBSTSTAENDIG or t in SUFFIXE:
+        return False
+    if teil[:1].isupper() or (lexikon and t in lexikon):
+        return True
+    return not t.endswith(GEBUNDENE_ENDUNGEN)
 
 
-def wortgrenzen_ereignis(teile: list[str], ziel: str) -> dict:
+def wortgrenzen_ereignis(teile: list[str], ziel: str, lexikon: dict | None = None) -> dict:
     e = ereignis(studentGrapheme=" ".join(teile), targetGrapheme=ziel)
-    if all(ist_selbststaendig(t) for t in teile):
+    if all(ist_selbststaendig(t, lexikon) for t in teile):
         e["kategorie"] = "04"
         e["reason"] = f"«{' '.join(teile)}» statt «{ziel}»: Bestandteile getrennt, die zusammengeschrieben werden – beide könnten selbstständige Wörter sein."
         _excl(e, "06", "Alle Teile sind selbstständige Wörter (Manual §5.2).")
@@ -830,11 +1443,12 @@ def wortgrenzen_ereignis(teile: list[str], ziel: str) -> dict:
     return e
 
 
-def wortgrenzen_ergebnis(teile: list[str], ziel: str) -> list[dict]:
+def wortgrenzen_ergebnis(teile: list[str], ziel: str, lexikon: dict | None = None) -> list[dict]:
     """Getrennt geschrieben, wo zusammengehört (04/06) – samt dem Folgefehler
-    aus Manual §5.1: «Zahn arzt» ist 04 PLUS 01, «Zahn Arzt» nur 04."""
-    aus = [wortgrenzen_ereignis(teile, ziel)]
-    if ziel[:1].isupper():
+    aus Manual §5.1: «Zahn arzt» ist 04 PLUS 01, «Zahn Arzt» nur 04. Bei 06
+    entfällt der Zusatz: Ein abgetrenntes Suffix («in») ist kein Nomen."""
+    aus = [wortgrenzen_ereignis(teile, ziel, lexikon)]
+    if ziel[:1].isupper() and aus[0]["kategorie"] == "04":
         for teil in teile[1:]:
             if teil[:1].islower():
                 aus.append(ereignis(
@@ -973,7 +1587,7 @@ def analysiere_diktat(referenz: str, schuelertext: str, lexikon: dict | None = N
                          reason=f"«{p['schueler']}» statt «{zw}»: mehrere Wörter zusammengeschrieben.")
             fertig(e, p, zw); setze(p["schuelerTok"], "fehler"); continue
         if art == "getrennt":
-            for e in wortgrenzen_ergebnis(p["schuelerWoerter"], p["ziel"]):
+            for e in wortgrenzen_ergebnis(p["schuelerWoerter"], p["ziel"], lexikon):
                 fertig(e, p, p["ziel"])
             start = p["schuelerTok"]["index"]
             for t in tok_s[start:start + len(p["schuelerWoerter"])]:
@@ -1070,7 +1684,7 @@ def analysiere_liste(liste: Iterable[dict], schuelertext: str, lexikon: dict | N
                 verworfen.append({**z, "grund": "Die genannten Wortnummern ergeben zusammen nicht die Zielform"})
                 continue
             teile = [t["wort"] for t in toks]
-            for e in wortgrenzen_ergebnis(teile, ziel):
+            for e in wortgrenzen_ergebnis(teile, ziel, lexikon):
                 festhalten(e, toks[0], " ".join(teile), ziel, sicherheit)
             for t in toks:
                 abdeckung[t["index"]]["status"] = "fehler"
@@ -1166,8 +1780,231 @@ GOLDSTANDARD: list[dict[str, Any]] = [
     {"s": "Gesundeiht", "t": "Gesundheit", "erwartet": ["35"], "quelle": "§9"},
     {"s": "gefahrlich", "t": "gefährlich", "erwartet": ["36"], "quelle": "§9"},
     {"s": "erkähltet", "t": "erkältet", "erwartet": ["12"], "quelle": "§6"},
-    {"s": "Nus", "t": "Nuss", "erwartet": ["needs_context"], "quelle": "Bau-Prompt Stufe 2 (07/13 → F1/F3)"},
-    {"s": "Bohl", "t": "Bol", "erwartet": ["resolved_by_area"], "quelle": "Ergänzung C.1 (10/12 → beide F2)"},
+    {"s": "Nus", "t": "Nuss", "erwartet": ["07"], "quelle": "Lexikon: u in Nuss ist kurz"},
+    {"s": "Gose", "t": "Gosse", "erwartet": ["needs_context"], "quelle": "Bau-Prompt Stufe 2 (07/13 → F1/F3, Wort nicht im Lexikon)"},
+    {"s": "gehrn", "t": "gern", "erwartet": ["resolved_by_area"], "quelle": "Ergänzung C.1 (10/12 → beide F2; vor r+Konsonant nicht ablesbar)"},
+    # --- Grenzfallkorpus: je Fall die Regel, aus der die Erwartung folgt ------
+    {"s": 'garten', "t": 'Garten', "erwartet": ['01'], "quelle": 'Korpus: Nomen klein: 01'},
+    {"s": 'Schnell', "t": 'schnell', "erwartet": ['02'], "quelle": 'Korpus: Adjektiv gross: 02'},
+    {"s": 'GArten', "t": 'Garten', "erwartet": ['03'], "quelle": 'Korpus: Grossbuchstabe im Wort: 03'},
+    {"s": 'gARTEN', "t": 'Garten', "erwartet": ['01', '03'], "quelle": 'Korpus: Anfang klein und Binnenmajuskel: 01 + 03'},
+    {"s": 'hunt', "t": 'Hund', "erwartet": ['01', '19'], "quelle": 'Korpus: zwei unabhängige Fehler'},
+    {"s": 'man', "t": 'Mann', "erwartet": ['01', '07'], "quelle": 'Korpus: man/Mann: Grossschreibung und Schärfung'},
+    {"s": 'Mann', "t": 'man', "erwartet": ['02', '08'], "quelle": 'Korpus: Mann/man: Kleinschreibung und Einfachschreibung'},
+    {"s": 'hute', "t": 'Hüte', "erwartet": ['01', '36'], "quelle": 'Korpus: Grossschreibung und Umlautbezeichnung'},
+    {"s": 'Sone', "t": 'Sonne', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal o'},
+    {"s": 'Buter', "t": 'Butter', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal u'},
+    {"s": 'Hamer', "t": 'Hammer', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal a'},
+    {"s": 'Somer', "t": 'Sommer', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal o'},
+    {"s": 'Kase', "t": 'Kasse', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal a – ss ist hier Schärfung, nicht 13'},
+    {"s": 'Klase', "t": 'Klasse', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal a'},
+    {"s": 'Tase', "t": 'Tasse', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal a'},
+    {"s": 'Waser', "t": 'Wasser', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal a'},
+    {"s": 'Meser', "t": 'Messer', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal e'},
+    {"s": 'beser', "t": 'besser', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal e'},
+    {"s": 'wisen', "t": 'wissen', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal i'},
+    {"s": 'lasen', "t": 'lassen', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal a (lasen ist auch ein Wort – die Form entscheidet)'},
+    {"s": 'nas', "t": 'nass', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal a'},
+    {"s": 'Kus', "t": 'Kuss', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal u'},
+    {"s": 'Flus', "t": 'Fluss', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal u – nicht 13'},
+    {"s": 'Schlos', "t": 'Schloss', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal o'},
+    {"s": 'gewis', "t": 'gewiss', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal i'},
+    {"s": 'Kisen', "t": 'Kissen', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal i'},
+    {"s": 'Schlüsel', "t": 'Schlüssel', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal ü'},
+    {"s": 'esen', "t": 'essen', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal e'},
+    {"s": 'müsen', "t": 'müssen', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal ü'},
+    {"s": 'das', "t": 'dass', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal a; Ursache grammatisch'},
+    {"s": 'Zuker', "t": 'Zucker', "erwartet": ['07'], "quelle": 'Korpus: Manual §6.1'},
+    {"s": 'Bäker', "t": 'Bäcker', "erwartet": ['07'], "quelle": 'Korpus: Kurzvokal ä'},
+    {"s": 'Blik', "t": 'Blick', "erwartet": ['07'], "quelle": 'Korpus: k für ck'},
+    {"s": 'Haken', "t": 'Hacken', "erwartet": ['07'], "quelle": 'Korpus: Zielwort Hacken hat Kurzvokal (Haken ist ein anderes Wort)'},
+    {"s": 'Kazze', "t": 'Katze', "erwartet": ['07'], "quelle": 'Korpus: Manual §6.1 nennt *Kazze → Katze unter 07: Schärfung erkannt, Zeichen falsch'},
+    {"s": 'Zukker', "t": 'Zucker', "erwartet": ['07'], "quelle": 'Korpus: analog Kazze: Verdoppelung erkannt, ck nicht gewählt'},
+    {"s": 'Karote', "t": 'Karotte', "erwartet": ['07'], "quelle": 'Korpus: Fremdwort mit Kurzvokal o vor tt'},
+    {"s": 'Renrad', "t": 'Rennrad', "erwartet": ['07'], "quelle": 'Korpus: nn gehört zur Schärfung in renn-, keine Morphemfuge'},
+    {"s": 'drausen', "t": 'draussen', "erwartet": ['13'], "quelle": 'Korpus: Diphthong au'},
+    {"s": 'Spies', "t": 'Spiess', "erwartet": ['13'], "quelle": 'Korpus: Langvokal ie'},
+    {"s": 'Grus', "t": 'Gruss', "erwartet": ['13'], "quelle": 'Korpus: Langvokal u'},
+    {"s": 'weis', "t": 'weiss', "erwartet": ['13'], "quelle": 'Korpus: Diphthong ei'},
+    {"s": 'Fleis', "t": 'Fleiss', "erwartet": ['13'], "quelle": 'Korpus: Diphthong ei'},
+    {"s": 'reisen', "t": 'reissen', "erwartet": ['13'], "quelle": 'Korpus: Diphthong ei (reisen ist ein anderes Wort – die Form entscheidet)'},
+    {"s": 'beisen', "t": 'beissen', "erwartet": ['13'], "quelle": 'Korpus: Diphthong ei'},
+    {"s": 'schliesen', "t": 'schliessen', "erwartet": ['13'], "quelle": 'Korpus: Langvokal ie'},
+    {"s": 'Schweis', "t": 'Schweiss', "erwartet": ['13'], "quelle": 'Korpus: Diphthong ei'},
+    {"s": 'süs', "t": 'süss', "erwartet": ['13'], "quelle": 'Korpus: Langvokal ü'},
+    {"s": 'Stos', "t": 'Stoss', "erwartet": ['13'], "quelle": 'Korpus: Langvokal o'},
+    {"s": 'Mas', "t": 'Mass', "erwartet": ['13'], "quelle": 'Korpus: Langvokal a (das Mass)'},
+    {"s": 'Spas', "t": 'Spass', "erwartet": ['13'], "quelle": 'Korpus: Langvokal a'},
+    {"s": 'Fusbal', "t": 'Fussball', "erwartet": ['13', '07'], "quelle": 'Korpus: zwei Stellen: Langvokal u (13) und Kurzvokal a (07)'},
+    {"s": 'Reiss', "t": 'Reis', "erwartet": ['15'], "quelle": 'Korpus: Diphthong ei'},
+    {"s": 'Eiss', "t": 'Eis', "erwartet": ['15'], "quelle": 'Korpus: Diphthong ei'},
+    {"s": 'Kreiss', "t": 'Kreis', "erwartet": ['15'], "quelle": 'Korpus: Diphthong ei'},
+    {"s": 'Hasse', "t": 'Hase', "erwartet": ['15'], "quelle": 'Korpus: Langvokal a'},
+    {"s": 'Nasse', "t": 'Nase', "erwartet": ['15'], "quelle": 'Korpus: Langvokal a'},
+    {"s": 'Rosse', "t": 'Rose', "erwartet": ['15'], "quelle": 'Korpus: Langvokal o'},
+    {"s": 'lessen', "t": 'lesen', "erwartet": ['15'], "quelle": 'Korpus: Langvokal e'},
+    {"s": 'Glass', "t": 'Glas', "erwartet": ['15'], "quelle": 'Korpus: Langvokal a – nicht 08'},
+    {"s": 'Grass', "t": 'Gras', "erwartet": ['15'], "quelle": 'Korpus: Langvokal a'},
+    {"s": 'Riesse', "t": 'Riese', "erwartet": ['15'], "quelle": 'Korpus: Langvokal ie'},
+    {"s": 'Hauss', "t": 'Haus', "erwartet": ['15'], "quelle": 'Korpus: Diphthong au'},
+    {"s": 'Mauss', "t": 'Maus', "erwartet": ['15'], "quelle": 'Korpus: Diphthong au'},
+    {"s": 'Gemüsse', "t": 'Gemüse', "erwartet": ['15'], "quelle": 'Korpus: Langvokal ü'},
+    {"s": 'Kesse', "t": 'Käse', "erwartet": ['17', '15'], "quelle": 'Korpus: e für ä (17) und ss nach langem ä (15)'},
+    {"s": 'mitt', "t": 'mit', "erwartet": ['08'], "quelle": 'Korpus: Kurzvokal i'},
+    {"s": 'ann', "t": 'an', "erwartet": ['08'], "quelle": 'Korpus: Kurzvokal a'},
+    {"s": 'umm', "t": 'um', "erwartet": ['08'], "quelle": 'Korpus: Kurzvokal u'},
+    {"s": 'dass', "t": 'das', "erwartet": ['08'], "quelle": 'Korpus: Kurzvokal a; Ursache grammatisch'},
+    {"s": 'Wurrst', "t": 'Wurst', "erwartet": ['08'], "quelle": 'Korpus: rr steht direkt nach dem Kurzvokal u – 08, nicht 11'},
+    {"s": 'Hannd', "t": 'Hand', "erwartet": ['08'], "quelle": 'Korpus: nn direkt nach Kurzvokal'},
+    {"s": 'Lammpe', "t": 'Lampe', "erwartet": ['08'], "quelle": 'Korpus: mm direkt nach Kurzvokal'},
+    {"s": 'kamm', "t": 'kam', "erwartet": ['11'], "quelle": 'Korpus: Langvokal a'},
+    {"s": 'Kartte', "t": 'Karte', "erwartet": ['11'], "quelle": 'Korpus: tt steht nach dem Konsonanten r'},
+    {"s": 'Holtz', "t": 'Holz', "erwartet": ['11'], "quelle": 'Korpus: tz nach Konsonant l'},
+    {"s": 'kranck', "t": 'krank', "erwartet": ['11'], "quelle": 'Korpus: ck nach Konsonant n'},
+    {"s": 'Banck', "t": 'Bank', "erwartet": ['11'], "quelle": 'Korpus: ck nach Konsonant n'},
+    {"s": 'Weitzen', "t": 'Weizen', "erwartet": ['11'], "quelle": 'Korpus: tz nach Diphthong ei'},
+    {"s": 'Kreutz', "t": 'Kreuz', "erwartet": ['11'], "quelle": 'Korpus: tz nach Diphthong eu'},
+    {"s": 'Schmertz', "t": 'Schmerz', "erwartet": ['11'], "quelle": 'Korpus: tz nach Konsonant r'},
+    {"s": 'Hacken', "t": 'Haken', "erwartet": ['11'], "quelle": 'Korpus: ck nach Langvokal a'},
+    {"s": 'Tommate', "t": 'Tomate', "erwartet": ['08'], "quelle": 'Korpus: das o vor mm ist unbetont und kurz – 08'},
+    {"s": 'anehmen', "t": 'annehmen', "erwartet": ['29'], "quelle": 'Korpus: Präfix an|nehmen'},
+    {"s": 'aufallen', "t": 'auffallen', "erwartet": ['29'], "quelle": 'Korpus: Präfix auf|fallen'},
+    {"s": 'miteilen', "t": 'mitteilen', "erwartet": ['29'], "quelle": 'Korpus: Präfix mit|teilen'},
+    {"s": 'verückt', "t": 'verrückt', "erwartet": ['29'], "quelle": 'Korpus: Präfix ver|rückt'},
+    {"s": 'ereichen', "t": 'erreichen', "erwartet": ['29'], "quelle": 'Korpus: Präfix er|reichen'},
+    {"s": 'Vorat', "t": 'Vorrat', "erwartet": ['29'], "quelle": 'Korpus: Präfix vor|rat'},
+    {"s": 'Schiffahrt', "t": 'Schifffahrt', "erwartet": ['29'], "quelle": 'Korpus: Morphemfuge Schiff|fahrt'},
+    {"s": 'Zan', "t": 'Zahn', "erwartet": ['09'], "quelle": 'Korpus: Dehnungs-h fehlt'},
+    {"s": 'Bot', "t": 'Boot', "erwartet": ['09'], "quelle": 'Korpus: Vokalverdoppelung fehlt'},
+    {"s": 'Wise', "t": 'Wiese', "erwartet": ['09'], "quelle": 'Korpus: ie fehlt'},
+    {"s": 'Se', "t": 'See', "erwartet": ['09'], "quelle": 'Korpus: Vokalverdoppelung'},
+    {"s": 'Sal', "t": 'Saal', "erwartet": ['09'], "quelle": 'Korpus: Vokalverdoppelung'},
+    {"s": 'Ur', "t": 'Uhr', "erwartet": ['09'], "quelle": 'Korpus: Dehnungs-h'},
+    {"s": 'Or', "t": 'Ohr', "erwartet": ['09'], "quelle": 'Korpus: Dehnungs-h'},
+    {"s": 'Sig', "t": 'Sieg', "erwartet": ['09'], "quelle": 'Korpus: ie fehlt'},
+    {"s": 'Spil', "t": 'Spiel', "erwartet": ['09'], "quelle": 'Korpus: ie fehlt'},
+    {"s": 'Libe', "t": 'Liebe', "erwartet": ['09'], "quelle": 'Korpus: ie fehlt'},
+    {"s": 'telefoniren', "t": 'telefonieren', "erwartet": ['09'], "quelle": 'Korpus: ie in -ieren'},
+    {"s": 'Bine', "t": 'Biene', "erwartet": ['09'], "quelle": 'Korpus: ie fehlt'},
+    {"s": 'Papir', "t": 'Papier', "erwartet": ['09'], "quelle": 'Korpus: ie fehlt'},
+    {"s": 'wider', "t": 'wieder', "erwartet": ['09'], "quelle": 'Korpus: ie fehlt (wider ist ein anderes Wort)'},
+    {"s": 'Zil', "t": 'Ziel', "erwartet": ['09'], "quelle": 'Korpus: ie fehlt'},
+    {"s": 'geen', "t": 'gehen', "erwartet": ['09'], "quelle": 'Korpus: h als Längen-/Silbenzeichen fehlt'},
+    {"s": 'Schue', "t": 'Schuhe', "erwartet": ['09'], "quelle": 'Korpus: Dehnungs-h in Schuh|e fehlt'},
+    {"s": 'ruig', "t": 'ruhig', "erwartet": ['09'], "quelle": 'Korpus: Dehnungs-h fehlt'},
+    {"s": 'Reie', "t": 'Reihe', "erwartet": ['29'], "quelle": 'Korpus: h nach Diphthong ist kein Längenzeichen, sondern ein Konsonantenzeichen'},
+    {"s": 'Tuhr', "t": 'Tur', "erwartet": ['10'], "quelle": 'Korpus: Manual §19'},
+    {"s": 'Tieger', "t": 'Tiger', "erwartet": ['10'], "quelle": 'Korpus: i ist lang, aber ohne ie geschrieben'},
+    {"s": 'Maschiene', "t": 'Maschine', "erwartet": ['10'], "quelle": 'Korpus: i lang ohne ie – 10, nicht 12'},
+    {"s": 'Kieno', "t": 'Kino', "erwartet": ['10'], "quelle": 'Korpus: i lang'},
+    {"s": 'Musiek', "t": 'Musik', "erwartet": ['10'], "quelle": 'Korpus: i lang'},
+    {"s": 'Biebel', "t": 'Bibel', "erwartet": ['10'], "quelle": 'Korpus: i lang'},
+    {"s": 'nähmlich', "t": 'nämlich', "erwartet": ['10'], "quelle": 'Korpus: ä lang, h überflüssig'},
+    {"s": 'Tohr', "t": 'Tor', "erwartet": ['10'], "quelle": 'Korpus: o lang'},
+    {"s": 'Tühr', "t": 'Tür', "erwartet": ['10'], "quelle": 'Korpus: ü lang'},
+    {"s": 'Nahme', "t": 'Name', "erwartet": ['10'], "quelle": 'Korpus: a lang'},
+    {"s": 'Baahn', "t": 'Bahn', "erwartet": ['10'], "quelle": 'Korpus: Manual §6'},
+    {"s": 'wieder', "t": 'wider', "erwartet": ['10'], "quelle": 'Korpus: i in wider ist lang, ie überflüssig'},
+    {"s": 'Tiesch', "t": 'Tisch', "erwartet": ['12'], "quelle": 'Korpus: Manual §6'},
+    {"s": 'Kiend', "t": 'Kind', "erwartet": ['12'], "quelle": 'Korpus: i kurz'},
+    {"s": 'Fiesch', "t": 'Fisch', "erwartet": ['12'], "quelle": 'Korpus: i kurz'},
+    {"s": 'Kahrte', "t": 'Karte', "erwartet": ['12'], "quelle": 'Korpus: a kurz'},
+    {"s": 'Wahld', "t": 'Wald', "erwartet": ['12'], "quelle": 'Korpus: a kurz'},
+    {"s": 'Sohne', "t": 'Sonne', "erwartet": ['12', '07'], "quelle": 'Korpus: h bei Kurzvokal (12) und fehlende Verdoppelung (07)'},
+    {"s": 'Beren', "t": 'Bären', "erwartet": ['17'], "quelle": 'Korpus: Manual §7.2'},
+    {"s": 'Heuser', "t": 'Häuser', "erwartet": ['17'], "quelle": 'Korpus: eu für äu'},
+    {"s": 'Kese', "t": 'Käse', "erwartet": ['17'], "quelle": 'Korpus: e für ä – auch ohne Ableitungsbasis ist die Form 17'},
+    {"s": 'Setze', "t": 'Sätze', "erwartet": ['17'], "quelle": 'Korpus: e für ä (Setze ist ein anderes Wort)'},
+    {"s": 'spet', "t": 'spät', "erwartet": ['17'], "quelle": 'Korpus: e für ä, nicht ableitbar – trotzdem 17'},
+    {"s": 'Ber', "t": 'Bär', "erwartet": ['17'], "quelle": 'Korpus: e für ä, nicht ableitbar – trotzdem 17'},
+    {"s": 'Ältern', "t": 'Eltern', "erwartet": ['18'], "quelle": 'Korpus: ä für e – die Ableitung von alt führt in die Irre'},
+    {"s": 'Bärg', "t": 'Berg', "erwartet": ['18'], "quelle": 'Korpus: ä für e'},
+    {"s": 'Fräund', "t": 'Freund', "erwartet": ['18'], "quelle": 'Korpus: äu für eu'},
+    {"s": 'Bucher', "t": 'Bücher', "erwartet": ['36'], "quelle": 'Korpus: Manual §19'},
+    {"s": 'Hande', "t": 'Hände', "erwartet": ['36'], "quelle": 'Korpus: a für ä: Umlautbezeichnung fehlt'},
+    {"s": 'schon', "t": 'schön', "erwartet": ['36'], "quelle": 'Korpus: o für ö (schon ist ein anderes Wort)'},
+    {"s": 'Turen', "t": 'Türen', "erwartet": ['36'], "quelle": 'Korpus: u für ü'},
+    {"s": 'Apfel', "t": 'Äpfel', "erwartet": ['36'], "quelle": 'Korpus: a für ä (Apfel ist ein anderes Wort)'},
+    {"s": 'Mutter', "t": 'Mütter', "erwartet": ['36'], "quelle": 'Korpus: u für ü'},
+    {"s": 'Baume', "t": 'Bäume', "erwartet": ['36'], "quelle": 'Korpus: au für äu'},
+    {"s": 'Büch', "t": 'Buch', "erwartet": ['36'], "quelle": 'Korpus: ü für u: Umlautbezeichnung falsch gesetzt'},
+    {"s": 'Finster', "t": 'Fenster', "erwartet": ['34'], "quelle": 'Korpus: Manual §9'},
+    {"s": 'Vugel', "t": 'Vogel', "erwartet": ['34'], "quelle": 'Korpus: u für o'},
+    {"s": 'Sunne', "t": 'Sonne', "erwartet": ['34'], "quelle": 'Korpus: u für o'},
+    {"s": 'Kend', "t": 'Kind', "erwartet": ['34'], "quelle": 'Korpus: e für i'},
+    {"s": 'Wold', "t": 'Wald', "erwartet": ['34'], "quelle": 'Korpus: o für a'},
+    {"s": 'öber', "t": 'über', "erwartet": ['34'], "quelle": 'Korpus: ö für ü: kein Umlautpaar'},
+    {"s": 'Loite', "t": 'Leute', "erwartet": ['34'], "quelle": 'Korpus: oi für eu: EIN Vokalgraphem ersetzt'},
+    {"s": 'Hunt', "t": 'Hund', "erwartet": ['19'], "quelle": 'Korpus: Manual §7.3'},
+    {"s": 'Walt', "t": 'Wald', "erwartet": ['19'], "quelle": 'Korpus: d im Auslaut'},
+    {"s": 'Kint', "t": 'Kind', "erwartet": ['19'], "quelle": 'Korpus: d im Auslaut'},
+    {"s": 'Berk', "t": 'Berg', "erwartet": ['19'], "quelle": 'Korpus: g im Auslaut'},
+    {"s": 'Tak', "t": 'Tag', "erwartet": ['19'], "quelle": 'Korpus: g im Auslaut'},
+    {"s": 'Rat', "t": 'Rad', "erwartet": ['19'], "quelle": 'Korpus: d im Auslaut (Rat ist ein anderes Wort)'},
+    {"s": 'Zuk', "t": 'Zug', "erwartet": ['19'], "quelle": 'Korpus: g im Auslaut'},
+    {"s": 'gelp', "t": 'gelb', "erwartet": ['19'], "quelle": 'Korpus: b im Auslaut'},
+    {"s": 'Mätchen', "t": 'Mädchen', "erwartet": ['19'], "quelle": 'Korpus: d vor ch: Silbenrand'},
+    {"s": 'unt', "t": 'und', "erwartet": ['19'], "quelle": 'Korpus: d im Auslaut'},
+    {"s": 'sint', "t": 'sind', "erwartet": ['19'], "quelle": 'Korpus: d im Auslaut'},
+    {"s": 'Gelt', "t": 'Geld', "erwartet": ['19'], "quelle": 'Korpus: d im Auslaut'},
+    {"s": 'gipt', "t": 'gibt', "erwartet": ['19'], "quelle": 'Korpus: b vor t: Silbenrand'},
+    {"s": 'lept', "t": 'lebt', "erwartet": ['19'], "quelle": 'Korpus: b vor t'},
+    {"s": 'Herpst', "t": 'Herbst', "erwartet": ['19'], "quelle": 'Korpus: b vor s'},
+    {"s": 'Opst', "t": 'Obst', "erwartet": ['19'], "quelle": 'Korpus: b vor s'},
+    {"s": 'Fahrrat', "t": 'Fahrrad', "erwartet": ['19'], "quelle": 'Korpus: d im Auslaut'},
+    {"s": 'Hunte', "t": 'Hunde', "erwartet": ['33'], "quelle": 'Korpus: d im Silbenanlaut – nicht am Silbenrand, daher 33 (Manual §7.3)'},
+    {"s": 'Obsd', "t": 'Obst', "erwartet": ['20'], "quelle": 'Korpus: Manual §7'},
+    {"s": 'Studend', "t": 'Student', "erwartet": ['20'], "quelle": 'Korpus: d für t im Auslaut'},
+    {"s": 'Werg', "t": 'Werk', "erwartet": ['20'], "quelle": 'Korpus: g für k im Auslaut'},
+    {"s": 'Bladd', "t": 'Blatt', "erwartet": ['20'], "quelle": 'Korpus: dd für tt im Auslaut: Verdoppelung bleibt, Konsonant falsch'},
+    {"s": 'wenich', "t": 'wenig', "erwartet": ['27'], "quelle": 'Korpus: -ig → -ich'},
+    {"s": 'Könich', "t": 'König', "erwartet": ['27'], "quelle": 'Korpus: -ig → -ich'},
+    {"s": 'richtich', "t": 'richtig', "erwartet": ['27'], "quelle": 'Korpus: -ig → -ich'},
+    {"s": 'Zuch', "t": 'Zug', "erwartet": ['27'], "quelle": 'Korpus: ch für g im Silbenende'},
+    {"s": 'Berch', "t": 'Berg', "erwartet": ['27'], "quelle": 'Korpus: ch für g im Silbenende'},
+    {"s": 'sachen', "t": 'sagen', "erwartet": ['33'], "quelle": 'Korpus: ch für g im Silbenanlaut – nicht Silbenende, daher 33'},
+    {"s": 'endlig', "t": 'endlich', "erwartet": ['28'], "quelle": 'Korpus: -ich → -ig'},
+    {"s": 'mig', "t": 'mich', "erwartet": ['28'], "quelle": 'Korpus: g für ch im Silbenende'},
+    {"s": 'Fater', "t": 'Vater', "erwartet": ['23'], "quelle": 'Korpus: Manual §19'},
+    {"s": 'fon', "t": 'von', "erwartet": ['23'], "quelle": 'Korpus: Merkwort'},
+    {"s": 'for', "t": 'vor', "erwartet": ['23'], "quelle": 'Korpus: Merkwort'},
+    {"s": 'fiel', "t": 'viel', "erwartet": ['23'], "quelle": 'Korpus: Merkwort (fiel ist ein anderes Wort)'},
+    {"s": 'Wulkan', "t": 'Vulkan', "erwartet": ['25'], "quelle": 'Korpus: v = /v/'},
+    {"s": 'Wideo', "t": 'Video', "erwartet": ['25'], "quelle": 'Korpus: v = /v/'},
+    {"s": 'Willa', "t": 'Villa', "erwartet": ['25'], "quelle": 'Korpus: v = /v/'},
+    {"s": 'Wogel', "t": 'Vogel', "erwartet": ['33'], "quelle": 'Korpus: w für v bei Lautwert /f/: 25 greift nicht, also 33'},
+    {"s": 'Visch', "t": 'Fisch', "erwartet": ['24'], "quelle": 'Korpus: v für f'},
+    {"s": 'vallen', "t": 'fallen', "erwartet": ['24'], "quelle": 'Korpus: v für f'},
+    {"s": 'Vreund', "t": 'Freund', "erwartet": ['24'], "quelle": 'Korpus: v für f'},
+    {"s": 'Vasser', "t": 'Wasser', "erwartet": ['26'], "quelle": 'Korpus: v für w'},
+    {"s": 'vir', "t": 'wir', "erwartet": ['26'], "quelle": 'Korpus: v für w'},
+    {"s": 'venn', "t": 'wenn', "erwartet": ['26'], "quelle": 'Korpus: v für w'},
+    {"s": 'Vald', "t": 'Wald', "erwartet": ['26'], "quelle": 'Korpus: v für w'},
+    {"s": 'Sule', "t": 'Schule', "erwartet": ['29'], "quelle": 'Korpus: Manual §9'},
+    {"s": 'Blmen', "t": 'Blumen', "erwartet": ['31'], "quelle": 'Korpus: Manual §9'},
+    {"s": 'komn', "t": 'kommen', "erwartet": ['07', '31'], "quelle": 'Korpus: m für mm (07) und e der Endung fehlt (31)'},
+    {"s": 'Kinider', "t": 'Kinder', "erwartet": ['32'], "quelle": 'Korpus: Manual §9'},
+    {"s": 'Hunrd', "t": 'Hund', "erwartet": ['30'], "quelle": 'Korpus: Manual §9'},
+    {"s": 'gehe', "t": 'gehen', "erwartet": ['29'], "quelle": 'Korpus: n der Endung fehlt'},
+    {"s": 'Fenser', "t": 'Fenster', "erwartet": ['29'], "quelle": 'Korpus: t fehlt'},
+    {"s": 'Bort', "t": 'Brot', "erwartet": ['35'], "quelle": 'Korpus: Manual §9'},
+    {"s": 'Wrot', "t": 'Wort', "erwartet": ['35'], "quelle": 'Korpus: Umstellung'},
+    {"s": 'Apmel', "t": 'Ampel', "erwartet": ['35'], "quelle": 'Korpus: Umstellung'},
+    {"s": 'Fahrat', "t": 'Fahrrad', "erwartet": ['29', '19'], "quelle": 'Korpus: Morphemfuge (29) und Auslaut (19)'},
+    {"s": "Auto's", "t": 'Autos', "erwartet": ['37'], "quelle": 'Korpus: Apostroph: kein Graphem, Sonstiges'},
+    {"s": 'Fysik', "t": 'Physik', "erwartet": ['37'], "quelle": 'Korpus: Fremdgraphem ph'},
+    {"s": 'Teater', "t": 'Theater', "erwartet": ['37'], "quelle": 'Korpus: Fremdgraphem th'},
+    {"s": 'Tema', "t": 'Thema', "erwartet": ['37'], "quelle": 'Korpus: Fremdgraphem th'},
+    {"s": 'Apoteke', "t": 'Apotheke', "erwartet": ['37'], "quelle": 'Korpus: Fremdgraphem th'},
+    {"s": 'Rytmus', "t": 'Rhythmus', "erwartet": ['37', '37'], "quelle": 'Korpus: rh und th: zwei Fremdgrapheme'},
+    {"s": 'Sistem', "t": 'System', "erwartet": ['37'], "quelle": 'Korpus: Fremdgraphem y'},
+    {"s": 'Tip', "t": 'Typ', "erwartet": ['37'], "quelle": 'Korpus: Fremdgraphem y'},
+    {"s": 'Komputer', "t": 'Computer', "erwartet": ['37'], "quelle": 'Korpus: Fremdgraphem c'},
+    {"s": 'Nazion', "t": 'Nation', "erwartet": ['37'], "quelle": 'Korpus: t = /ts/ in -tion'},
+    {"s": 'Hekse', "t": 'Hexe', "erwartet": ['33'], "quelle": 'Korpus: ks für x: EIN Konsonantengraphem ersetzt'},
+    {"s": 'Fuks', "t": 'Fuchs', "erwartet": ['33'], "quelle": 'Korpus: ks für chs: EIN Graphem ersetzt'},
+    {"s": 'Fux', "t": 'Fuchs', "erwartet": ['33'], "quelle": 'Korpus: x für chs'},
+    {"s": 'Sytem', "t": 'System', "erwartet": ['29'], "quelle": 'Korpus: s fehlt – kein Fremdgraphem betroffen, also gewöhnlich 29'},
 ]
 
 GOLDSTANDARD_TEXT = [
@@ -1176,6 +2013,14 @@ GOLDSTANDARD_TEXT = [
     {"referenz": "Wir wollen weglaufen.", "schueler": "Wir wollen weg laufen.", "erwartet": ["04"], "quelle": "§5.2"},
     {"referenz": "Er will es vergraben.", "schueler": "Er will es ver graben.", "erwartet": ["06"], "quelle": "§5.2"},
     {"referenz": "Das ist zum Beispiel gut.", "schueler": "Das ist zumbeispiel gut.", "erwartet": ["05"], "quelle": "§5"},
+    {"referenz": 'Wir müssen aufhören.', "schueler": 'Wir müssen auf hören.', "erwartet": ['04'], "quelle": 'Korpus: auf und hören beide selbstständig'},
+    {"referenz": 'Das Schulhaus ist alt.', "schueler": 'Das Schul haus ist alt.', "erwartet": ['04', '01'], "quelle": 'Korpus: Kompositum'},
+    {"referenz": 'Er ist gegangen.', "schueler": 'Er ist ge gangen.', "erwartet": ['06'], "quelle": 'Korpus: Präfix ge'},
+    {"referenz": 'Das geht gar nicht.', "schueler": 'Das geht garnicht.', "erwartet": ['05'], "quelle": 'Korpus: zwei Wörter'},
+    {"referenz": 'Das ist unmöglich.', "schueler": 'Das ist un möglich.', "erwartet": ['06'], "quelle": 'Korpus: Präfix un'},
+    {"referenz": 'Meine Freundin kam.', "schueler": 'Meine Freund in kam.', "erwartet": ['06'], "quelle": 'Korpus: Suffix -in abgetrennt, obwohl «in» ein Wort ist'},
+    {"referenz": 'Sei vorsichtig.', "schueler": 'Sei vor sichtig.', "erwartet": ['06'], "quelle": 'Korpus: «sichtig» ist unselbstständig'},
+    {"referenz": 'Die Handschuhe sind neu.', "schueler": 'Die Hand schuhe sind neu.', "erwartet": ['04', '01'], "quelle": 'Korpus: Kompositum'},
 ]
 
 
