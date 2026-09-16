@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from . import taxonomie
+from . import grammatik, taxonomie
 from .olfa import Kategorienliste
 from .taxonomie import Sammlung
 
@@ -31,6 +31,8 @@ class Register:
         art = self.sammlung.get(nr)
         if art is not None:
             return art.label
+        if grammatik.bereich_von(nr) != "A":
+            return grammatik.label(nr)
         return f"{nr} – (unbekannt)"
 
     def name(self, nr: str) -> str:
@@ -43,7 +45,12 @@ class Register:
         if kategorie is not None:
             return kategorie.name
         art = self.sammlung.get(nr)
-        return art.label if art is not None else "(unbekannt)"
+        if art is not None:
+            return art.label
+        g = grammatik.get(nr)
+        if g is not None:
+            return g.name
+        return "(unbekannt)"
 
     def kurz(self, nr: str, laenge: int = 34) -> str:
         voll = self.label(nr)
@@ -53,14 +60,29 @@ class Register:
         if self.liste.get(nr) is not None:
             return OLFA_OBERBEGRIFF
         art = self.sammlung.get(nr)
-        return art.oberbegriff if art else "Sonstiges"
+        if art:
+            return art.oberbegriff
+        b = grammatik.bereich_von(nr)
+        return grammatik.bereich_name(b) if b != "A" else "Sonstiges"
+
+    def bereich(self, nr: str) -> str:
+        """Bereich A–E: OLFA-Nummern sind A, Katalogkennungen tragen ihren
+        Buchstaben, gelernte Arten werden über den Oberbegriff zugeordnet."""
+        if self.liste.get(nr) is not None:
+            return "A"
+        art = self.sammlung.get(nr)
+        if art:
+            return {"Grammatik": "B", "Zeichensetzung": "D", "Wortschatz": "E"}.get(art.oberbegriff, "E")
+        return grammatik.bereich_von(nr)
 
     def existiert(self, nr: str) -> bool:
-        return self.liste.get(nr) is not None or self.sammlung.get(nr) is not None
+        return (self.liste.get(nr) is not None or self.sammlung.get(nr) is not None
+                or grammatik.ist_katalog(nr))
 
     def waehlbar(self) -> list[tuple[str, str]]:
         """Alle auswählbaren Kennungen als ``(nr, label)``, OLFA zuerst."""
         eintraege = [(k.nr, k.label) for k in self.liste.waehlbar]
+        eintraege += [(k.id, k.label) for k in grammatik.KATALOG.values()]
         eintraege += [(a.id, a.label) for a in self.sammlung]
         return eintraege
 

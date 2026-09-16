@@ -30,7 +30,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import olfa_engine
+from . import grammatik, olfa_engine
 from . import prompt_templates as pt
 from .diffing import kategorie_vorschlaege, marker_bestimmen
 from .olfa import Kategorienliste
@@ -301,7 +301,7 @@ def _olfa_zeilen(liste: Kategorienliste) -> str:
 
 def _bekannte_arten(sammlung: Sammlung) -> str:
     if not len(sammlung):
-        return "(noch keine – du legst die ersten selbst an)"
+        return "(noch keine eigenen Arten)"
     return "\n".join(
         f"{a.id} = {a.label}" + (f". {a.beschreibung}" if a.beschreibung else "")
         for a in sammlung
@@ -327,6 +327,7 @@ def analyse_prompt_bauen(schuelertext: str, originaltext: str = "",
     kopf = pt.ANALYSE_KOPF.format(
         olfa_liste=_olfa_zeilen(liste),
         schweiz_regel=pt.SCHWEIZ_REGEL,
+        grammatik_liste=grammatik.prompt_zeilen(),
         bekannte_arten=_bekannte_arten(sammlung),
         oberbegriffe=", ".join(f"`{o}`" for o in OBERBEGRIFFE),
     )
@@ -422,8 +423,12 @@ def analyse_lesen(roh: Any, liste: Kategorienliste | None = None,
         pfad = [str(x).strip() for x in (eintrag.get("pfad") or [])
                 if str(x).strip()] if isinstance(eintrag.get("pfad"), list) else []
 
-        if typ == "bekannt" and sammlung.get(str(eintrag.get("kategorie") or "")):
-            zeile.kategorie_nr = str(eintrag["kategorie"])
+        kennung_roh = str(eintrag.get("kategorie") or "").strip()
+        if typ == "bekannt" and (sammlung.get(kennung_roh) or grammatik.ist_katalog(kennung_roh)):
+            zeile.kategorie_nr = kennung_roh
+        elif typ != "olfa" and grammatik.ist_katalog(kennung_roh):
+            # Katalogkennung mit falschem typ – die Kennung zählt.
+            zeile.kategorie_nr = kennung_roh
         elif typ == "neu" and len(pfad) >= 2:
             # Erst begradigen, dann vergleichen – sonst gilt «grammatik > kasus»
             # als etwas anderes als «Grammatik › Kasus».

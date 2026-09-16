@@ -82,8 +82,11 @@ def kategorien_auswahl(reg: Register, beschriftung: str,
     Gesperrte OLFA-Kategorien stehen nicht zur Wahl: 13 und 15 beschreiben,
     dass ein ß *nicht* geschrieben wurde – in der Schweiz ist genau das richtig.
     """
-    optionen = [k.nr for k in reg.liste.waehlbar] + [a.id for a in reg.sammlung]
+    from .. import grammatik
+    optionen = ([k.nr for k in reg.liste.waehlbar] + list(grammatik.KATALOG)
+                + [a.id for a in reg.sammlung])
     beschriftungen = {k.nr: f"{k.bereich} · {k.label}" for k in reg.liste.waehlbar}
+    beschriftungen.update({k.id: k.label for k in grammatik.KATALOG.values()})
     beschriftungen.update({a.id: f"{a.oberbegriff} · {a.label}" for a in reg.sammlung})
     gewaehlt = st.multiselect(
         beschriftung, optionen,

@@ -305,6 +305,43 @@ Zuordnung trägt Begründung, verworfene Alternativen und Merkmalherkunft mit.
 bestehen dieselben Goldstandard-Tests (Manual §19, Ergänzung A.1, Bau-Prompt
 §14 sowie die Beispiele aus §1–§9 und §5.1/5.2 für Wortgrenzen).
 
+### Wie verlässlich ist die Zuordnung?
+
+Die Engine wurde mit einem Korpus von **289 Grenzfällen** unter Druck
+gesetzt – Paare, an denen OLFA-Zuordnungen typischerweise kippen: 07/13 und
+08/15 (in de-CH ohne ß nicht aus der Schreibung lesbar), 08/11, 09/10/12,
+17/18/36, 19/20 am Silbenrand, 29 an der Morphemfuge, Fremdwörter,
+Mehrfachfehler, Wortgrenzen. Beim ersten Lauf stimmten 74 %. Die Abweichungen
+hatten sieben Ursachen, jede ist mit einer benennbaren Regel behoben, und der
+Korpus ist Teil des Goldstandards: **291 Wortpaare und 13 Satzpaare**, in
+Python und im Artefakt wortgleich, beide 100 %.
+
+Woher die Engine ihre Merkmale nimmt, in dieser Reihenfolge:
+
+| Quelle | Konfidenz | Beispiel |
+|---|---|---|
+| **Schreibung** – Verdoppelung, Längenzeichen, Diphthong im Zielwort | 0,97 | `komen → kommen`: vor `mm` ist der Vokal kurz |
+| **Lexikon** – 550 Wörter, deren Vokallänge, Morphemgrenze, v-Lautwert oder Umlautbezug nicht in der Schreibung steht | 0,97 | `Kase → Kasse` (kurz, 07) gegen `Fus → Fuss` (lang, 13) |
+| **Heuristik** – zwei Faustregeln der deutschen Orthografie | 0,86 | vor `ng` und vor zwei verschiedenen Konsonanten kurz (Hand, Wald); vor einfachem Konsonanten mit folgendem Vokal lang (Name, Tiger) |
+| **Keine** – dann `needs_context`, nie geraten | 0,55 | `Gose → Gosse`: Wort nicht im Lexikon, ss nicht lesbar |
+
+Die Heuristik gilt ausdrücklich nicht vor r + Konsonant (Karte kurz, Erde
+lang), nicht vor ch/sch/x (Fisch kurz, Buch lang) und nicht für die gelisteten
+Dehnungen (Obst, Mond, Trost). Dort entscheidet allein das Lexikon, und die
+Grenzfallprüfung darf bei Heuristik-Entscheidungen nachfragen.
+
+Drei Festlegungen, die man kennen sollte, weil sie von naiven Lesarten
+abweichen:
+
+* **17/18 sind graphemisch definiert.** `Kese → Käse` ist 17, obwohl das ä
+  nicht ableitbar ist. Das Lexikon liefert nur die Erklärung («Merkwort»),
+  nicht die Entscheidung.
+* **Fremdgrapheme sind 37.** Ein Fehler genau an ph, th, rh, y, c oder in der
+  Endung -tion (`Fysik`, `Teater`, `Nazion`) ist ein Fremdwortfehler, keine
+  Auslassung oder Ersetzung.
+* **`Kazze → Katze` ist 07** (Manual §6.1): Die Schärfung ist erkannt, nur das
+  Schärfungsgraphem nicht gewählt.
+
 ---
 
 ## Förderbereiche F1–F10
@@ -456,11 +493,42 @@ Zusage, keine Beschreibung.
 
 ---
 
+## Grammatik, Syntax, Zeichensetzung, Textebene: die feste Liste
+
+Die OLFA-Liste deckt die Rechtschreibung ab (Bereich A). Für die Bereiche
+B–E gibt es eine zweite **feste, fachlich begründete Liste** mit 33
+Kategorien (`data/grammatik_kategorien.json`): schulgrammatische
+Standardterminologie, Kommaregeln nach amtlichem Regelwerk, Helvetismen
+ausdrücklich zulässig.
+
+| Bereich | Kategorien (Auswahl) |
+|---|---|
+| **B** Grammatik / Morphologie | Kasus, Präpositionswahl, Genus, Numerus, Kongruenz Subjekt–Verb, Kongruenz in der Nominalgruppe, Artikel, Pronomen, Verbform, Tempus, Modus, Komparation |
+| **C** Syntax | Verbstellung im Hauptsatz, Verbstellung im Nebensatz, Satzklammer, Satzfragment, Satzverknüpfung, unklarer Bezug, Satzkomplexität |
+| **D** Zeichensetzung | Komma zwischen Haupt- und Nebensatz, in Aufzählungen, bei Einschub und Infinitivgruppe, sonstige Kommafälle, Satzschlusszeichen, direkte Rede, Apostroph |
+| **E** Textebene | Wortwahl, Wiederholung, Register, Kohärenz, Kohäsion, Aufbau, Aufgabenerfüllung |
+
+Jede Kategorie trägt Beschreibung, Beispiel und einen Förderhinweis; beides
+steht im Analyse-Prompt, damit das Modell die vorhandene Kategorie trifft,
+statt eine eigene zu erfinden. Die Kennung folgt dem Muster `B:Kasus`.
+Warum fest? Die gelernten Arten (unten) waren beweglich, aber nicht
+vergleichbar: Was in einem Text «Kasus» hiess, hiess im nächsten «Fall». Ein
+Längsschnitt braucht eine stabile Liste.
+
+### Übersicht je Bereich
+
+Unter *Auswertung* steht über den Förderbereichen eine **Übersicht je
+Bereich**: Rechtschreibung, Grammatik, Syntax, Zeichensetzung, Textebene,
+jeweils mit der Zahl der Fehler. Ein Bereich zeigt seine Kategorien mit
+Anteil und Förderhinweis – und darunter **alle konkreten Fehler des Kindes**
+in diesem Bereich: Datum, Text, Geschrieben, Richtig, Kategorie, Satz. Die
+Förderbereiche F1–F10 beantworten «Was üben wir?» für die Rechtschreibung;
+diese Ansicht beantwortet die Frage davor: Wo liegt das Problem überhaupt?
+
 ## Gelernte Fehlerarten
 
-Die OLFA-Liste deckt die Rechtschreibung ab. Für alles andere – vor allem
-Grammatik – benennt das Sprachmodell die Fehlerart selbst und ordnet sie
-hierarchisch ein:
+Was in keine der beiden Listen passt, benennt das Sprachmodell selbst und
+ordnet es hierarchisch ein:
 
 ```
 Grammatik › Kasus › Dativ statt Akkusativ
@@ -670,7 +738,7 @@ erst, wenn das Sprachmodell einen Text auswertet.
 python3 -m pytest tests/ -q
 ```
 
-**Stand: 492 Tests, alle grün.** Abgedeckt sind:
+**Stand: 735 Tests, alle grün.** Abgedeckt sind:
 
 | Datei | Prüft |
 |---|---|
@@ -683,7 +751,8 @@ python3 -m pytest tests/ -q
 | `test_db.py` | Datentrennung zwischen Profilen, Freigabe, freie Texte, Umhängen über Profile hinweg |
 | `test_olfa_und_export.py` | Kategorienliste, unbesetzte Nummern 21/22, Testmodus, CSV/JSON-Export, `.gitignore` |
 | `test_charts.py` | Diagramme, feste Farbreihenfolge, Serienbegrenzung |
-| `test_olfa_engine.py` | Goldstandard-Minimalpaare (§19, A.1, Bau-Prompt), Graphemsegmentierung, Transposition, Nie-Raten, Konsequenzprüfung C.1, Validator §17/A.5, Konfidenz C.2, Halluzinationsfilter, Umstufungsmuster C.3 |
+| `test_olfa_engine.py` | Goldstandard: 291 Wort- und 13 Satzpaare (§19, A.1, Bau-Prompt, Grenzfallkorpus), Graphemsegmentierung, Transposition, Nie-Raten, Konsequenzprüfung C.1, Validator §17/A.5, Konfidenz C.2, Halluzinationsfilter, Umstufungsmuster C.3 |
+| `test_grammatik.py` | Feste Liste B–E: Vollständigkeit, de-CH-Prosa, Helvetismen, Kennungen, Register, Analyse-Prompt und Rücklesen |
 | `test_taxonomie.py` | Pfade begradigen, Dubletten, Gegenteile nicht verschmelzen, Register, Schwerpunkte |
 | `test_analyse.py` | Analyse-Prompts, JSON zurücklesen, neue Fehlerarten, Aufräumplan, Regler Klassiker/Sondierung |
 | `test_freitext.py` | Freitextmodus: Regelprüfungen ohne Modell, Zielwort-Prompt, blinder Zweitdurchgang und Sicherheitsdeckel, Wortgrenzen, ehrliche Vollständigkeit, Modusauswahl |
@@ -712,6 +781,7 @@ bestehenden.
 ```
 app.py                        Einstiegspunkt (Streamlit)
 data/olfa_kategorien.json     Die 37 OLFA-Fehlerkategorien (editierbar)
+data/grammatik_kategorien.json Feste Liste für Grammatik, Syntax, Zeichensetzung, Textebene
 daten/                        Lokale Daten – NICHT im Repository
   rstrainer.sqlite3           Profile, Texte, Fehler, Blätter, Aufträge
   fehlerarten.json            Vom Modell gelernte Fehlerarten
@@ -721,6 +791,7 @@ rstrainer/
   db.py                       SQLite-Schema und Zugriffe
   olfa.py                     Kategorienliste laden, speichern, abfragen
   olfa_engine.py              Deterministische OLFA-Engine: Grapheme, Baum, Validator, Förderbereiche
+  grammatik.py                Feste Kategorienliste B–E laden und beschriften
   taxonomie.py                Gelernte Fehlerarten: anlegen, begradigen, ordnen
   kategorien.py               Gemeinsame Sicht auf beide Kategoriensysteme
   textwerkzeuge.py            Tokenisierung, Normalisierung, Kontext

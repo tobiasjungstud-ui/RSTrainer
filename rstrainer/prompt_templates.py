@@ -447,15 +447,22 @@ Die Bezeichnungen folgen dem Muster «X für Y»: geschrieben wurde X, richtig w
 
 {schweiz_regel}
 
-## Weg 2: bereits angelegte eigene Fehlerarten
-Verwende sie bevorzugt weiter, statt gleichbedeutende neue anzulegen:
+## Weg 2: die feste Liste für Grammatik, Syntax, Zeichensetzung und Textebene
+Für alles, was keine Rechtschreibung ist, gilt zuerst diese Liste. Verwende die \
+Kennung (z. B. B:Kasus) als "kategorie" mit typ "bekannt". Helvetismen der \
+Schweizer Standardsprache (das Tram, parkieren, grillieren) sind KEINE Fehler.
+
+{grammatik_liste}
+
+Dazu kommen bereits angelegte eigene Fehlerarten – auch sie mit typ "bekannt":
 
 {bekannte_arten}
 
 ## Weg 3: eine neue Fehlerart benennen
-Deckt weder die OLFA-Liste noch eine bestehende Art den Fehler ab – insbesondere \
-bei **Grammatik** –, benennst du selbst eine neue Art mit hierarchischem Pfad, \
-zum Beispiel ["Grammatik", "Kasus", "Dativ statt Akkusativ"].
+Deckt weder die OLFA-Liste noch die feste Liste noch eine bestehende Art den \
+Fehler ab, benennst du selbst eine neue Art mit hierarchischem Pfad, zum \
+Beispiel ["Grammatik", "Kasus", "Dativ statt Akkusativ"]. Das soll die Ausnahme \
+sein: Was in die feste Liste passt, gehört dorthin.
 
 **Die oberste Stufe MUSS genau eines dieser Wörter sein** – andere werden verworfen:
 {oberbegriffe}
@@ -474,7 +481,7 @@ Code-Zaun. Ein Objekt je Fehler, in der Reihenfolge des Textes:
   "richtig": "<die korrekte Form>",
   "geschrieben": "<was im Text steht>",
   "typ": "olfa" | "bekannt" | "neu",
-  "kategorie": "<OLFA-Nummer bei typ olfa, Kennung wie X-abc12345 bei typ bekannt, sonst null>",
+  "kategorie": "<OLFA-Nummer bei typ olfa; Kennung wie B:Kasus oder X-abc12345 bei typ bekannt; sonst null>",
   "pfad": ["<Oberbegriff>", "<Untergruppe>", "<genaue Art>"],
   "beschreibung": "<bei typ neu: ein Satz, was diese Art bezeichnet>",
   "begruendung": "<höchstens 12 Wörter>"
@@ -656,4 +663,4 @@ PFLICHTPLATZHALTER.update({
 
 #: Auch der gemeinsame Kopf braucht seine Platzhalter – er wird von
 #: :func:`rstrainer.auftraege.analyse_prompt_bauen` separat gefüllt.
-KOPF_PLATZHALTER = {"olfa_liste", "schweiz_regel", "bekannte_arten", "oberbegriffe"}
+KOPF_PLATZHALTER = {"olfa_liste", "schweiz_regel", "grammatik_liste", "bekannte_arten", "oberbegriffe"}

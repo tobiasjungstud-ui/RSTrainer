@@ -44,6 +44,9 @@ def zeichnen(con, schueler) -> None:
         )
 
     st.divider()
+    _bereichsuebersicht(con, schueler, fehler, reg)
+
+    st.divider()
     _foerderbereiche(punkte, fehler, reg)
 
     st.divider()
@@ -69,6 +72,60 @@ def zeichnen(con, schueler) -> None:
 
     st.divider()
     _export(con, schueler, punkte, trends, reg, balken, linien)
+
+
+def _bereichsuebersicht(con, schueler, fehler, reg) -> None:
+    """Eine Übersicht je Bereich – Rechtschreibung, Grammatik, Syntax,
+    Zeichensetzung, Textebene – mit den konkreten Fehlern des Kindes.
+
+    Die Förderbereiche F1–F10 beantworten «Was üben wir?» für die
+    Rechtschreibung. Diese Ansicht beantwortet die Frage davor: «Wo liegt das
+    Problem überhaupt – in der Schreibung oder im Satzbau?» Und sie zeigt es
+    nicht als Zahl, sondern am Beispiel: jeder Fehler mit seinem Satz."""
+    from .. import grammatik
+    import pandas as pd
+
+    st.subheader("Übersicht je Bereich")
+    titel = {d["id"]: d["titel"] for d in db.diktat_liste(con, schueler["id"])}
+    nach_bereich: dict[str, list[dict]] = {b: [] for b in grammatik.BEREICH_REIHE}
+    for f in fehler:
+        nach_bereich.setdefault(reg.bereich(f["kategorie_nr"]), []).append(f)
+
+    beschriftung = {b: f"{grammatik.bereich_name(b)} ({len(nach_bereich.get(b, []))})"
+                    for b in grammatik.BEREICH_REIHE}
+    bereich = st.radio("Bereich", grammatik.BEREICH_REIHE, horizontal=True,
+                       format_func=beschriftung.get, key="uebersicht_bereich")
+    liste = nach_bereich.get(bereich, [])
+    if not liste:
+        st.info("In diesem Bereich sind keine Fehler erfasst.")
+        return
+
+    st.caption(grammatik.BEREICHE[bereich]["foerdern"])
+
+    # Verteilung innerhalb des Bereichs: welche Kategorien tragen die Last?
+    zaehler: dict[str, int] = {}
+    for f in liste:
+        zaehler[f["kategorie_nr"]] = zaehler.get(f["kategorie_nr"], 0) + 1
+    maximum = max(zaehler.values())
+    for nr, n in sorted(zaehler.items(), key=lambda x: (-x[1], x[0])):
+        spalte_a, spalte_b = st.columns([3, 1])
+        spalte_a.progress(n / maximum, text=reg.label(nr))
+        spalte_b.markdown(f"**{n}** · {round(100 * n / len(liste))} %")
+        g = grammatik.get(nr)
+        if g is not None and g.foerdern:
+            spalte_a.caption(f"Fördern: {g.foerdern}")
+
+    st.markdown(f"**Alle {len(liste)} Fehler in diesem Bereich**")
+    tabelle = pd.DataFrame([{
+        "Datum": f["datum"],
+        "Text": titel.get(f["diktat_id"], "–"),
+        "Geschrieben": f["wort_schueler"],
+        "Richtig": f["wort_original"],
+        "Kategorie": reg.label(f["kategorie_nr"]),
+        "Im Satz": f["kontext"],
+        "Sicherheit": f.get("konfidenz") if f.get("konfidenz") is not None else "",
+    } for f in liste])
+    st.dataframe(tabelle, hide_index=True, width="stretch")
 
 
 def _foerderbereiche(punkte, fehler, reg) -> None:

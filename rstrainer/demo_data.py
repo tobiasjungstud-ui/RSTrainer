@@ -29,12 +29,14 @@ DEMO_PROFILE = {
         "notiz": "Frei erfundenes Demoprofil. Schwerpunkt Vokallänge und Silbenrand.",
         "muster": {"07": (6, "abnehmend"), "09": (5, "stagnierend"),
                     "01": (3, "zunehmend"), "19": (6, "stagnierend"),
-                    "36": (5, "abnehmend")},
+                    "36": (5, "abnehmend"), "B:Kasus": (3, "stagnierend"),
+                    "D:Komma Nebensatz": (4, "abnehmend")},
     },
     "Tim K.": {
         "notiz": "Frei erfundenes Demoprofil. Schwerpunkt Groß-/Kleinschreibung.",
         "muster": {"01": (8, "stagnierend"), "02": (6, "stagnierend"),
-                    "27": (4, "zunehmend"), "07": (3, "abnehmend")},
+                    "27": (4, "zunehmend"), "07": (3, "abnehmend"),
+                    "C:Haupt-/Nebensatz": (3, "stagnierend")},
     },
     "Sara M.": {
         "notiz": "Frei erfundenes Demoprofil. Wenige Diktate, noch keine Trendaussage.",
@@ -100,6 +102,11 @@ DEMO_FREITEXTE = [
 
 #: Beispielhafte Falschschreibungen je Kategorie (erfunden, aber realistisch).
 DEMO_FEHLERWOERTER = {
+    "B:Kasus": [("mit dem Hund", "mit den Hund"), ("Ich helfe ihm", "Ich helfe ihn"),
+                ("bei der Schule", "bei die Schule")],
+    "D:Komma Nebensatz": [("Ich glaube, dass", "Ich glaube dass"), ("weil es regnete,", "weil es regnete"),
+                          ("Der Mann, der", "Der Mann der")],
+    "C:Haupt-/Nebensatz": [("weil er müde ist", "weil er ist müde"), ("dass sie kommt", "dass sie kommen tut")],
     "01": [("Wald", "wald"), ("Kinder", "kinder"), ("Sonne", "sonne"),
            ("Schule", "schule"), ("Strasse", "strasse")],
     "02": [("schnell", "Schnell"), ("alter", "Alter"), ("kühle", "Kühle")],
