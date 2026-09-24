@@ -238,8 +238,9 @@ def test_freitext_ablauf_von_der_antwort_bis_zum_foerderbereich():
 
     gefunden = {(e["studentForm"], e["targetForm"], e["kategorie"]) for e in r["ereignisse"]}
     # Die beiden Regelfunde stehen fest, auch gegen eine falsche Modellantwort.
-    assert ("Straße", "Strasse", "33") in gefunden
-    assert ("gros", "gross", "13") in gefunden
+    # Original OLFA 3-9+, Version CH (S. 22, 59): ß-Fehler → 37; s für ss → 07 mit Merkmal F3.
+    assert ("Straße", "Strasse", "37") in gefunden
+    assert ("gros", "gross", "07") in gefunden
     assert ("Zahn arzt", "Zahnarzt", "04") in gefunden
     assert r["verworfen"] == []
     assert {e["foerderbereich"] for e in r["ereignisse"]} >= {"F10", "F3", "F7"}

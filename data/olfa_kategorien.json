@@ -1,25 +1,22 @@
 {
   "_meta": {
-    "version": "1.0",
-    "stand": "2026-09-11",
-    "status": "Von der Lehrperson eingetragen und geprüft.",
+    "version": "2.0",
+    "stand": "2026-09-24",
+    "status": "Nach vollständiger Lektüre des Originalhefts OLFA 3–9+ (7. Aufl. 2023) geprüft; Gruppen und CH-Regelung aus S. 57/59.",
     "rechtschreibvariante": "schweiz",
     "herkunft": [
       "Diese Liste wurde am 11.09.2026 von der Lehrperson aus ihrem OLFA-Fachmaterial übernommen (Oldenburger Fehleranalyse OLFA 3–9, Günther Thomé / Dorothea Thomé, isb-Verlag Oldenburg).",
       "Sie ersetzt die zuvor mitgelieferte, ausdrücklich als ungeprüft markierte Platzhalterliste.",
       "Die Nummern 21 und 22 sind im Original aus organisatorischen Gründen unbesetzt. Sie bleiben hier erhalten, damit die Nummerierung mit dem Auswertungsbogen übereinstimmt."
     ],
-    "offene_punkte": [
-      "GRUPPENZUORDNUNG FEHLT: OLFA ordnet jede Kategorie zusätzlich einer von drei entwicklungsbezogenen Gruppen (I / II / III) zu, erkennbar an der roten, gelben bzw. grünen Markierung der Kategorienummer auf dem Auswertungsbogen. Diese Angabe war in der übermittelten Tabelle nicht enthalten und wurde NICHT erraten – das Feld 'gruppe' ist überall null. Zum Nachtragen: Einstellungen → OLFA-Kategorien.",
-      "DE-CH-NEUBELEGUNG 13/15: Nach der Ergänzung zum technischen Manual (A.3) sind 13 und 15 für de-CH neu belegt – 13 = «s für ss», 15 = «ss für s», jeweils nach langem Vokal oder Diphthong (lexikalische ss-Schreibung, Förderbereich F3). 14 und 16 sind unbesetzt (NEVER_ASSIGN). Entscheidend ist die Vokallänge vor der s-Stelle: kurz → 07/08, lang → 13/15. Jede Zuordnung zu 13/15 trägt definition = de-CH."
-    ],
+    "offene_punkte": [],
     "lesehilfe": "Die Bezeichnungen folgen dem Muster «X für Y»: geschrieben wurde X, richtig wäre Y. «Klein- für Grossschreibung» heisst also: kleingeschrieben, obwohl gross richtig wäre.",
     "feld_erklaerung": {
       "nr": "Kategorienummer wie auf dem Auswertungsbogen.",
       "name": "Bezeichnung der Kategorie (erscheint in Auswahlmenüs und in den Chat-Prompts).",
       "kurzbeschreibung": "Erläuterung samt Untertypen – wird wörtlich in die Prompts übernommen.",
       "beispiel": "Fehlerbeispiel in der Form *falsch → richtig.",
-      "gruppe": "Entwicklungsgruppe I, II oder III – hier noch nicht hinterlegt.",
+      "gruppe": "Entwicklungsgruppe I (protoalphabetisch), II (alphabetisch) oder III (orthographisch) laut Kopiervorlage S. 57; null bei 21, 22, 36, 37.",
       "bereich": "Übergeordneter Rechtschreibbereich zur Gruppierung in der Oberfläche.",
       "heuristik": "Technische Marker für die automatischen Kategorie-Vorschläge beim Abgleich. Ein Marker darf auf mehrere Kategorien zeigen; dann schlägt die App beide vor.",
       "geprueft": "true = von der Lehrperson gegen das Fachmaterial geprüft.",
@@ -36,10 +33,7 @@
         "10",
         "12"
       ],
-      "F3": [
-        "13",
-        "15"
-      ],
+      "F3": [],
       "F4": [
         "17",
         "18",
@@ -79,7 +73,13 @@
         "34",
         "37"
       ]
-    }
+    },
+    "geklaert": [
+      "GRUPPENZUORDNUNG (Original S. 57, kreuzgeprüft mit Abb. 7 S. 49): I = 03, 06, 11, 12, 29–35; II = 01, 04, 07, 09, 17, 19, 23, 25, 27; III = 02, 05, 08, 10, 18, 20, 24, 26, 28; 36/37 ohne Gruppe (S. 31).",
+      "VERSION CH (Original S. 22, 59): 13–16 entfallen, «sonst Nr. 37». s für ss = 07 (mit Fördermerkmal F3 nach Langvokal), ss für s = 08 (Kurzvokal) bzw. 11 (Langvokal/Diphthong, F3). Ein ß in der Schülerschreibung = 37.",
+      "17/18 nur bei kurzem /ɛ/ (S. 22–23); Wortanfang → 33 statt 19/20 (S. 18); g für ck = 20 + 07 (S. 21, 23); ie für einfaches i bei /iː/ = 37 (S. 21, 25); 27/28 nur in -ig/-ich (S. 24–25)."
+    ],
+    "foerderbereiche_hinweis": "F3 (lexikalische s-Schreibung) ist kein Kategorienbereich mehr, sondern ein Merkmal von 07/08/11-Fehlern nach langem Vokal oder Diphthong."
   },
   "kategorien": [
     {
@@ -87,7 +87,7 @@
       "name": "Klein- für Grossschreibung",
       "kurzbeschreibung": "Kleingeschrieben, obwohl Grossschreibung richtig wäre. Untertypen unter anderem Abstrakta und substantivierte Wörter.",
       "beispiel": "*haus → Haus",
-      "gruppe": null,
+      "gruppe": "II",
       "bereich": "Gross- und Kleinschreibung",
       "heuristik": [
         "klein_statt_gross"
@@ -101,7 +101,7 @@
       "name": "Gross- für Kleinschreibung",
       "kurzbeschreibung": "Grossgeschrieben, obwohl Kleinschreibung richtig wäre. Untertyp unter anderem Verben.",
       "beispiel": "*Kalt → kalt",
-      "gruppe": null,
+      "gruppe": "III",
       "bereich": "Gross- und Kleinschreibung",
       "heuristik": [
         "gross_statt_klein"
@@ -115,7 +115,7 @@
       "name": "Grossschreibung im Wort",
       "kurzbeschreibung": "Ein Grossbuchstabe steht innerhalb eines Wortes.",
       "beispiel": "*HAus → Haus",
-      "gruppe": null,
+      "gruppe": "I",
       "bereich": "Gross- und Kleinschreibung",
       "heuristik": [
         "gross_im_wort"
@@ -129,7 +129,7 @@
       "name": "Getrennt- für Zusammenschreibung",
       "kurzbeschreibung": "Getrennt geschrieben, obwohl zusammengeschrieben werden müsste – Komposita, Verbverbindungen und Ähnliches.",
       "beispiel": "*Haus tür → Haustür",
-      "gruppe": null,
+      "gruppe": "II",
       "bereich": "Getrennt- und Zusammenschreibung",
       "heuristik": [
         "getrennt_statt_zusammen"
@@ -143,7 +143,7 @@
       "name": "Zusammen- für Getrenntschreibung",
       "kurzbeschreibung": "Selbstständige Wörter wurden fälschlich zusammengeschrieben.",
       "beispiel": "*sodass er kam → so dass er kam",
-      "gruppe": null,
+      "gruppe": "III",
       "bereich": "Getrennt- und Zusammenschreibung",
       "heuristik": [
         "zusammen_statt_getrennt"
@@ -157,7 +157,7 @@
       "name": "Getrenntschreibung von unselbstständigen Teilen",
       "kurzbeschreibung": "Unselbstständige Wortteile wurden abgetrennt, etwa Präfix und Stamm oder Teile eines Wortes.",
       "beispiel": "*ver gessen → vergessen",
-      "gruppe": null,
+      "gruppe": "I",
       "bereich": "Getrennt- und Zusammenschreibung",
       "heuristik": [
         "wortgrenze"
@@ -169,9 +169,9 @@
     {
       "nr": "07",
       "name": "Einfachschreibung für Konsonantenverdoppelung",
-      "kurzbeschreibung": "Der Konsonant wurde nicht verdoppelt: bb, dd, ff, gg, ll, mm, nn, pp, rr, ss, tt sowie ck und tz.",
-      "beispiel": "*komen → kommen, *Zuker → Zucker, *Kazze → Katze",
-      "gruppe": null,
+      "kurzbeschreibung": "Der Konsonant wurde nicht verdoppelt: bb, dd, ff, gg, ll, mm, nn, pp, rr, ss, tt sowie ck und tz. Gilt auch für s statt ss nach langem Vokal (Fuss, Strasse) – dann mit Fördermerkmal F3 (lexikalische ss-Schreibung).",
+      "beispiel": "*komen → kommen, *Zuker → Zucker, *Kazze → Katze, *Fus → Fuss",
+      "gruppe": "II",
       "bereich": "Konsonantenverdoppelung",
       "heuristik": [
         "doppelkonsonant_fehlt",
@@ -187,7 +187,7 @@
       "name": "Konsonantenverdoppelung für Einfachschreibung nach Kurzvokal",
       "kurzbeschreibung": "Unnötige Verdoppelung nach kurzem Vokal.",
       "beispiel": "*hatt → hat",
-      "gruppe": null,
+      "gruppe": "III",
       "bereich": "Konsonantenverdoppelung",
       "heuristik": [
         "doppelkonsonant_zuviel"
@@ -201,7 +201,7 @@
       "name": "Einfache Vokalschreibung für markierte Länge und i für ie",
       "kurzbeschreibung": "Die Längenmarkierung fehlt: Dehnungs-h, Vokalverdoppelung aa/ee/oo oder ie bei langem /iː/.",
       "beispiel": "*Zan → Zahn, *Bot → Boot, *Wise → Wiese",
-      "gruppe": null,
+      "gruppe": "II",
       "bereich": "Vokallänge",
       "heuristik": [
         "dehnungs_h_fehlt",
@@ -217,7 +217,7 @@
       "name": "Markierte Längen- für Einfachschreibung bei Langvokal",
       "kurzbeschreibung": "Unnötige Längenmarkierung bei langem Vokal – überflüssiges h, überflüssige Vokalverdoppelung.",
       "beispiel": "*Tuhr → Tur, *Bahn als *Baahn → Bahn",
-      "gruppe": null,
+      "gruppe": "III",
       "bereich": "Vokallänge",
       "heuristik": [
         "dehnungs_h_zuviel",
@@ -232,7 +232,7 @@
       "name": "Konsonantenverdoppelung nach Langvokal, Konsonant oder am Morphemanfang",
       "kurzbeschreibung": "Verdoppelung an einer Stelle, an der sie nicht hingehört: nach langem Vokal, nach einem Konsonanten oder am Morphemanfang.",
       "beispiel": "*Bahnn → Bahn, *Werrk → Werk",
-      "gruppe": null,
+      "gruppe": "I",
       "bereich": "Konsonantenverdoppelung",
       "heuristik": [
         "doppelkonsonant_zuviel"
@@ -246,7 +246,7 @@
       "name": "Markierte Vokallänge bei Kurzvokal; ie für kurzes /i/",
       "kurzbeschreibung": "Längenzeichen bei kurzem Vokal oder ie statt i.",
       "beispiel": "*Tiesch → Tisch",
-      "gruppe": null,
+      "gruppe": "I",
       "bereich": "Vokallänge",
       "heuristik": [
         "ie_zuviel",
@@ -258,62 +258,58 @@
     },
     {
       "nr": "13",
-      "name": "s für ss (de-CH)",
-      "kurzbeschreibung": "Einfaches s, wo die Schweizer Zielschreibung ss verlangt – nach langem Vokal oder Diphthong (lexikalische ss-Schreibung, keine Schärfung).",
-      "beispiel": "*Fus → Fuss, *Strase → Strasse, *heisen → heissen",
-      "gruppe": null,
+      "name": "s für ß (entfällt CH)",
+      "kurzbeschreibung": "Original: einfaches s statt ß. Entfällt in der Schweizer Version (S. 22, 59): ß gibt es nicht; ein ß in der Schülerschreibung ist Kategorie 37, s für ss ist Kategorie 07.",
+      "beispiel": "*Fus → Fuß (DE); CH: *Fus → Fuss = 07",
+      "gruppe": "II",
       "bereich": "s-Schreibung",
-      "heuristik": [
-        "s_statt_ss_lang"
-      ],
+      "heuristik": [],
       "geprueft": true,
-      "gesperrt": false,
-      "grund": ""
+      "gesperrt": true,
+      "grund": "Entfällt in der Schweizer Version (Original OLFA 3–9+, S. 22 und S. 59): «sonst Nr. 37»."
     },
     {
       "nr": "14",
-      "name": "ß für s",
-      "kurzbeschreibung": "Statt eines einfachen s wurde ß geschrieben. Auch in der Schweiz relevant: erfasst ein fälschlich gesetztes ß.",
-      "beispiel": "*laß → las",
-      "gruppe": null,
+      "name": "ß für s (entfällt CH)",
+      "kurzbeschreibung": "Original: ß statt einfachem s. Entfällt in der Schweizer Version; ein gesetztes ß wird unter 37 eingetragen («sonst Nr. 37», S. 59).",
+      "beispiel": "*laß → las = 37 (CH)",
+      "gruppe": "III",
       "bereich": "s-Schreibung",
       "heuristik": [],
       "geprueft": true,
       "gesperrt": true,
-      "grund": "In de-CH unbesetzt (Ergänzung A.3, NEVER_ASSIGN). Ein fälschlich gesetztes ß wird als Konsonantenersatz 33 geführt."
+      "grund": "Entfällt in der Schweizer Version (Original OLFA 3–9+, S. 22 und S. 59): «sonst Nr. 37»."
     },
     {
       "nr": "15",
-      "name": "ss für s (de-CH)",
-      "kurzbeschreibung": "ss gesetzt, wo die Schweizer Zielschreibung einfaches s verlangt – nach langem Vokal oder Diphthong.",
-      "beispiel": "*Preisse → Preise, *Häusser → Häuser",
-      "gruppe": null,
-      "bereich": "s-Schreibung",
-      "heuristik": [
-        "ss_statt_s_lang"
-      ],
-      "geprueft": true,
-      "gesperrt": false,
-      "grund": ""
-    },
-    {
-      "nr": "16",
-      "name": "ß für ss",
-      "kurzbeschreibung": "Statt ss wurde ß geschrieben. Auch in der Schweiz relevant: erfasst ein fälschlich gesetztes ß, etwa *daß statt dass.",
-      "beispiel": "*daß → dass",
-      "gruppe": null,
+      "name": "ss für ß (entfällt CH)",
+      "kurzbeschreibung": "Original: ss statt ß. Entfällt in der Schweizer Version; *Strasse ist die korrekte CH-Schreibung.",
+      "beispiel": "*Strasse → Straße (DE); CH: korrekt",
+      "gruppe": "III",
       "bereich": "s-Schreibung",
       "heuristik": [],
       "geprueft": true,
       "gesperrt": true,
-      "grund": "In de-CH unbesetzt (Ergänzung A.3, NEVER_ASSIGN)."
+      "grund": "Entfällt in der Schweizer Version (Original OLFA 3–9+, S. 22 und S. 59): «sonst Nr. 37»."
+    },
+    {
+      "nr": "16",
+      "name": "ß für ss (entfällt CH)",
+      "kurzbeschreibung": "Original: ß statt ss. Entfällt in der Schweizer Version; *daß, *mußten werden unter 37 eingetragen.",
+      "beispiel": "*daß → dass = 37 (CH)",
+      "gruppe": "III",
+      "bereich": "s-Schreibung",
+      "heuristik": [],
+      "geprueft": true,
+      "gesperrt": true,
+      "grund": "Entfällt in der Schweizer Version (Original OLFA 3–9+, S. 22 und S. 59): «sonst Nr. 37»."
     },
     {
       "nr": "17",
-      "name": "e für ä und eu für äu",
-      "kurzbeschreibung": "Die Umlautableitung wurde nicht vollzogen: e statt ä (nur beim entsprechenden /ɛ/) oder eu statt äu.",
-      "beispiel": "*Beren → Bären, *Heuser → Häuser",
-      "gruppe": null,
+      "name": "e für ä (nur bei kurzem /ɛ/) und eu für äu",
+      "kurzbeschreibung": "Die Umlautableitung wurde nicht vollzogen: e statt ä nur bei kurzem /ɛ/ (Hände, Geschäft) oder eu statt äu. Bei langem ä/äh (Mädchen, gefährlich) ist e/eh Kategorie 34.",
+      "beispiel": "*Hende → Hände, *Heuser → Häuser; aber *Medchen → Mädchen = 34",
+      "gruppe": "II",
       "bereich": "Umlautschreibung ä/äu",
       "heuristik": [
         "e_statt_ae",
@@ -325,10 +321,10 @@
     },
     {
       "nr": "18",
-      "name": "ä für e und äu für eu",
-      "kurzbeschreibung": "Umgekehrte Übergeneralisierung: ä statt e oder äu statt eu.",
-      "beispiel": "*Bärg → Berg, *Fräund → Freund",
-      "gruppe": null,
+      "name": "ä für e (nur bei kurzem /ɛ/) und äu für eu",
+      "kurzbeschreibung": "Umgekehrte Übergeneralisierung: ä statt e nur bei kurzem /ɛ/ (jetzt) oder äu statt eu. Bei langem e/eh (Mehl) ist ä/äh Kategorie 34.",
+      "beispiel": "*jätzt → jetzt, *Läute → Leute; aber *Mähl → Mehl = 34",
+      "gruppe": "III",
       "bereich": "Umlautschreibung ä/äu",
       "heuristik": [
         "ae_statt_e",
@@ -340,10 +336,10 @@
     },
     {
       "nr": "19",
-      "name": "p, t, k für b, d, g im Silbenrand oder Silbenende",
-      "kurzbeschreibung": "Auslautverhärtung nicht abgeleitet: geschrieben wurde p, t oder k, richtig wäre b, d oder g.",
+      "name": "p, t, k für b, d, g im Silbenendrand",
+      "kurzbeschreibung": "Auslautverhärtung verschriftet: p, t, k statt b, d, g nach dem Silbenkern (Korb, niedlich, ständig). Am Wortanfang ist es Kategorie 33 (*droz → trotz).",
       "beispiel": "*Hunt → Hund, *Korp → Korb, *Berk → Berg",
-      "gruppe": null,
+      "gruppe": "II",
       "bereich": "Silbenrand und Silbenende",
       "heuristik": [
         "auslautverhaertung"
@@ -354,10 +350,10 @@
     },
     {
       "nr": "20",
-      "name": "b, d, g für p, t, k im Silbenrand oder Silbenende",
-      "kurzbeschreibung": "Umgekehrter Fall: geschrieben wurde b, d oder g, richtig wäre p, t oder k.",
-      "beispiel": "*Obst als *Obsd → Obst",
-      "gruppe": null,
+      "name": "b, d, g für p, t, k im Silbenendrand",
+      "kurzbeschreibung": "Umgekehrter Fall: b, d, g statt p, t, k nach dem Silbenkern. g für ck ist zwei Fehler: 20 und 07 (*zurüg → zurück).",
+      "beispiel": "*Quarg → Quark, *Gesundheid → Gesundheit, *zurüg → zurück (20 + 07)",
+      "gruppe": "III",
       "bereich": "Silbenrand und Silbenende",
       "heuristik": [
         "stimmhaft_statt_stimmlos"
@@ -395,7 +391,7 @@
       "name": "f für v",
       "kurzbeschreibung": "Statt v wurde f geschrieben.",
       "beispiel": "*Fater → Vater",
-      "gruppe": null,
+      "gruppe": "II",
       "bereich": "v-, f- und w-Schreibung",
       "heuristik": [
         "f_statt_v"
@@ -409,7 +405,7 @@
       "name": "v für f",
       "kurzbeschreibung": "Statt f wurde v geschrieben.",
       "beispiel": "*Visch → Fisch",
-      "gruppe": null,
+      "gruppe": "III",
       "bereich": "v-, f- und w-Schreibung",
       "heuristik": [
         "v_statt_f"
@@ -423,7 +419,7 @@
       "name": "w für v bei Lautung /v/",
       "kurzbeschreibung": "Statt v wurde w geschrieben, wo /v/ gesprochen wird.",
       "beispiel": "*Wase → Vase",
-      "gruppe": null,
+      "gruppe": "II",
       "bereich": "v-, f- und w-Schreibung",
       "heuristik": [
         "w_statt_v"
@@ -437,7 +433,7 @@
       "name": "v für w",
       "kurzbeschreibung": "Statt w wurde v geschrieben.",
       "beispiel": "*Vasser → Wasser",
-      "gruppe": null,
+      "gruppe": "III",
       "bereich": "v-, f- und w-Schreibung",
       "heuristik": [
         "v_statt_w"
@@ -449,9 +445,9 @@
     {
       "nr": "27",
       "name": "ch für g im Silbenende",
-      "kurzbeschreibung": "Statt g wurde ch geschrieben, typisch bei der Endung -ig.",
+      "kurzbeschreibung": "Statt g wurde ch geschrieben, in der Endung -ig (lustich, Honich). Im Stamm (*Zuch → Zug) ist es Kategorie 33.",
       "beispiel": "*wenich → wenig",
-      "gruppe": null,
+      "gruppe": "II",
       "bereich": "ch- und g-Schreibung",
       "heuristik": [
         "ch_statt_g"
@@ -463,9 +459,9 @@
     {
       "nr": "28",
       "name": "g für ch im Silbenende",
-      "kurzbeschreibung": "Statt ch wurde g geschrieben.",
-      "beispiel": "*mig → mich",
-      "gruppe": null,
+      "kurzbeschreibung": "Statt ch wurde g geschrieben, in der Endung -ich/-lich (Teppig, fröhlig). Im Stamm (*Bug → Buch) ist es Kategorie 33.",
+      "beispiel": "*Teppig → Teppich, *fröhlig → fröhlich",
+      "gruppe": "III",
       "bereich": "ch- und g-Schreibung",
       "heuristik": [
         "g_statt_ch"
@@ -477,9 +473,9 @@
     {
       "nr": "29",
       "name": "Konsonantenzeichen fehlt",
-      "kurzbeschreibung": "Ein Konsonantenbuchstabe fehlt. Für die Feinanalyse besonders zu beachten: fehlendes r, t, l oder n sowie ausgelassene Bestandteile der Endung -en.",
-      "beispiel": "*Sule → Schule, *gehe → gehen",
-      "gruppe": null,
+      "kurzbeschreibung": "Ein Konsonantengraphem fehlt (nicht: Verdoppelung fehlt – das ist 07). Für die Feinanalyse: fehlendes r, t, l, n und -en. Auch a für postvokalisches r (*mia → mir, vokalisiertes r) zählt hier, nur einmal.",
+      "beispiel": "*nich → nicht, *Käuter → Kräuter, *Mutta → Mutter (29 + 34)",
+      "gruppe": "I",
       "bereich": "Vollständigkeit des Wortes",
       "heuristik": [
         "konsonant_fehlt"
@@ -493,7 +489,7 @@
       "name": "Konsonantenzeichen zugefügt",
       "kurzbeschreibung": "Ein zusätzlicher Konsonantenbuchstabe wurde eingefügt. Für die Feinanalyse besonders zu beachten: zusätzliches r.",
       "beispiel": "*Hunrd → Hund",
-      "gruppe": null,
+      "gruppe": "I",
       "bereich": "Vollständigkeit des Wortes",
       "heuristik": [
         "konsonant_zuviel"
@@ -507,7 +503,7 @@
       "name": "Vokalzeichen fehlt",
       "kurzbeschreibung": "Ein Vokalbuchstabe fehlt, zum Beispiel a oder e; besonders bei Auslassungen im Bereich der Endung -en.",
       "beispiel": "*Blmen → Blumen, *komn → kommen",
-      "gruppe": null,
+      "gruppe": "I",
       "bereich": "Vollständigkeit des Wortes",
       "heuristik": [
         "vokal_fehlt"
@@ -521,7 +517,7 @@
       "name": "Vokalzeichen zugefügt",
       "kurzbeschreibung": "Ein zusätzlicher Vokalbuchstabe wurde eingefügt.",
       "beispiel": "*Kinider → Kinder",
-      "gruppe": null,
+      "gruppe": "I",
       "bereich": "Vollständigkeit des Wortes",
       "heuristik": [
         "vokal_zuviel"
@@ -535,7 +531,7 @@
       "name": "Falscher Konsonant",
       "kurzbeschreibung": "Ein Konsonant wurde verwechselt. Feinanalyse unter anderem n→m, m→n, s→z, z→s und n→ng sowie weitere Verwechslungen.",
       "beispiel": "*Pall → Ball, *Zonne → Sonne",
-      "gruppe": null,
+      "gruppe": "I",
       "bereich": "Falsche Zeichen",
       "heuristik": [
         "konsonant_verwechselt",
@@ -550,7 +546,7 @@
       "name": "Falscher Vokal",
       "kurzbeschreibung": "Ein falsches Vokalgraphem, sofern keine speziellere Kategorie greift.",
       "beispiel": "*Finster → Fenster",
-      "gruppe": null,
+      "gruppe": "I",
       "bereich": "Falsche Zeichen",
       "heuristik": [
         "vokal_verwechselt"
@@ -564,7 +560,7 @@
       "name": "Zeichenumstellung",
       "kurzbeschreibung": "Buchstaben oder Grapheme wurden vertauscht.",
       "beispiel": "*Bort → Brot",
-      "gruppe": null,
+      "gruppe": "I",
       "bereich": "Vollständigkeit des Wortes",
       "heuristik": [
         "dreher"
@@ -576,7 +572,7 @@
     {
       "nr": "36",
       "name": "Umlautbezeichnung",
-      "kurzbeschreibung": "Die Umlautkennzeichnung fehlt oder ist fehlerhaft.",
+      "kurzbeschreibung": "Die Umlautkennzeichnung fehlt oder ist fehlerhaft (a/o/u ↔ ä/ö/ü, au ↔ äu). Zählt zur Gesamtfehlerzahl, nicht zum Kompetenzwert (S. 25, 31).",
       "beispiel": "*Bucher → Bücher",
       "gruppe": null,
       "bereich": "Umlautschreibung ä/äu",
@@ -590,8 +586,8 @@
     {
       "nr": "37",
       "name": "Sonstige Fehler",
-      "kurzbeschreibung": "Nicht anders zuordenbare Fehler, insbesondere auch Fremdwortfehler.",
-      "beispiel": "*Fysik → Physik",
+      "kurzbeschreibung": "Nicht anders zuordenbare Fehler: Fremdwortstellen (*Garasche → Garage), ie für einfaches i bei langem /iː/ (*wier, *Maschiene), vertauschte Längenmarker (*Sahl → Saal), sch für s vor t/p (*Schtein), falsche Wortform (*rufte → rief, ein Fehler) und in der Schweiz alle ß-Schreibungen. Zählt zur Gesamtfehlerzahl, nicht zum Kompetenzwert. Über 3 % der Fehler hier → Zuordnung prüfen.",
+      "beispiel": "*Fysik → Physik, *Garasche → Garage, *wier → wir, *daß → dass",
       "gruppe": null,
       "bereich": "Sonstiges",
       "heuristik": [

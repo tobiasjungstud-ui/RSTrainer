@@ -61,7 +61,7 @@ B = [
  # S. 25
  (25,"weiel","weil",["32"],""),(25,"Kätzichen","Kätzchen",["32"],""),
  (25,"liede","liebe",["33"],""),(25,"Klatz","Platz",["33"],""),(25,"nienlich","niedlich",["33"],""),(25,"kross","gross",["33"],"CH-Form von *kroß/groß"),
- (25,"gig","ging",["33"],"g für ng, nicht 29"),(25,"Bug","Buch",["33"],""),(25,"Bur","Buch",["33"],""),(25,"Könik","König",["33"],"Original: 33 (vgl. *stendik S. 17 → 19)"),
+ (25,"gig","ging",["33"],"g für ng, nicht 29"),(25,"Bug","Buch",["33"],""),(25,"Bur","Buch",["33"],""),(25,"Könik","König",["19"],"Original S. 25: 33; Entscheid Lehrperson: 19 wie *stendik S. 17 (CH-Aussprache -ig = [ɪk])"),
  (25,"chön","schön",["33"],"ch für sch"),(25,"meinen","meinem",["33"],"Grammatik n/m"),(25,"schönem","schönen",["33"],""),
  (25,"jewals","jeweils",["34"],""),(25,"freundlech","freundlich",["34"],""),(25,"ungefehr","ungefähr",["34"],""),(25,"Mähl","Mehl",["34"],""),
  (25,"Mädchin","Mädchen",["34"],""),(25,"dröber","drüber",["34"],""),(25,"met","mit",["34"],""),
@@ -69,7 +69,7 @@ B = [
  (25,"fuhrte","führte",["36"],""),(25,"gefahrlich","gefährlich",["36"],""),
  (25,"Schtein","Stein",["37"],""),(25,"Sahl","Saal",["37"],""),(25,"seer","sehr",["37"],""),(25,"Garasche","Garage",["37"],"FW"),
  (25,"Maschiene","Maschine",["37"],"FW"),(25,"wier","wir",["37"],"Merkwort"),(25,"dier","dir",["37"],""),(25,"mier","mir",["37"],""),
- (25,"July","Juli",["37"],""),(25,"rufte","rief",["37"],"1 Fehler"),
+ (25,"July","Juli",["37"],""),(25,"rufte","rief",["37"],"formfehler"),
  # S. 26
  (26,"Karage","Garage",["33"],""),(26,"kreisförmigergarten","kreisförmiger Garten",["05"],"kein 01"),(26,"Fel","Fell",["07"],""),(26,"get","geht",["09"],""),
  # S. 27
@@ -83,19 +83,19 @@ B = [
 # Schülertext S. 48 (Gymnasiast 5. Kl.), 92 Fehler
 T = [
  (48,"un","um",["33"],"Z1"),(48,"nich","nicht",["29"],"Z1"),
- (48,"Luisch","Luis",["30"],"Z2"),(48,"Millderder","Milliardär",["31","34","37"],"Z2"),(48,"stad","stand",["29"],"Z2"),
+ (48,"Luisch","Luis",["30"],"Z2"),(48,"Millderder","Milliardär",["31","34","37"],"Z2; unklar"),(48,"stad","stand",["29"],"Z2"),
  (48,"ein","einem",["31","29"],"Z3"),(48,"Prais","Paris",["35"],"Z3"),(48,"Sei","Seine",["29","31"],"Z3"),(48,"zweihunder","zweihundert",["29"],"Z3"),
- (48,"Bodigatz","Bodyguards",["37","37","29","37"],"Z3; tz auch als ts"),
+ (48,"Bodigatz","Bodyguards",["37","37","29","37"],"Z3; unklar (tz auch als ts)"),
  (48,"weg","Weg",["01"],"Z4"),
  (48,"Reichste","reichste",["02"],"Z5"),(48,"Menschen","Mensch",["32","30"],"Z5"),
  (48,"Jarhuderts","Jahrhunderts",["09","29"],"Z6"),
  (48,"das","dass",["07"],"Z7"),(48,"seihn","seinen",["10","31","29"],"Z7"),
- (48,"Fergungungspag","Vergnügungspark",["23","29","36","30","29","29","20"],"Z7/8"),
+ (48,"Fergungungpag","Vergnügungspark",["23","29","36","30","29","29","20"],"Z7/8; unklar (W7: ng für g hier 30, in *ubrings S. 48 und *gig S. 25 aber 33)"),
  (48,"gansen","ganzen",["33"],"Z8; s auch als z"),(48,"Vereinchen","Vereinigten",["31","27","29"],"Z8"),(48,"Starten","Staaten",["09","30"],"Z8"),
  (48,"nich","nicht",["29"],"Z9"),(48,"als","alles",["07","31"],"Z9"),
  (48,"ein","eine",["31"],"Z10"),(48,"Welt reise","Weltreise",["04","01"],"Z10"),(48,"Lander","Länder",["36"],"Z10"),
  (48,"ein","einen",["31","29"],"Z11"),(48,"geeignten","geeigneten",["31"],"Z11"),(48,"seine","sein",["32"],"Z11"),
- (48,"Epermntlarbor","Experimentallabor",["29","31","31","30"],"Z12; Original zählt 4"),(48,"sachen","Sachen",["01"],"Z12"),
+ (48,"Epermntlarbor","Experimentallabor",["29","31","31","30"],"Z12; unklar (Original zählt 4, W4)"),(48,"sachen","Sachen",["01"],"Z12"),
  (48,"stig","stieg",["09"],"Z13"),(48,"Fliger","Flieger",["09"],"Z13"),
  (48,"im","ihm",["09"],"Z14"),(48,"ubrings","übrigens",["36","33","31","29"],"Z14"),
  (48,"grade","gerade",["31"],"Z15"),(48,"rein gehen","Reingehen",["01","04"],"Z15"),

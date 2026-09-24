@@ -61,13 +61,26 @@ def test_transposition_wird_erkannt_nicht_zerlegt():
 # --- Nie raten (Bau-Prompt Stufe 2) -----------------------------------------
 
 def test_ohne_lexikon_kein_raten_bei_verschiedenen_foerderbereichen():
-    r = E.klassifiziere_wort("Nus", "Nuss", {})
+    """<ie> für <i>: bei langem i ein Merkwortfehler (37, Original S. 21/25),
+    bei kurzem i eine falsche Längenmarkierung (12). Vor <sch> ist die Länge
+    nicht ablesbar – die Engine rät nicht."""
+    r = E.klassifiziere_wort("Tiesch", "Tisch", {})
     e = r["ereignisse"][0]
     assert e["status"] == "needs_context"
-    assert e["kandidaten"] == ["07", "13"]
-    E.abschliessen(e, {"ziel": "Nuss"})
-    assert e["status"] == "needs_context"          # F1 ≠ F3 → bleibt offen
+    assert e["kandidaten"] == ["37", "12"]
+    E.abschliessen(e, {"ziel": "Tisch"})
+    assert e["status"] == "needs_context"          # F10 ≠ F2 → bleibt offen
     assert e["confidence"] < 0.65
+
+
+def test_s_fuer_ss_ist_immer_07_nur_das_foerdermerkmal_haengt_an_der_laenge():
+    """Original S. 59 (Version CH): 13–16 entfallen. *Nus für Nuss ist 07;
+    nach Langvokal (Fuss) bleibt es 07, trägt aber das Merkmal F3."""
+    ohne = E.klassifiziere_wort("Nus", "Nuss", {})["ereignisse"][0]
+    assert (ohne["kategorie"], ohne["status"]) == ("07", "resolved")
+    fuss = E.klassifiziere_wort("Fus", "Fuss", E.VORGABE_LEXIKON)["ereignisse"][0]
+    E.abschliessen(fuss, {"ziel": "Fuss"})
+    assert (fuss["kategorie"], fuss["foerderbereich"], fuss["gruppe"]) == ("07", "F3", "II")
 
 
 def test_konsequenzpruefung_loest_gleichen_foerderbereich(monkeypatch):
@@ -82,10 +95,10 @@ def test_konsequenzpruefung_loest_gleichen_foerderbereich(monkeypatch):
 
 def test_lexikon_entscheidet_deterministisch():
     """Mit Lexikoneintrag wird derselbe Fall rein deterministisch."""
-    kurz = E.klassifiziere_wort("Nus", "Nuss", {"nuss": {"vokale": ["kurz"], "quelle": "lexikon"}})["ereignisse"][0]
-    lang = E.klassifiziere_wort("Nus", "Nuss", {"nuss": {"vokale": ["lang"], "quelle": "lexikon"}})["ereignisse"][0]
-    assert (kurz["kategorie"], kurz["status"]) == ("07", "resolved")
-    assert (lang["kategorie"], lang["status"], lang["definition"]) == ("13", "resolved", "de-CH")
+    kurz = E.klassifiziere_wort("Tiesch", "Tisch", {"tisch": {"vokale": ["kurz"], "quelle": "lexikon"}})["ereignisse"][0]
+    lang = E.klassifiziere_wort("Tiesch", "Tisch", {"tisch": {"vokale": ["lang"], "quelle": "lexikon"}})["ereignisse"][0]
+    assert (kurz["kategorie"], kurz["status"]) == ("12", "resolved")
+    assert (lang["kategorie"], lang["status"]) == ("37", "resolved")
 
 
 def test_ganz_anderes_wort_wird_nicht_zerlegt():
@@ -103,10 +116,17 @@ def test_validator_lehnt_never_assign_ab():
     assert any("nie vergeben" in v["regel"] for v in e["validator"])
 
 
-def test_validator_reklassifiziert_07_nach_langvokal_auf_13():
-    e = E.ereignis(kategorie="07", studentGrapheme="s", targetGrapheme="ss")
+def test_validator_reklassifiziert_08_nach_langvokal_auf_11():
+    e = E.ereignis(kategorie="08", studentGrapheme="ss", targetGrapheme="s")
     E.validiere(e, {"vokalDavor": "lang"})
-    assert e["kategorie"] == "13" and e["definition"] == "de-CH"
+    assert e["kategorie"] == "11"
+
+
+def test_validator_sperrt_13_bis_16_fuer_die_schweiz():
+    for nr in ("13", "14", "15", "16"):
+        e = E.ereignis(kategorie=nr, studentGrapheme="s", targetGrapheme="ss")
+        E.validiere(e)
+        assert e["status"] == "manual_review"
 
 
 def test_validator_lehnt_ss_zielform_mit_eszett_ab():
@@ -153,7 +173,7 @@ def test_mehrfachfehler_werden_getrennt():
 def test_diktat_liefert_status_fuer_jedes_wort():
     r = E.analysiere_diktat("Der Hund lief über die Strasse.", "Der Hunt lief über die Strase.", E.VORGABE_LEXIKON)
     assert all(a["status"] != "offen" for a in r["abdeckung"])
-    assert [e["kategorie"] for e in r["ereignisse"]] == ["19", "13"]
+    assert [e["kategorie"] for e in r["ereignisse"]] == ["19", "07"]
     assert r["ereignisse"][0]["charOffset"] == 7          # «Hunt» beginnt bei Zeichen 4, <t> ist drittes Graphem
     assert r["ereignisse"][1]["sentenceIndex"] == 0
 
@@ -196,11 +216,11 @@ def test_unsicheres_zielwort_wird_nicht_kaschiert():
 # --- Umstufungsmuster (Ergänzung C.3) ---------------------------------------
 
 def test_eigene_zuordnung_wird_bei_gleichem_muster_vorgeschlagen():
-    ohne = E.analysiere_diktat("Die Nuss.", "Die Nus.", {})["ereignisse"][0]
+    ohne = E.analysiere_diktat("Der Tisch.", "Der Tiesch.", {})["ereignisse"][0]
     schluessel = ohne["muster"]
     assert ohne["status"] == "needs_context"
-    mit = E.analysiere_diktat("Die Nuss.", "Die Nus.", {}, {schluessel: {"kategorie": "13", "am": "2026-01-01"}})["ereignisse"][0]
-    assert (mit["kategorie"], mit["status"], mit["featureSource"]) == ("13", "resolved", "eigene")
+    mit = E.analysiere_diktat("Der Tisch.", "Der Tiesch.", {}, {schluessel: {"kategorie": "12", "am": "2026-01-01"}})["ereignisse"][0]
+    assert (mit["kategorie"], mit["status"], mit["featureSource"]) == ("12", "resolved", "eigene")
     assert mit["confidence"] == 0.95
 
 
@@ -208,10 +228,10 @@ def test_eigene_zuordnung_wird_bei_gleichem_muster_vorgeschlagen():
 
 README_TABELLE = [
     ("haus", "Haus", "01"), ("komen", "kommen", "07"), ("hatt", "hat", "08"),
-    ("Zan", "Zahn", "09"), ("Fus", "Fuss", "13"), ("Preisse", "Preise", "15"),
-    ("Beren", "Bären", "17"), ("Hunt", "Hund", "19"), ("Fater", "Vater", "23"),
-    ("wenich", "wenig", "27"), ("Sule", "Schule", "29"),
-    ("Straße", "Strasse", "33"), ("Graten", "Garten", "35"),
+    ("Zan", "Zahn", "09"), ("Fus", "Fuss", "07"), ("Preisse", "Preise", "11"),
+    ("Hende", "Hände", "17"), ("Beren", "Bären", "34"), ("Hunt", "Hund", "19"), ("Fater", "Vater", "23"),
+    ("wenich", "wenig", "27"), ("nich", "nicht", "29"), ("Sule", "Schule", "33"),
+    ("Straße", "Strasse", "37"), ("Graten", "Garten", "35"),
     ("Bucher", "Bücher", "36"),
 ]
 

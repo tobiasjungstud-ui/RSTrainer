@@ -37,35 +37,31 @@ richtig wäre*.
 Die Nummern **21 und 22 sind im Original unbesetzt** und bleiben es auch hier,
 damit die Nummerierung mit dem Auswertungsbogen übereinstimmt.
 
-### Zwei offene Punkte
+### Zwei geklärte Punkte (Original OLFA 3–9+, 7. Aufl. 2023)
 
-**1. Die Gruppenzuordnung I / II / III fehlt.** OLFA ordnet jede Kategorie
-zusätzlich einer von drei entwicklungsbezogenen Gruppen zu, erkennbar an der
-roten, gelben bzw. grünen Markierung der Kategorienummer auf dem
-Auswertungsbogen. Diese Angabe war in der übermittelten Tabelle nicht
-enthalten und wurde **nicht erraten** – das Feld `gruppe` ist überall `null`.
-Nachtragen lässt sie sich unter *Einstellungen → OLFA-Kategorien*. Die App
-funktioniert auch ohne; es fehlt lediglich die Gruppierung nach
-Entwicklungsphase.
+Beide Punkte waren in früheren Fassungen offen und sind nach vollständiger
+Lektüre des Originalhefts (`docs/olfa_original/`) verbindlich geklärt.
 
-**2. Die Kategorien 13 und 15 sind für de-CH neu belegt.** Die Ergänzung zum
-technischen Manual (A.3) regelt die ß-Kategorien für die Schweiz verbindlich:
+**1. Die Gruppenzuordnung I / II / III** stammt aus der Kopiervorlage (S. 57)
+und ist mit der ausgefüllten Beispielliste (Abb. 7, S. 49) kreuzgerechnet:
+Gruppe I (protoalphabetisch, rot) 03, 06, 11, 12, 29–35; Gruppe II
+(alphabetisch, gelb) 01, 04, 07, 09, 17, 19, 23, 25, 27; Gruppe III
+(orthographisch, grün) 02, 05, 08, 10, 18, 20, 24, 26, 28. 36 und 37 gehören
+keiner Gruppe an und zählen nicht zum Kompetenzwert (S. 31).
 
-| Nr. | de-DE (Original) | de-CH (verbindlich) |
+**2. Die Kategorien 13–16 entfallen in der Schweizer Version** (S. 22, S. 59:
+«entfällt für die Schweiz, sonst Nr. 37»). Das Tool folgt dem Original:
+
+| Nr. | de-DE (Original) | Version CH (Tool) |
 |---|---|---|
-| 13 | s für ß | **s für ss** – `*Fus → Fuss`, `*Strase → Strasse` (nach langem Vokal/Diphthong) |
-| 14 | ß für s | **unbesetzt** – wird nie vergeben |
-| 15 | ss für ß | **ss für s** – `*Preisse → Preise`, `*Häusser → Häuser` |
-| 16 | ß für ss | **unbesetzt** – wird nie vergeben |
+| 13–16 | s/ss/ß-Oppositionen | **gesperrt** – ein ß in der Schülerschreibung ist ein Fehler der Kategorie **37** (`*daß → dass`, `*Straße → Strasse`) |
+| 07 | Einfachschreibung für Verdoppelung | `*Fus → Fuss`, `*Strase → Strasse` – auch nach Langvokal; die Stelle trägt dann das Fördermerkmal **F3** (lexikalische ss-Schreibung) |
+| 08 / 11 | Verdoppelung für Einfachschreibung | `*Preisse → Preise` ist 11 (nach Diphthong, F3), `*Hasse → Hase` 11, `*Kasse → Kase`-Fälle nach Kurzvokal 08 |
 
-Die naheliegende Lesart «ß-Kategorien sind in der Schweiz gegenstandslos»
-greift zu kurz: `Fus → Fuss` ist kein Schärfungsfehler (07), sondern
-lexikalisch gespeicherte ss-Schreibung – zwei Kompetenzen, zwei
-Fördermassnahmen. Entscheidend ist die **Vokallänge vor der s-Stelle**: kurz →
-07/08, lang → 13/15. Ein fälschlich gesetztes ß ist ein Konsonantenersatz
-(33). 14, 16, 21, 22 stehen auf `NEVER_ASSIGN`. Eine frühere Fassung dieses
-Werkzeugs hatte 13/15 gesperrt und 14/16 offen – das war die falsche Lesart
-und ist korrigiert; Altbestände mit 14/16 werden beim Laden auf 33 gehoben.
+Die frühere Neubelegung 13 = «s für ss», 15 = «ss für s» (Ergänzung A.3) ist
+damit zurückgenommen; die Unterscheidung Schärfung (F1) gegen Merkwortschatz
+(F3) lebt als Fördermerkmal weiter, nicht als Kategorie. 13, 14, 15, 16, 21,
+22 stehen auf `NEVER_ASSIGN`.
 
 ### Eigene Änderungen
 
@@ -263,7 +259,7 @@ ausmachen:
   Kurze Vokale ohne Verdoppelung, weil schon zwei Mitlaute folgen (Karte,
   Wurst). Und – weil in de-CH die Längenmarkierung fehlt – ss nach kurzem
   Vokal (Fluss, müssen) gegen ss nach langem Vokal oder Diphthong (Fuss,
-  heissen).
+  heissen) – in der OLFA-Liste beides 07/08/11, in der Förderung F1 gegen F3.
 
 Ankreuzaufgaben sind auf dieser Stufe nur noch als echte Kontrastpaare
 zulässig, über die der Satz entscheidet (das/dass, Stadt/statt, Saite/Seite).
@@ -307,23 +303,36 @@ bestehen dieselben Goldstandard-Tests (Manual §19, Ergänzung A.1, Bau-Prompt
 
 ### Wie verlässlich ist die Zuordnung?
 
-Die Engine wurde mit einem Korpus von **289 Grenzfällen** unter Druck
-gesetzt – Paare, an denen OLFA-Zuordnungen typischerweise kippen: 07/13 und
-08/15 (in de-CH ohne ß nicht aus der Schreibung lesbar), 08/11, 09/10/12,
-17/18/36, 19/20 am Silbenrand, 29 an der Morphemfuge, Fremdwörter,
-Mehrfachfehler, Wortgrenzen. Beim ersten Lauf stimmten 74 %. Die Abweichungen
-hatten sieben Ursachen, jede ist mit einer benennbaren Regel behoben, und der
-Korpus ist Teil des Goldstandards: **291 Wortpaare und 13 Satzpaare**, in
-Python und im Artefakt wortgleich, beide 100 %.
+Massstab ist das **Originalheft OLFA 3–9+** (Thomé/Thomé, 7. Aufl. 2023).
+Es wurde vollständig gelesen und in `docs/olfa_original/` protokolliert
+(Seitenprotokoll, Spezifikation mit Seitenverweisen, Abgleich, Messwerte,
+Abschlussbericht). Alle **181 gedruckten Beispiele** der Seiten 16–28 und
+die **92 klassifizierten Fehler des Schülertexts** (S. 48) sind als
+Prüfkorpus im Repository (`tests/original_korpus.py`, ohne Volltext). Vor
+der Präzisierung stimmten 81 % bzw. 77 %, danach **181/181** und alle 48 Wörter,
+die das Original eindeutig entscheidet; die vier übrigen sind im Original
+selbst uneindeutig (dokumentiert als W4 und W7 der Spezifikation).
+
+Was sich dabei gegenüber dem technischen Manual geändert hat, mit Seitenzahl:
+17/18 nur bei kurzem /ɛ/, langes ä → 34 (S. 22–23); Konsonantersatz am
+Wortanfang ist 33, nie 19/20 (S. 18); g für ck sind zwei Fehler 20 + 07
+(S. 21, 23); ie für einfaches i bei /iː/ ist 37 (S. 21, 25); g für ng und
+ch für sch sind 33 (S. 25); 27/28 nur in -ig/-ich (S. 24–25); vokalisiertes
+r nur 29 (S. 24); ß in der Schweiz → 37, 13–16 entfallen (S. 22, 59).
+
+Dazu kommt der frühere Korpus von **289 Grenzfällen** (08/11, 09/10/12,
+Silbenrand, Morphemfuge, Fremdwörter, Mehrfachfehler, Wortgrenzen); der
+Goldstandard umfasst **291 Wortpaare und 13 Satzpaare**, in Python und im
+Artefakt wortgleich, beide 100 %.
 
 Woher die Engine ihre Merkmale nimmt, in dieser Reihenfolge:
 
 | Quelle | Konfidenz | Beispiel |
 |---|---|---|
 | **Schreibung** – Verdoppelung, Längenzeichen, Diphthong im Zielwort | 0,97 | `komen → kommen`: vor `mm` ist der Vokal kurz |
-| **Lexikon** – 550 Wörter, deren Vokallänge, Morphemgrenze, v-Lautwert oder Umlautbezug nicht in der Schreibung steht | 0,97 | `Kase → Kasse` (kurz, 07) gegen `Fus → Fuss` (lang, 13) |
+| **Lexikon** – 560 Wörter, deren Vokallänge, Morphemgrenze, v-Lautwert, Umlautbezug oder Fremdwortstelle nicht in der Schreibung steht | 0,97 | `Kase → Kasse` (kurz, 07/F1) gegen `Fus → Fuss` (lang, 07/F3); `Medchen → Mädchen` (langes ä: 34, nicht 17) |
 | **Heuristik** – zwei Faustregeln der deutschen Orthografie | 0,86 | vor `ng` und vor zwei verschiedenen Konsonanten kurz (Hand, Wald); vor einfachem Konsonanten mit folgendem Vokal lang (Name, Tiger) |
-| **Keine** – dann `needs_context`, nie geraten | 0,55 | `Gose → Gosse`: Wort nicht im Lexikon, ss nicht lesbar |
+| **Keine** – dann `needs_context`, nie geraten | 0,55 | `Tiesch → Tisch`: vor sch ist die Länge nicht lesbar – 37 (Merkwort) oder 12 (kurzes i) bleibt offen |
 
 Die Heuristik gilt ausdrücklich nicht vor r + Konsonant (Karte kurz, Erde
 lang), nicht vor ch/sch/x (Fisch kurz, Buch lang) und nicht für die gelisteten
@@ -343,6 +352,29 @@ abweichen:
   Schärfungsgraphem nicht gewählt.
 
 ---
+
+## OLFA-Kennwerte: Gruppen, Kompetenz- und Leistungswert
+
+Die Auswertung rechnet die Kennwerte des Originals (S. 29–37) und weist
+jeden Schritt mit Seitenzahl aus:
+
+* **Gruppen I / II / III** je Fehler (Kopiervorlage S. 57); 36 und 37 zählen
+  nur zur Gesamtfehlerzahl.
+* **Fehler auf 100 Wörter** (F/100), **Kompetenzwert** KW = (II % + III %) −
+  I %, **tolerierte Fehlerzahl** TF nach Tabelle 5 (Klassenstufe, Zeitpunkt,
+  Schulform), **relativer Fehlerwert** RF = F/100 : TF und **Leistungswert**
+  LW = (II % + III %) − I % · RF.
+* **Deutung** nach den KW-Bändern (über 70, 50–70, 0–50, unter 0; S. 36).
+* **Wächter:** unter 350 Wörtern oder 50 Fehlern «vorläufig» (S. 15, 49);
+  mehr als 3 % in 37 → Zuordnung prüfen (S. 26); Gruppe I über 50 % →
+  lautlicher Grundlagenbereich, ggf. OLFA 1–2 (S. 28, 49); F/100 unter dem
+  Zweifachen von TF → OLFA nicht mehr nötig (S. 6, 15).
+
+Klassenstufe und Schulform werden nur für die Rechnung gewählt und nicht
+gespeichert. Zwei Rechenfehler des Originals sind dokumentiert und werden
+nicht nachgebaut: Der Leistungswert −443 in Abb. 7 setzt TF statt F/100 : TF
+ein (nach S. 35 wären es −417), und die dort gedruckten Anteile 66,2 / 7,3 %
+sind gegen S. 32 gerundet (Spezifikation W3, W8).
 
 ## Förderbereiche F1–F10
 
@@ -477,14 +509,16 @@ Beispiele für Zuordnungen der Engine:
 | kommen | komen | 07 – Einfachschreibung für Konsonantenverdoppelung |
 | hat | hatt | 08 – Verdoppelung für Einfachschreibung |
 | Zahn | Zan | 09 – markierte Länge fehlt |
-| Fuss | Fus | 13 – s für ss (nach Langvokal, de-CH) |
-| Preise | Preisse | 15 – ss für s (nach Diphthong, de-CH) |
-| Strasse | Straße | 33 – ein ß ist in de-CH ein Konsonantenersatz |
-| Bären | Beren | 17 – e für ä |
+| Fuss | Fus | 07 – s für ss (Fördermerkmal F3: nach Langvokal) |
+| Preise | Preisse | 11 – Verdoppelung nach Diphthong (F3) |
+| Strasse | Straße | 37 – ß gibt es in der Schweiz nicht (13–16 entfallen, «sonst Nr. 37») |
+| Hände | Hende | 17 – e für ä bei kurzem /ɛ/ |
+| Bären | Beren | 34 – e für langes ä ist Falscher Vokal, nicht 17 |
 | Hund | Hunt | 19 – p, t, k für b, d, g |
 | Vater | Fater | 23 – f für v |
 | wenig | wenich | 27 – ch für g im Silbenende |
-| Schule | Sule | 29 – Konsonantenzeichen fehlt |
+| nicht | nich | 29 – Konsonantenzeichen fehlt |
+| Schule | Sule | 33 – s für sch: Graphem für Graphem, kein fehlendes Zeichen |
 | Garten | Graten | 35 – Zeichenumstellung |
 | Bücher | Bucher | 36 – Umlautbezeichnung |
 
@@ -640,10 +674,10 @@ damit sie nicht stillschweigend gelten:
   Sie sind nach Plausibilität sortiert; die Entscheidung trifft die Lehrperson.
 * Ein erkannter Buchstabendreher erklärt das ganze Wort; weitere Marker werden
   dann unterdrückt, weil sie nur Rauschen wären.
-* OLFA spricht bei den Kategorien 19/20 und 27/28 vom **Silbenrand bzw.
-  Silbenende**. Ohne Silbentrennung prüft das Werkzeug ersatzweise das
-  **Wortende** – den häufigsten Fall. Fehler im Silbenrand wortintern muss die
-  Lehrperson selbst zuordnen.
+* OLFA spricht bei 19/20 vom **Silbenendrand** (alle Elemente nach dem
+  Silbenkern, S. 23) und bei 27/28 vom **Silbenende**. Die Engine prüft: nach
+  einem Vokal, vor einem Konsonanten oder am Wortende, nicht am Wort- oder
+  Morphemanfang (\*droz → 33, S. 18); 27/28 nur in -ig/-ich (S. 24–25).
 * **Ohne automatische Erkennung** bleiben die Kategorien 03, 04, 05, 06 und 12
   sowie Fremdwortfehler: Sie hängen an Wortbedeutung, Silbenstruktur oder
   Vokallänge, nicht am Buchstabenvergleich. Diese Fehler werden wie bisher von
@@ -678,7 +712,7 @@ damit sie nicht stillschweigend gelten:
 
 **Schweizer Rechtschreibung**
 * Es gibt **keine Variantenumschaltung**. Alle Prompts verlangen durchgehend
-  ss; die Kategorien 13 und 15 sind gesperrt.
+  ss; die Kategorien 13–16 entfallen (Version CH), ein ß ist Kategorie 37.
 
 ---
 
@@ -738,7 +772,7 @@ erst, wenn das Sprachmodell einen Text auswertet.
 python3 -m pytest tests/ -q
 ```
 
-**Stand: 735 Tests, alle grün.** Abgedeckt sind:
+**Stand: 997 Tests, alle grün.** Abgedeckt sind:
 
 | Datei | Prüft |
 |---|---|
@@ -752,6 +786,8 @@ python3 -m pytest tests/ -q
 | `test_olfa_und_export.py` | Kategorienliste, unbesetzte Nummern 21/22, Testmodus, CSV/JSON-Export, `.gitignore` |
 | `test_charts.py` | Diagramme, feste Farbreihenfolge, Serienbegrenzung |
 | `test_olfa_engine.py` | Goldstandard: 291 Wort- und 13 Satzpaare (§19, A.1, Bau-Prompt, Grenzfallkorpus), Graphemsegmentierung, Transposition, Nie-Raten, Konsequenzprüfung C.1, Validator §17/A.5, Konfidenz C.2, Halluzinationsfilter, Umstufungsmuster C.3 |
+| `test_original.py` | Jedes gedruckte Beispiel des Originals (181) und der Schülertext S. 48 (92 Fehler) durch die Engine; Version CH (ß → 37, 13–16 gesperrt); Wortgrenzen mit Folgefehlern; Out-of-the-box: jedes Beispiel mit vertauschter Gross-/Kleinschreibung und im Trägersatz durch den Diktatmodus |
+| `test_olfa_werte.py` | Rechenproben aus dem Original: Abb. 7 (S. 49), Beispiel Olaf (S. 33–35), Tabelle 5 und Formeln (S. 29–30), Zählregel S. 16, Wächter und KW-Bänder S. 36 |
 | `test_grammatik.py` | Feste Liste B–E: Vollständigkeit, de-CH-Prosa, Helvetismen, Kennungen, Register, Analyse-Prompt und Rücklesen |
 | `test_taxonomie.py` | Pfade begradigen, Dubletten, Gegenteile nicht verschmelzen, Register, Schwerpunkte |
 | `test_analyse.py` | Analyse-Prompts, JSON zurücklesen, neue Fehlerarten, Aufräumplan, Regler Klassiker/Sondierung |
@@ -767,7 +803,6 @@ einen freien Text (Modus wählen → Prompt → JSON einfügen → Bestätigungs
 bestehenden.
 
 **Noch offen / bewusst nicht gebaut:**
-* Die Gruppenzuordnung I / II / III der Kategorien fehlt noch (siehe oben).
 * Die Oberfläche ist bis auf `test_ui_fehlerseite.py` nicht automatisiert
   geprüft; sonst wurde sie von Hand und mit Skripten ausserhalb des
   Repositorys durchgespielt.

@@ -37,13 +37,17 @@ def test_liste_ist_als_geprueft_markiert(liste):
 def test_herkunft_und_offene_punkte_sind_dokumentiert(liste):
     herkunft = " ".join(liste.meta.get("herkunft", []))
     assert "Lehrperson" in herkunft
-    offen = " ".join(liste.meta.get("offene_punkte", []))
-    assert "GRUPPENZUORDNUNG" in offen
+    geklaert = " ".join(liste.meta.get("geklaert", []))
+    assert "GRUPPENZUORDNUNG" in geklaert and "VERSION CH" in geklaert
+    assert liste.meta.get("offene_punkte") == []
 
 
-def test_gruppenzuordnung_ist_bewusst_leer(liste):
-    """Die Gruppen I/II/III lagen nicht vor und wurden nicht geraten."""
-    assert all(k.gruppe is None for k in liste)
+def test_gruppenzuordnung_folgt_der_kopiervorlage(liste):
+    """Gruppen I/II/III aus Original S. 57; 21, 22, 36, 37 ohne Gruppe."""
+    from rstrainer.olfa_engine import GRUPPEN
+    for k in liste:
+        assert k.gruppe == GRUPPEN.get(k.nr), k.nr
+    assert all(liste.get(nr).gruppe is None for nr in ("21", "22", "36", "37"))
 
 
 def test_unbesetzte_nummern_bleiben_erhalten(liste):

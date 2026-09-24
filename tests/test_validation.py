@@ -44,10 +44,10 @@ def test_passende_kategorie_wird_bestaetigt(register):
 
 
 def test_unpassende_kategorie_warnt(register):
-    """Ein Text ohne ß kann die Kategorie 15 (ss für ß) nicht üben."""
+    """Ein Text ohne Doppelkonsonanten kann die Kategorie 07 nicht üben."""
     text = "Am Morgen kam der Hund. Er lief davon."
-    befunde = validation.diktat_pruefen(text, 9, ["15"], register)
-    assert _finde(befunde, "ss für s")[0].stufe == WARNUNG
+    befunde = validation.diktat_pruefen(text, 9, ["07"], register)
+    assert _finde(befunde, "Konsonantenverdoppelung")[0].stufe == WARNUNG
 
 
 def test_leerer_text_warnt(register):
@@ -62,14 +62,14 @@ def test_korrekturlese_hinweis_erscheint_immer(register):
 
 def test_warnungen_stehen_oben(register):
     text = "Am Morgen kam der Hund."
-    befunde = validation.diktat_pruefen(text, 5, ["15", "07"], register)
+    befunde = validation.diktat_pruefen(text, 5, ["11", "07"], register)
     stufen = [b.stufe for b in befunde]
     assert stufen == sorted(stufen, key=lambda s: {WARNUNG: 0, HINWEIS: 1, OK: 2}[s])
 
 
 def test_pruefungen_blockieren_nie(register):
     """Grundsatz: Prüfungen melden, sie verhindern nichts."""
-    befunde = validation.diktat_pruefen("Kurz.", 500, ["15", "33"], register)
+    befunde = validation.diktat_pruefen("Kurz.", 500, ["11", "33"], register)
     assert befunde  # es gibt Befunde …
     assert all(hasattr(b, "stufe") for b in befunde)  # … aber keine Ausnahme
 

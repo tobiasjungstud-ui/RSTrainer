@@ -131,7 +131,7 @@ def test_informationsblatt_listet_fehler_in_tabelle(tmp_path, register):
     assert len(fehlertabelle.rows) == 3          # Kopfzeile + 2 Fehler
     text = _volltext(dokument)
     assert "Hunt" in text and "komen" in text
-    assert "19 – p, t, k für b, d, g im Silbenrand oder Silbenende" in text
+    assert "19 – p, t, k für b, d, g im Silbenendrand" in text
     assert "Kurzkommentar hier." in text
     assert "2.2" in text
 

@@ -66,16 +66,47 @@ SUFFIXE = {"in", "innen", "ig", "lich", "isch", "sam", "bar", "haft", "los", "vo
 #: («sichtig» in «vor sichtig»).
 GEBUNDENE_ENDUNGEN = ("ig", "lich", "isch", "sam", "bar", "haft", "ung", "heit", "keit", "schaft")
 
-NEVER_ASSIGN = {"14", "16", "21", "22"}
-REDEFINED_FOR_DE_CH = {"13": "s für ss", "15": "ss für s"}
+#: Original OLFA 3–9+ (2023), S. 22 und S. 59, Version CH: «13–16 entfallen für
+#: die Schweiz, sonst Nr. 37». Ein ß in der Schülerschreibung ist damit ein
+#: Fehler der Kategorie 37; s/ss-Fehler laufen über 07/08/11.
+NEVER_ASSIGN = {"13", "14", "15", "16", "21", "22"}
+GESPERRT_CH = {"13", "14", "15", "16"}
+REDEFINED_FOR_DE_CH: dict[str, str] = {}
+#: Entwicklungsgruppen der Kopiervorlage (Original S. 57, kreuzgeprüft mit Abb. 7
+#: S. 49): I = protoalphabetisch (rot), II = alphabetisch (gelb), III =
+#: orthographisch (grün). 36 und 37 gehören keiner Gruppe an (S. 31).
+GRUPPEN = {
+    "01": "II", "02": "III", "03": "I", "04": "II", "05": "III", "06": "I",
+    "07": "II", "08": "III", "09": "II", "10": "III", "11": "I", "12": "I",
+    "13": "II", "14": "III", "15": "III", "16": "III", "17": "II", "18": "III",
+    "19": "II", "20": "III", "23": "II", "24": "III", "25": "II", "26": "III",
+    "27": "II", "28": "III", "29": "I", "30": "I", "31": "I", "32": "I",
+    "33": "I", "34": "I", "35": "I",
+}
+#: Graphempaare, die im Alignment einander zugeordnet werden sollen (eine
+#: Verwechslung, nicht Löschung plus Zufügung): die OLFA-Oppositionen 17–28
+#: sowie die häufigen Konsonantenverwechslungen der Version 2 (S. 58).
+VERWANDT_PAARE = {frozenset(p) for p in [
+    ("ch", "g"), ("p", "b"), ("t", "d"), ("k", "g"), ("f", "v"), ("w", "v"),
+    ("e", "ä"), ("eu", "äu"), ("ie", "ih"), ("ee", "äh"), ("eh", "äh"), ("ä", "eh"),
+    ("s", "z"), ("n", "m"), ("ng", "g"), ("sch", "ch"), ("ß", "ss"), ("ß", "s")]}
+#: Erbwörter, deren <v> als /f/ gesprochen wird (Original S. 24: 23 f für v).
+V_ALS_F_ANFANG = ("ver", "vor", "viel", "voll", "vieh", "vater", "vogel", "volk", "von", "vier",
+                  "vetter", "vieh", "vers", "veilchen", "vlies")
+#: Fremdwörter mit /v/ (Original S. 24: 25 w für v «meist Fremdwörter, Eigennamen»).
+V_ALS_V_WOERTER = {"vase", "vulkan", "provinz", "klavier", "villa", "vitamin", "video", "virus",
+                   "vokal", "vanille", "vegan", "vertikal", "vulgär", "novelle", "november",
+                   "nerven", "universität", "pullover", "vampir", "verb", "vers", "veranda",
+                   "vene", "venedig", "violine", "visum", "vision", "vokabel", "volumen"}
 
 FOERDERBEREICHE = {
     "F1": {"name": "Schärfung / Doppelkonsonant", "olfa": ["07", "08", "11"],
            "foerdern": "Kurzvokal hören, Verdoppelungsregel anwenden, Verlängerungsprobe"},
     "F2": {"name": "Vokallängenmarkierung", "olfa": ["09", "10", "12"],
            "foerdern": "Dehnungs-h, ie, Doppelvokal; Länge hören und markieren"},
-    "F3": {"name": "Lexikalische s-Schreibung (CH)", "olfa": ["13", "15"],
-           "foerdern": "Merkwortschatz: Fuss, Strasse, gross, heissen, weiss"},
+    "F3": {"name": "Lexikalische s-Schreibung (CH)", "olfa": [],
+           "foerdern": "Merkwortschatz: Fuss, Strasse, gross, heissen, weiss",
+           "merkmal": "s/ss nach langem Vokal oder Diphthong (Kategorie 07, 08 oder 11 mit Merkmal F3)"},
     "F4": {"name": "Umlautableitung", "olfa": ["17", "18", "36"],
            "foerdern": "Ableiten vom Grundwort (Hände ← Hand), ä/e und äu/eu unterscheiden"},
     "F5": {"name": "Auslautverhärtung / Silbenrand", "olfa": ["19", "20", "27", "28"],
@@ -102,8 +133,8 @@ KURZNAME = {
     "09": "Einfache Vokalschreibung für markierte Länge",
     "10": "Markierte Länge für Einfachschreibung (Vokal lang)",
     "11": "Verdoppelung nach Langvokal, Konsonant oder am Morphemanfang",
-    "12": "Markierte Länge bei kurzem Vokal", "13": "s für ss (de-CH)", "14": "unbesetzt (de-CH)",
-    "15": "ss für s (de-CH)", "16": "unbesetzt (de-CH)", "17": "e/eu für ä/äu", "18": "ä/äu für e/eu",
+    "12": "Markierte Länge bei kurzem Vokal", "13": "s für ß (entfällt CH)", "14": "ß für s (entfällt CH)",
+    "15": "ss für ß (entfällt CH)", "16": "ß für ss (entfällt CH)", "17": "e/eu für ä/äu (nur kurzes ä)", "18": "ä/äu für e/eu (nur kurzes e)",
     "19": "p/t/k für b/d/g am Silbenrand", "20": "b/d/g für p/t/k am Silbenrand",
     "21": "unbesetzt", "22": "unbesetzt", "23": "f für v", "24": "v für f", "25": "w für v", "26": "v für w",
     "27": "ch für g im Silbenende", "28": "g für ch im Silbenende",
@@ -115,7 +146,7 @@ KURZNAME = {
 KRITISCHE_PAARE = [
     ("07", "29"), ("08", "11"), ("09", "31"), ("10", "12"), ("17", "34"), ("18", "34"), ("36", "34"),
     ("19", "33"), ("20", "33"), ("23", "33"), ("24", "33"), ("25", "33"), ("26", "33"), ("27", "33"),
-    ("28", "33"), ("35", "29"), ("07", "13"), ("08", "15"), ("11", "15"), ("23", "25"),
+    ("28", "33"), ("35", "29"), ("23", "25"), ("37", "10"), ("37", "12"),
 ]
 
 BAENDER = [(0.95, "praktisch eindeutig"), (0.80, "hohe Sicherheit"), (0.65, "plausibel"),
@@ -140,6 +171,11 @@ VORGABE_LEXIKON: dict[str, dict[str, Any]] = {
     "bäume": {"umlaut": True}, "leute": {"umlaut": False}, "führte": {"umlaut": True}, "gefährlich": {"umlaut": True},
     "vogel": {"v": "f", "vokale": ["lang", "kurz"]}, "vase": {"v": "v", "vokale": ["lang", "kurz"]},
     "vulkan": {"v": "v"}, "verlieren": {"v": "f", "morpheme": "ver|lieren"},
+    # Fremdwörter: Zeichenposition, an der die Schreibung von der deutschen
+    # Orthographie abweicht (Original S. 25–26: *Garasche = 37, *Karage = 33).
+    "garage": {"fremd": [4], "vokale": ["kurz", "lang", "kurz"]}, "etage": {"fremd": [3]},
+    "orange": {"fremd": [4]}, "blamage": {"fremd": [5]}, "courage": {"fremd": [0, 5]},
+    "bagage": {"fremd": [4]}, "massage": {"fremd": [5]}, "passage": {"fremd": [5]},
     "fuss": {"vokale": ["lang"]}, "strasse": {"vokale": ["lang", "kurz"]}, "gross": {"vokale": ["lang"]},
     "heissen": {"vokale": ["lang", "kurz"]}, "preise": {"vokale": ["lang", "kurz"]},
     "häuser": {"vokale": ["lang", "kurz"], "umlaut": True}, "müssen": {"vokale": ["kurz", "kurz"], "umlaut": True},
@@ -268,8 +304,8 @@ VOKALLAENGEN: dict[str, dict[str, Any]] = {
     "cup": {"vokale": ['kurz']},
     "dach": {"vokale": ['kurz']},
     "das": {"vokale": ['kurz']},
-    "dem": {"vokale": ['kurz']},
-    "den": {"vokale": ['kurz']},
+    "dem": {"vokale": ['lang']},
+    "den": {"vokale": ['lang']},
     "des": {"vokale": ['kurz']},
     "dich": {"vokale": ['kurz']},
     "doch": {"vokale": ['kurz']},
@@ -442,6 +478,10 @@ VOKALLAENGEN: dict[str, dict[str, Any]] = {
     "massstab": {"vokale": ['lang', 'lang']},
     "maus": {"vokale": ['lang']},
     "mehl": {"vokale": ['lang']},
+    "gespräch": {"vokale": ['kurz', 'lang'], "umlaut": True},
+    "wen": {"vokale": ['lang']},
+    "wem": {"vokale": ['lang']},
+    "käse": {"vokale": ['lang', 'kurz'], "umlaut": False},
     "mensch": {"vokale": ['kurz']},
     "messen": {"vokale": ['kurz', 'kurz']},
     "messer": {"vokale": ['kurz', 'kurz']},
@@ -695,6 +735,12 @@ def _verwandt(a: str, b: str) -> bool:
         return True
     if UMLAUT.get(a) == b or UMLAUT.get(b) == a:
         return True
+    if frozenset((a, b)) in VERWANDT_PAARE:
+        return True
+    # Mehrgraphem und Bestandteil (ng/g, sch/ch, chs/s): eine Verwechslung, kein
+    # fehlendes Graphem (Original S. 25: *gig für ging = 33, «nicht Nr. 29»).
+    if ist_konsonant_graphem(a) and ist_konsonant_graphem(b) and (a in b or b in a):
+        return True
     return False
 
 
@@ -708,8 +754,26 @@ def _kosten(a: str, b: str) -> float:
     return 1.0
 
 
-def align(s: list[str], t: list[str]) -> tuple[list[dict[str, Any]], int]:
+def align(s: list[str], t: list[str], post_h: frozenset[int] = frozenset()) -> tuple[list[dict[str, Any]], int]:
+    """Damerau-Levenshtein über Grapheme.
+
+    Zwei Feinheiten gegenüber der Lehrbuchfassung: (1) Bei Kostengleichstand
+    gewinnt die Ersetzung an gleicher Position (Strafe 0,01 je Indexabstand),
+    damit «ubrings»/«übrigens» als ng→g plus fehlendes e und n gelesen wird
+    (Original S. 48), nicht als fehlendes g plus n→ng. (2) Ein <h> des Kindes
+    nach einem Vokal ist ein Längenzeichen und wird nie gegen einen Konsonanten
+    getauscht («seihn» für seinen: h zugefügt, S. 48), sondern gilt als
+    Zufügung."""
     n, m = len(s), len(t)
+
+    def k(i: int, j: int) -> float:
+        a, b = s[i - 1], t[j - 1]
+        if a == b:
+            return 0.0
+        if (i - 1) in post_h:
+            return 2.1
+        return _kosten(a, b) + 0.01 * abs(i - j)
+
     D = [[0.0] * (m + 1) for _ in range(n + 1)]
     for i in range(n + 1):
         D[i][0] = float(i)
@@ -717,7 +781,7 @@ def align(s: list[str], t: list[str]) -> tuple[list[dict[str, Any]], int]:
         D[0][j] = float(j)
     for i in range(1, n + 1):
         for j in range(1, m + 1):
-            kosten = _kosten(s[i - 1], t[j - 1])
+            kosten = k(i, j)
             D[i][j] = min(D[i - 1][j] + 1, D[i][j - 1] + 1, D[i - 1][j - 1] + kosten)
             if i > 1 and j > 1 and s[i - 1] == t[j - 2] and s[i - 2] == t[j - 1] and s[i - 1] != s[i - 2]:
                 D[i][j] = min(D[i][j], D[i - 2][j - 2] + 1)
@@ -730,7 +794,7 @@ def align(s: list[str], t: list[str]) -> tuple[list[dict[str, Any]], int]:
             i -= 2; j -= 2
         elif i > 0 and j > 0 and s[i - 1] == t[j - 1] and abs(D[i][j] - D[i - 1][j - 1]) < 1e-9:
             ops.append({"op": "equal", "si": i - 1, "ti": j - 1, "s": s[i - 1], "t": t[j - 1]}); i -= 1; j -= 1
-        elif i > 0 and j > 0 and abs(D[i][j] - (D[i - 1][j - 1] + _kosten(s[i - 1], t[j - 1]))) < 1e-9:
+        elif i > 0 and j > 0 and abs(D[i][j] - (D[i - 1][j - 1] + k(i, j))) < 1e-9:
             ops.append({"op": "sub", "si": i - 1, "ti": j - 1, "s": s[i - 1], "t": t[j - 1]}); i -= 1; j -= 1
         elif i > 0 and abs(D[i][j] - (D[i - 1][j] + 1)) < 1e-9:
             ops.append({"op": "ins", "si": i - 1, "ti": j, "s": s[i - 1], "t": None}); i -= 1
@@ -818,15 +882,20 @@ def morphemgrenze(ziel: str, at: int, lex: dict | None) -> dict[str, Any]:
             else:
                 pos += 1
         return {"wert": at in grenzen, "quelle": _quelle(lex)}
-    kopf = ziel[:at].lower()
-    if kopf in PRAEFIXE and len(ziel) - at >= 3:
+    kopf, rest = ziel[:at].lower(), ziel[at:].lower()
+    if kopf in PRAEFIXE and len(rest) >= 3 and any(c in VOKALBUCHSTABEN for c in rest):
         return {"wert": True, "quelle": "heuristik", "grund": f"«{kopf}-» ist ein Präfix"}
     return {"wert": None, "quelle": "unbekannt"}
 
 
-def v_lautwert(lex: dict | None) -> dict[str, Any]:
+def v_lautwert(lex: dict | None, ziel: str = "") -> dict[str, Any]:
     if lex and lex.get("v") in ("f", "v"):
         return {"wert": lex["v"], "quelle": _quelle(lex)}
+    z = (ziel or "").lower()
+    if z in V_ALS_V_WOERTER:
+        return {"wert": "v", "quelle": "heuristik", "grund": f"«{z}» ist ein Fremdwort mit /v/"}
+    if z.startswith(V_ALS_F_ANFANG) or z.endswith("iv"):
+        return {"wert": "f", "quelle": "heuristik", "grund": f"Erbwort («{z}»): <v> steht für /f/"}
     return {"wert": None, "quelle": "unbekannt"}
 
 
@@ -836,7 +905,17 @@ def umlaut_merkmal(lex: dict | None) -> dict[str, Any]:
     return {"wert": None, "quelle": "unbekannt"}
 
 
-def am_silbenrand(t_seg: list[dict], idx: int) -> bool:
+def am_silbenrand(t_seg: list[dict], idx: int, lex: dict | None = None) -> bool:
+    """Silbenendrand = alle Elemente nach dem Silbenkern (Original S. 23). Der
+    Wortanfang gehört nie dazu (*droz für trotz = 33, «Fehler am Wortanfang,
+    nicht Nr. 20», S. 18), ebenso wenig ein Morphemanfang (ver|graben)."""
+    if idx == 0:
+        return False
+    if not any(ist_vokal_graphem(x["g"]) for x in t_seg[:idx]):
+        return False
+    ziel = "".join(x["g"] for x in t_seg)
+    if morphemgrenze(ziel, t_seg[idx]["at"], lex)["wert"] is True:
+        return False
     folgend = t_seg[idx + 1]["g"] if idx + 1 < len(t_seg) else None
     return not folgend or ist_konsonant_graphem(folgend)
 
@@ -880,24 +959,33 @@ def verdoppelung_fehlt(op: dict, t_seg: list[dict], ziel: str, lex: dict | None)
         e["reason"] = (f"<{einfach}> steht für das Zielgraphem <{doppel}>; der Vokal davor ist kurz "
                        f"({laenge.get('grund')}) – die orthografische Verdoppelung wurde nicht realisiert.")
         _excl(e, "29", "Es fehlt kein eigenständiges Konsonantengraphem, nur die Verdoppelung.")
-        if doppel == "ss":
-            _excl(e, "13", "13-CH setzt einen langen Vokal oder Diphthong davor voraus.")
         return e
     if laenge["wert"] == "lang":
         if doppel == "ss":
-            e["kategorie"] = "13"; e["definition"] = "de-CH"
-            e["reason"] = f"<s> statt <ss> nach langem Vokal/Diphthong ({laenge.get('grund')}) – lexikalische ss-Schreibung (Ergänzung A.4)."
-            _excl(e, "07", "Schärfung setzt einen Kurzvokal voraus; hier ist der Vokal lang.")
+            # Original S. 59 (Version CH): 13 entfällt. <s> für <ss> ist nach dem
+            # Wortlaut von 07 Einfachschreibung für Konsonantenverdoppelung – auch
+            # nach Langvokal (Fuss, Strasse). Für die Förderung bleibt die Stelle
+            # als lexikalische ss-Schreibung (F3) markiert.
+            e["kategorie"] = "07"; e["f3"] = True; e["definition"] = "de-CH"
+            e["reason"] = (f"<s> statt <ss> nach langem Vokal/Diphthong ({laenge.get('grund')}) – Einfachschreibung "
+                           "für Konsonantenverdoppelung; in der Schweiz eine lexikalische ss-Schreibung (Merkwort).")
+            _excl(e, "13", "13–16 entfallen in der Schweizer Version (Original S. 59).")
+            _excl(e, "29", "Es fehlt kein eigenständiges Konsonantengraphem, nur die Verdoppelung.")
             return e
         e["kategorie"] = "29"
         e["reason"] = (f"<{einfach}> statt <{doppel}> nach langem Vokal ({laenge.get('grund')}) – keine Schärfung möglich, "
                        "die Verdoppelung entsteht durch eine Morphemgrenze.")
         _excl(e, "07", "Nach Langvokal gibt es keine orthografische Verdoppelung.")
         return e
+    if doppel == "ss":
+        # Kategorie ist in beiden Fällen 07; nur das Fördermerkmal F3 hängt an der Länge.
+        e["kategorie"] = "07"; e["featureSource"] = "unbekannt"
+        e["reason"] = f"<s> statt <ss>: Einfachschreibung für Konsonantenverdoppelung. Ob der Vokal davor lang ist (Merkwort, F3), steht nicht im Lexikon."
+        return e
     e["status"] = "needs_context"; e["featureSource"] = "unbekannt"
-    e["kandidaten"] = ["07", "13"] if doppel == "ss" else ["07", "29"]
+    e["kandidaten"] = ["07", "29"]
     e["reason"] = (f"<{einfach}> statt <{doppel}>. Ob der Vokal davor kurz (→ 07) oder lang "
-                   f"(→ {'13-CH' if doppel == 'ss' else '29, Morphemfuge'}) ist, steht nicht im Lexikon.")
+                   "(→ 29, Morphemfuge) ist, steht nicht im Lexikon.")
     return e
 
 
@@ -924,25 +1012,19 @@ def verdoppelung_zuviel(op: dict, t_seg: list[dict], ziel: str, lex: dict | None
         e["reason"] = (f"<{doppel}> statt <{einfach}> nach kurzem Vokal ({laenge.get('grund')}) – unnötige Verdoppelung, "
                        "die Einfachschreibung ist lexikalisch festgelegt.")
         _excl(e, "11", "11 setzt Langvokal, Konsonant davor oder Morphemanfang voraus.")
-        if doppel == "ss":
-            _excl(e, "15", "15-CH setzt einen langen Vokal oder Diphthong davor voraus.")
         return e
     if laenge["wert"] == "lang":
         if doppel == "ss":
-            e["kategorie"] = "15"; e["definition"] = "de-CH"
-            e["reason"] = (f"<ss> statt <s> nach langem Vokal/Diphthong ({laenge.get('grund')}) – ss gesetzt, wo die "
-                           "CH-Zielschreibung einfaches s verlangt (Ergänzung A.4).")
-            _excl(e, "08", "08 setzt einen Kurzvokal voraus.")
-            _excl(e, "11", "Der s/ss-Fall wird für de-CH über 15 geführt (Ergänzung A.5).")
-            return e
+            e["f3"] = True; e["definition"] = "de-CH"
+            _excl(e, "15", "13–16 entfallen in der Schweizer Version (Original S. 59).")
         e["kategorie"] = "11"
         e["reason"] = f"<{doppel}> statt <{einfach}> nach langem Vokal ({laenge.get('grund')}) – Verdoppelung nach Langvokal."
         _excl(e, "08", "08 setzt einen Kurzvokal voraus.")
         return e
     e["status"] = "needs_context"; e["featureSource"] = "unbekannt"
-    e["kandidaten"] = ["08", "15"] if doppel == "ss" else ["08", "11"]
+    e["kandidaten"] = ["08", "11"]
     e["reason"] = (f"<{doppel}> statt <{einfach}>. Ob der Vokal davor kurz (→ 08) oder lang "
-                   f"(→ {'15-CH' if doppel == 'ss' else '11'}) ist, steht nicht im Lexikon.")
+                   "(→ 11) ist, steht nicht im Lexikon.")
     return e
 
 
@@ -960,6 +1042,24 @@ def markierung_zuviel(op: dict, t_seg: list[dict], lex: dict | None) -> dict:
     e = ereignis(studentGrapheme=op["s"], targetGrapheme=op["t"])
     laenge = vokallaenge(t_seg, op["ti"], lex)
     e["featureSource"] = laenge["quelle"]; e["entscheidend"] = "Länge des Zielvokals"
+    if op["s"] == "ie" and op["t"] == "i":
+        # Original S. 21/25: <ie> für ein einfaches <i> bei langem /iː/ trifft
+        # eine Ausnahmeschreibung (mir, dir, wir, Tiger, Maschine) → 37; bei
+        # kurzem i ist es 12 (*Wiend, S. 22).
+        if laenge["wert"] == "lang":
+            e["kategorie"] = "37"
+            e["reason"] = (f"<ie> statt <i> bei langem /iː/: Das Zielwort schreibt den Langvokal ausnahmsweise mit "
+                           "einfachem <i> (Merkwort oder Fremdwort) – Sonstige Fehler, nicht 10.")
+            _excl(e, "10", "10 gilt nur für zugefügte Dehnungs-h (Original S. 22).")
+            return e
+        if laenge["wert"] == "kurz":
+            e["kategorie"] = "12"
+            e["reason"] = f"<ie> statt <i>: Der Zielvokal ist kurz ({laenge.get('grund')}), ie für kurzes i."
+            _excl(e, "37", "Bei kurzem i ist ie eine falsche Längenmarkierung (12).")
+            return e
+        e["status"] = "needs_context"; e["featureSource"] = "unbekannt"; e["kandidaten"] = ["37", "12"]
+        e["reason"] = "<ie> statt <i>: Ob das i lang (Merkwort → 37) oder kurz (→ 12) ist, steht nicht im Lexikon."
+        return e
     if laenge["wert"] == "lang":
         e["kategorie"] = "10"
         e["reason"] = f"<{op['s']}> statt <{op['t']}>: Der Zielvokal ist lang ({laenge.get('grund')}), die zusätzliche Markierung ist unnötig."
@@ -988,61 +1088,102 @@ def fremdgraphem(op: dict) -> dict:
     return e
 
 
-def vokalersatz(op: dict, lex: dict | None) -> dict:
+def vokalersatz(op: dict, t_seg: list[dict], lex: dict | None) -> list[dict]:
+    """Vokal A steht für Vokal B. Rückgabe: ein oder zwei Ereignisse.
+
+    Original S. 22–23: 17/18 gelten nur bei kurzem /ɛ/; e/eh für langes ä/äh
+    und äh für eh sind 34. Fehlt dabei zusätzlich die Längenmarkierung
+    (*ungefer für ungefähr, S. 21), kommt 09 hinzu. a/o/u ↔ ä/ö/ü ist 36."""
     s, t = op["s"], op["t"]
     if s in FREMDGRAPHEME or t in FREMDGRAPHEME:
-        return fremdgraphem(op)
+        return [fremdgraphem(op)]
     e = ereignis(studentGrapheme=s, targetGrapheme=t)
     grund_s, grund_t = LAENGENMARKER.get(s, s), LAENGENMARKER.get(t, t)
     if grund_s == grund_t:
         if t in LAENGENMARKER and s not in LAENGENMARKER:
-            return markierung_fehlt(op)
+            return [markierung_fehlt(op)]
         if s in DOPPELMARKER and t in LAENGENMARKER:
-            # «Baahn» für «Bahn»: Das Zielwort ist bereits markiert lang, die
-            # zweite Markierung ist überflüssig (Manual §6: 10).
             e["kategorie"] = "10"
             e["reason"] = f"<{s}> statt <{t}>: doppelte Längenmarkierung; der Zielvokal ist bereits markiert lang."
             _excl(e, "32", "Kein zusätzliches Vokalphonem, nur eine überzählige Markierung.")
-            return e
+            return [e]
+        if s == "ie" and t in ("ih", "ieh"):
+            e["kategorie"] = "09"
+            e["reason"] = "<ie> für <ih>: das Basisgraphem des langen /iː/ statt der markierten Schreibung (Original S. 21: *ien für ihn)."
+            _excl(e, "37", "Kein vertauschter Marker: <ie> ist die Grundschreibung des Lautes.")
+            return [e]
+        if s in ("ih", "ieh") and t == "ie":
+            e["kategorie"] = "10"
+            e["reason"] = "<ih> für <ie>: markierte Länge (Dehnungs-h) statt der Grundschreibung <ie>."
+            _excl(e, "37", "Zusätzliche Markierung, keine vertauschte.")
+            return [e]
         e["kategorie"] = "37"
-        e["reason"] = (f"<{s}> statt <{t}>: gleicher Vokal, aber die Längenmarkierung vertauscht (z. B. ee/eh) – "
+        e["reason"] = (f"<{s}> statt <{t}>: gleicher Vokal, aber die Längenmarkierung vertauscht (*Sahl, *seer, Original S. 25) – "
                        "weder fehlt eine Markierung (09) noch ist eine zu viel (10).")
         _excl(e, "34", "Der Vokal selbst ist richtig.")
-        return e
-    # Die Oppositionen 17/18 sind graphemisch definiert (Manual §7.2): e für ä
-    # ist 17, auch wenn das ä nicht ableitbar ist (Käse, Bär). Das Lexikon
-    # liefert nur die Erklärung für die Förderung.
+        return [e]
+
+    aus: list[dict] = []
+    laenge = vokallaenge(t_seg, op["ti"], lex)
     um = umlaut_merkmal(lex)
-    if (s, t) in {("e", "ä"), ("eu", "äu"), ("eh", "äh"), ("ee", "äh")}:
-        e["kategorie"] = "17"
-        zusatz = " Das Zielwort ist ableitbar (Umlaut vom Grundwort)." if um["wert"] is True else (
-                 " Das ä ist hier nicht ableitbar – ein Merkwort." if um["wert"] is False else "")
-        e["reason"] = f"<{s}> für <{t}>: Umlautschreibung nicht realisiert.{zusatz}"
-        _excl(e, "34", "e ↔ ä ist die spezifische Opposition 17 (Manual §7.2).")
-        return e
-    if (s, t) in {("ä", "e"), ("äu", "eu"), ("äh", "eh")}:
-        e["kategorie"] = "18"
-        e["reason"] = f"<{s}> für <{t}>: Umlautschreibung gesetzt, wo das Zielwort keinen Umlaut hat (Übergeneralisierung)."
-        _excl(e, "34", "ä ↔ e ist die spezifische Opposition 18 (Manual §7.2).")
-        return e
-    einfach_s = s if len(s) == 1 else None
-    einfach_t = t if len(t) == 1 else None
-
-    def paar(a: str | None, b: str | None) -> bool:
-        return bool(a and b and (UMLAUT.get(a) == b or UMLAUT.get(b) == a))
-
-    if (paar(einfach_s, einfach_t) or paar(LAENGENMARKER.get(s), LAENGENMARKER.get(t))
-            or (s, t) in {("au", "äu"), ("äu", "au")}):
-        e["kategorie"] = "36"
-        e["reason"] = f"<{s}> für <{t}>: Umlautbezeichnung (a/o/u ↔ ä/ö/ü) nicht bzw. falsch gesetzt."
-        _excl(e, "34", "a/o/u ↔ ä/ö/ü ist spezifisch 36 (Manual §7.2).")
-        return e
-    e["kategorie"] = "34"
-    e["reason"] = f"<{s}> für <{t}>: Vokalersatz ohne spezifische Regel."
-    _excl(e, "09", "Keine fehlende Längenmarkierung desselben Vokals.")
-    _excl(e, "17", "Nicht e/eu ↔ ä/äu.")
-    _excl(e, "36", "Kein Umlautpaar a/o/u ↔ ä/ö/ü.")
-    return e
+    zusatz = (" Das Zielwort ist ableitbar (Umlaut vom Grundwort)." if um["wert"] is True else
+              " Das ä ist hier nicht ableitbar – ein Merkwort." if um["wert"] is False else "")
+    paar_s = grund_s if len(grund_s) == 1 else s
+    paar_t = grund_t if len(grund_t) == 1 else t
+    if (paar_s, paar_t) == ("eu", "äu"):
+        e["kategorie"] = "17"; e["reason"] = f"<{s}> für <{t}>: Umlautschreibung nicht realisiert (eu für äu).{zusatz}"
+        _excl(e, "34", "eu ↔ äu ist die Opposition 17 ohne Längenbedingung (Original S. 22).")
+    elif (paar_s, paar_t) == ("äu", "eu"):
+        e["kategorie"] = "18"; e["reason"] = f"<{s}> für <{t}>: äu gesetzt, wo das Zielwort eu hat (Übergeneralisierung)."
+        _excl(e, "34", "äu ↔ eu ist die Opposition 18 (Original S. 23).")
+    elif (paar_s, paar_t) in {("e", "ä"), ("ä", "e")}:
+        nr = "17" if paar_s == "e" else "18"
+        e["featureSource"] = laenge["quelle"]; e["entscheidend"] = "Länge des Zielvokals (kurzes /ɛ/ → 17/18, langes /ɛː/ → 34)"
+        if laenge["wert"] == "kurz":
+            e["kategorie"] = nr
+            e["reason"] = (f"<{s}> für <{t}> bei kurzem /ɛ/ ({laenge.get('grund')}): "
+                           + ("Umlautschreibung nicht realisiert." if nr == "17" else "Umlaut gesetzt, wo keiner steht.") + zusatz)
+            _excl(e, "34", f"e ↔ ä bei kurzem /ɛ/ ist die Opposition {nr} (Original S. 22–23).")
+        elif laenge["wert"] == "lang":
+            e["kategorie"] = "34"
+            e["reason"] = (f"<{s}> für <{t}> bei langem /ɛː/ ({laenge.get('grund')}): Für den Langvokal ist die "
+                           f"Schreibung <{s}> systematisch nicht möglich – Falscher Vokal (Original S. 23: *Medchen, *gefehrlich; S. 25: *Mähl).")
+            _excl(e, nr, f"{nr} gilt nur bei kurzem /ɛ/ (Original S. 22–23).")
+        else:
+            e["status"] = "needs_context"; e["featureSource"] = "unbekannt"; e["kandidaten"] = [nr, "34"]
+            e["reason"] = f"<{s}> für <{t}>: Ob der Zielvokal kurz (→ {nr}) oder lang (→ 34) ist, steht nicht im Lexikon."
+    else:
+        def umlautpaar(a: str | None, b: str | None) -> bool:
+            return bool(a and b and (UMLAUT.get(a) == b or UMLAUT.get(b) == a))
+        if umlautpaar(paar_s, paar_t) or (paar_s, paar_t) in {("au", "äu"), ("äu", "au")}:
+            e["kategorie"] = "36"
+            e["reason"] = f"<{s}> für <{t}>: Umlautbezeichnung (a/o/u ↔ ä/ö/ü) nicht bzw. falsch gesetzt."
+            _excl(e, "34", "a/o/u ↔ ä/ö/ü ist spezifisch 36 (Original S. 25).")
+        else:
+            e["kategorie"] = "34"
+            e["reason"] = f"<{s}> für <{t}>: Vokalersatz ohne spezifische Regel."
+            _excl(e, "09", "Keine fehlende Längenmarkierung desselben Vokals.")
+            _excl(e, "17", "Nicht e/eu ↔ ä/äu bei kurzem /ɛ/.")
+            _excl(e, "36", "Kein Umlautpaar a/o/u ↔ ä/ö/ü.")
+    aus.append(e)
+    # Markerteil: Vokal falsch UND Längenmarkierung fehlt bzw. zu viel.
+    s_markiert, t_markiert = s in LAENGENMARKER, t in LAENGENMARKER
+    if t_markiert and not s_markiert and len(grund_s) == 1:
+        m = ereignis(studentGrapheme=s, targetGrapheme=t, kategorie="09")
+        m["reason"] = f"<{s}> für <{t}>: zusätzlich fehlt die Längenmarkierung (Original S. 21: *ungefer = 09 + 34)."
+        _excl(m, "31", "Kein Vokalphonem ausgelassen, nur die Markierung.")
+        aus.append(m)
+    elif s_markiert and not t_markiert and len(grund_t) == 1:
+        m = ereignis(studentGrapheme=s, targetGrapheme=t)
+        if laenge["wert"] == "kurz":
+            m["kategorie"] = "12"; m["reason"] = f"<{s}> für <{t}>: zusätzlich eine Längenmarkierung bei kurzem Zielvokal."
+        elif laenge["wert"] == "lang":
+            m["kategorie"] = "10"; m["reason"] = f"<{s}> für <{t}>: zusätzlich eine unnötige Längenmarkierung bei langem Zielvokal."
+        else:
+            m["status"] = "needs_context"; m["kandidaten"] = ["10", "12"]; m["featureSource"] = "unbekannt"
+            m["reason"] = f"<{s}> für <{t}>: zusätzliche Längenmarkierung; Länge des Zielvokals unbekannt."
+        aus.append(m)
+    return aus
 
 
 def konsonantersatz(op: dict, t_seg: list[dict], lex: dict | None) -> dict:
@@ -1050,6 +1191,19 @@ def konsonantersatz(op: dict, t_seg: list[dict], lex: dict | None) -> dict:
     if s in FREMDGRAPHEME or t in FREMDGRAPHEME:
         return fremdgraphem(op)
     rest = "".join(x["g"] for x in t_seg[op["ti"]:])
+    ziel = "".join(x["g"] for x in t_seg)
+    if s == "sch" and t == "s" and len(rest) > 1 and rest[1] in "tp" and (
+            op["ti"] == 0 or morphemgrenze(ziel, t_seg[op["ti"]]["at"], lex)["wert"] is True):
+        e = ereignis(studentGrapheme=s, targetGrapheme=t, kategorie="37")
+        e["reason"] = f"<sch> für <s> vor <{rest[1]}>: lautgetreue Schreibung des /ʃ/ im Anlaut-<s{rest[1]}> (Original S. 25: *Schtein) – Sonstige Fehler."
+        _excl(e, "30", "Kein zugefügtes Graphem: das <sch> ersetzt das <s>.")
+        _excl(e, "33", "Keine Konsonantenverwechslung im engeren Sinn, sondern die unmarkierte Aussprache.")
+        return e
+    if s == "sch" and t == "s":
+        e = ereignis(studentGrapheme="ch", targetGrapheme="", kategorie="30")
+        e["reason"] = "<sch> für <s>: das <s> ist vorhanden, <ch> wurde zugefügt (Original S. 48: *Luisch für Luis = 30)."
+        _excl(e, "33", "Kein Ersatz: das Zielgraphem <s> steht im Wort.")
+        return e
     if t == "t" and s in ("z", "tz") and rest.startswith("tion"):
         e = ereignis(studentGrapheme=s, targetGrapheme=t, kategorie="37")
         e["reason"] = "<z> für <t> in der Fremdendung -tion: t steht hier für /ts/ – Fremdwortschreibung, kein Konsonantenersatz."
@@ -1063,25 +1217,26 @@ def konsonantersatz(op: dict, t_seg: list[dict], lex: dict | None) -> dict:
         innen["reason"] = f"<{s}> für <{t}>, verdoppelt: " + innen["reason"]
         return innen
     e = ereignis(studentGrapheme=s, targetGrapheme=t)
-    rand = am_silbenrand(t_seg, op["ti"])
+    rand = am_silbenrand(t_seg, op["ti"], lex)
+    anfang = "am Wortanfang" if op["ti"] == 0 else "nicht im Silbenendrand"
     if STIMMLOS_FUER_STIMMHAFT.get(s) == t:
         if rand:
-            e["kategorie"] = "19"; e["reason"] = f"<{s}> für <{t}> am Silbenrand – Auslautverhärtung verschriftet."
-            _excl(e, "33", "p/t/k ↔ b/d/g am Silbenrand ist spezifisch 19 (Manual §7.3).")
+            e["kategorie"] = "19"; e["reason"] = f"<{s}> für <{t}> im Silbenendrand – Auslautverhärtung verschriftet."
+            _excl(e, "33", "p/t/k ↔ b/d/g im Silbenendrand ist spezifisch 19 (Original S. 23).")
         else:
-            e["kategorie"] = "33"; e["reason"] = f"<{s}> für <{t}>, aber nicht am Silbenrand – 19 gilt nur dort."
-            _excl(e, "19", "Stelle liegt nicht am Silbenrand.")
+            e["kategorie"] = "33"; e["reason"] = f"<{s}> für <{t}> {anfang} – 19 gilt nur im Silbenendrand (Original S. 18: *droz, *kroß)."
+            _excl(e, "19", f"Stelle liegt {anfang}.")
         return e
     if STIMMHAFT_FUER_STIMMLOS.get(s) == t:
         if rand:
-            e["kategorie"] = "20"; e["reason"] = f"<{s}> für <{t}> am Silbenrand – Umkehrung der Auslautverhärtung."
-            _excl(e, "33", "b/d/g ↔ p/t/k am Silbenrand ist spezifisch 20.")
+            e["kategorie"] = "20"; e["reason"] = f"<{s}> für <{t}> im Silbenendrand – Umkehrung der Auslautverhärtung."
+            _excl(e, "33", "b/d/g ↔ p/t/k im Silbenendrand ist spezifisch 20.")
         else:
-            e["kategorie"] = "33"; e["reason"] = f"<{s}> für <{t}>, aber nicht am Silbenrand."
-            _excl(e, "20", "Stelle liegt nicht am Silbenrand.")
+            e["kategorie"] = "33"; e["reason"] = f"<{s}> für <{t}> {anfang} (Original S. 18: *droz für trotz = 33, nicht 20)."
+            _excl(e, "20", f"Stelle liegt {anfang}.")
         return e
     if t == "v":
-        lw = v_lautwert(lex)
+        lw = v_lautwert(lex, ziel)
         e["featureSource"] = lw["quelle"]; e["entscheidend"] = "Lautwert des Ziel-<v> (/f/ oder /v/)"
         if s == "f":
             if lw["wert"] == "f":
@@ -1109,17 +1264,18 @@ def konsonantersatz(op: dict, t_seg: list[dict], lex: dict | None) -> dict:
         e["kategorie"] = "24"; e["reason"] = "<v> für <f> – Merkwortfall."; _excl(e, "33", "v/f ist spezifisch 24."); return e
     if s == "v" and t == "w":
         e["kategorie"] = "26"; e["reason"] = "<v> für <w> – Merkwortfall."; _excl(e, "33", "v/w ist spezifisch 26."); return e
+    nach_i = op["ti"] > 0 and t_seg[op["ti"] - 1]["g"] == "i"
     if s == "ch" and t == "g":
-        if rand:
-            e["kategorie"] = "27"; e["reason"] = "<ch> für <g> im Silbenende (-ig → -ich)."; _excl(e, "33", "ch/g im Silbenende ist spezifisch 27.")
+        if rand and nach_i:
+            e["kategorie"] = "27"; e["reason"] = "<ch> für <g> im Silbenende nach <i> (-ig → -ich)."; _excl(e, "33", "ch/g in -ig ist spezifisch 27 (Original S. 24).")
         else:
-            e["kategorie"] = "33"; e["reason"] = "<ch> für <g>, aber nicht im Silbenende."; _excl(e, "27", "Nicht im Silbenende.")
+            e["kategorie"] = "33"; e["reason"] = "<ch> für <g>, aber nicht in der Endung -ig – Falscher Konsonant."; _excl(e, "27", "27 betrifft die Endung -ig im Silbenende (Original S. 24).")
         return e
     if s == "g" and t == "ch":
-        if rand:
-            e["kategorie"] = "28"; e["reason"] = "<g> für <ch> im Silbenende (-ich → -ig)."; _excl(e, "33", "g/ch im Silbenende ist spezifisch 28.")
+        if rand and nach_i:
+            e["kategorie"] = "28"; e["reason"] = "<g> für <ch> im Silbenende nach <i> (-ich → -ig)."; _excl(e, "33", "g/ch in -ich ist spezifisch 28 (Original S. 24).")
         else:
-            e["kategorie"] = "33"; e["reason"] = "<g> für <ch>, aber nicht im Silbenende."; _excl(e, "28", "Nicht im Silbenende.")
+            e["kategorie"] = "33"; e["reason"] = "<g> für <ch>, aber nicht in der Endung -ich (Original S. 25: *Bug für Buch = 33)."; _excl(e, "28", "28 betrifft die Endung -ich im Silbenende.")
         return e
     e["kategorie"] = "33"
     e["reason"] = f"<{s}> für <{t}>: Konsonantenersatz ohne spezifische Regel."
@@ -1144,10 +1300,25 @@ def graphem_fehlt(op: dict) -> dict:
     return e
 
 
-def graphem_zuviel(op: dict) -> dict:
+def graphem_zuviel(op: dict, t_seg: list[dict] | None = None, lex: dict | None = None) -> dict:
     if op["s"] in FREMDGRAPHEME:
         return fremdgraphem({"s": op["s"], "t": ""})
     e = ereignis(studentGrapheme=op["s"], targetGrapheme="")
+    ti = op.get("ti")
+    if op["s"] == "h" and t_seg and isinstance(ti, int) and 0 < ti <= len(t_seg) and ist_vokal_graphem(t_seg[ti - 1]["g"]) \
+            and (ti == len(t_seg) or ist_konsonant_graphem(t_seg[ti]["g"])):
+        laenge = vokallaenge(t_seg, ti - 1, lex)
+        e["featureSource"] = laenge["quelle"]; e["entscheidend"] = "Länge des Vokals vor dem h"
+        if laenge["wert"] == "lang":
+            e["kategorie"] = "10"; e["reason"] = f"<h> nach <{t_seg[ti - 1]['g']}> zugefügt: Dehnungs-h, wo das Zielwort den Langvokal unmarkiert schreibt (Original S. 48: *seihn)."
+            _excl(e, "30", "Ein h nach Vokal ist ein Längenzeichen, kein Konsonantengraphem.")
+        elif laenge["wert"] == "kurz":
+            e["kategorie"] = "12"; e["reason"] = f"<h> nach <{t_seg[ti - 1]['g']}> zugefügt: Längenmarkierung bei kurzem Vokal."
+            _excl(e, "30", "Ein h nach Vokal ist ein Längenzeichen, kein Konsonantengraphem.")
+        else:
+            e["status"] = "needs_context"; e["featureSource"] = "unbekannt"; e["kandidaten"] = ["10", "12"]
+            e["reason"] = "<h> nach Vokal zugefügt: Längenzeichen; ob der Vokal lang (→ 10) oder kurz (→ 12) ist, steht nicht im Lexikon."
+        return e
     if not op["s"].isalpha():
         e["kategorie"] = "37"; e["reason"] = f"Zeichen <{op['s']}> zugefügt (Apostroph, Bindestrich o. Ä.) – kein Graphem, Sonstiges."
         return e
@@ -1160,57 +1331,102 @@ def graphem_zuviel(op: dict) -> dict:
     return e
 
 
-def teilgraphem(op: dict) -> dict:
+def _vokalisiertes_r(op: dict, t_seg: list[dict]) -> dict | None:
+    """<a> (oder <e>) für postvokalisches <r>: *mia für mir, *Tiea für Tier –
+    nur 29, das zugefügte a wird nicht als 32 gewertet (Original S. 24)."""
     s, t = op["s"], op["t"]
-    if t.endswith(s) or t.startswith(s):
-        rest = t[len(s):] if t.startswith(s) else t[:len(t) - len(s)]
-        e = graphem_fehlt({"t": rest}); e["studentGrapheme"] = s; e["targetGrapheme"] = t
-        e["reason"] = f"<{s}> für <{t}>: der Bestandteil <{rest}> fehlt."
+    ti = op["ti"]
+    if t == "r" and s in ("a", "e") and ti > 0 and ist_vokal_graphem(t_seg[ti - 1]["g"]) \
+            and (ti + 1 >= len(t_seg) or ist_konsonant_graphem(t_seg[ti + 1]["g"])):
+        e = ereignis(studentGrapheme=s, targetGrapheme=t, kategorie="29")
+        e["reason"] = (f"<{s}> für <{t}> nach Vokal: vokalisiertes r – das Konsonantenzeichen fehlt; "
+                       "das zugefügte a wird nicht gewertet (Original S. 24: *mia, *Tiea).")
+        _excl(e, "32", "Das a ersetzt das r, es ist kein zusätzlicher Vokal.")
+        _excl(e, "37", "Vokal für Konsonant ist hier ein bekanntes lautliches Muster.")
         return e
-    rest = s[len(t):] if s.startswith(t) else s[:len(s) - len(t)]
-    e = graphem_zuviel({"s": rest}); e["studentGrapheme"] = s; e["targetGrapheme"] = t
-    e["reason"] = f"<{s}> für <{t}>: der Bestandteil <{rest}> ist zu viel."
-    return e
+    return None
 
 
-def klassifiziere_op(op: dict, t_seg: list[dict], ziel: str, lex: dict | None) -> dict:
+def klassifiziere_op(op: dict, t_seg: list[dict], ziel: str, lex: dict | None) -> list[dict]:
+    """Ein Alignment-Schritt → ein oder mehrere OLFA-Ereignisse."""
     if op["op"] == "trans":
         e = ereignis(studentGrapheme="".join(op["s"]), targetGrapheme="".join(op["t"]), kategorie="35")
         e["reason"] = f"<{''.join(op['s'])}> für <{''.join(op['t'])}>: benachbarte Grapheme vertauscht – echte Transposition."
         _excl(e, "29+30", "Keine Auslassung plus Zufügung, sondern eine Umstellung (Manual §9.3).")
-        return e
+        return [e]
     if op["op"] == "del":
-        return graphem_fehlt(op)
+        return [graphem_fehlt(op)]
     if op["op"] == "ins":
-        return graphem_zuviel(op)
+        if "ß" in (op["s"] or ""):
+            return [eszett_ereignis(op["s"], "")]
+        return [graphem_zuviel(op, t_seg, lex)]
     s, t = op["s"], op["t"]
+    if "ß" in s:
+        return [eszett_ereignis(s, t)]
+    fremd = (lex or {}).get("fremd") or []
+    if op.get("ti") is not None and op["ti"] < len(t_seg) and t_seg[op["ti"]]["at"] in fremd:
+        e = fremdgraphem(op)
+        e["reason"] = (f"<{s}> für <{t}>: An dieser Stelle weicht die Schreibung des Fremdworts «{ziel}» von der "
+                       "deutschen Orthographie ab (Original S. 25–26: *Garasche = 37, *Karage = 33).")
+        return [e]
     if t in VERDOPPELUNG and VERDOPPELUNG[t] == s:
-        return verdoppelung_fehlt(op, t_seg, ziel, lex)
+        return [verdoppelung_fehlt(op, t_seg, ziel, lex)]
     if s in VERDOPPELUNG and VERDOPPELUNG[s] == t:
-        return verdoppelung_zuviel(op, t_seg, ziel, lex)
+        return [verdoppelung_zuviel(op, t_seg, ziel, lex)]
+    if t in VERDOPPELUNG and len(s) == 1 and STIMMHAFT_FUER_STIMMLOS.get(s) == VERDOPPELUNG[t]:
+        # *Sag für Sack, *zurüg, *schmegte: g für ck = ZWEI Fehler – 20 (g für k)
+        # und 07 (Einfachschreibung für Verdoppelung), Original S. 21 und 23.
+        einfach = VERDOPPELUNG[t]
+        a = konsonantersatz({**op, "t": einfach}, t_seg, lex)
+        a["targetGrapheme"] = t
+        a["reason"] = f"<{s}> für <{t}> (1/2): " + a["reason"]
+        b = verdoppelung_fehlt({**op, "s": einfach}, t_seg, ziel, lex)
+        b["studentGrapheme"] = s
+        b["reason"] = f"<{s}> für <{t}> (2/2): " + b["reason"] + " (Original S. 21: *Sag für Sack = 07 und 20.)"
+        return [a, b]
     if t in VERDOPPELUNG and len(s) == 2 and s[0] == s[1] and VERDOPPELUNG[t] == s[0]:
-        # «Kazze» für «Katze», «Zukker» für «Zucker»: Manual §6.1 führt das
-        # unter 07 – die Schärfung ist erkannt, das Schärfungsgraphem (tz, ck)
-        # nicht gewählt.
         e = ereignis(studentGrapheme=s, targetGrapheme=t, kategorie="07")
         e["reason"] = (f"<{s}> für <{t}>: Die Verdoppelung wurde erkannt, aber mit dem Buchstabenpaar statt "
                        f"dem Schärfungsgraphem <{t}> geschrieben (Manual §6.1: *Kazze → Katze).")
         _excl(e, "37", "Kein Sonstiges: Das Phänomen ist die Schärfung.")
-        return e
+        return [e]
     if s in FREMDGRAPHEME or t in FREMDGRAPHEME:
-        return fremdgraphem(op)
+        return [fremdgraphem(op)]
     if t in LAENGENMARKER and LAENGENMARKER[t] == s:
-        return markierung_fehlt(op)
+        return [markierung_fehlt(op)]
     if s in LAENGENMARKER and LAENGENMARKER[s] == t:
-        return markierung_zuviel(op, t_seg, lex)
+        return [markierung_zuviel(op, t_seg, lex)]
     if ist_vokal_graphem(s) and ist_vokal_graphem(t):
-        return vokalersatz(op, lex)
+        return vokalersatz(op, t_seg, lex)
     if ist_konsonant_graphem(s) and ist_konsonant_graphem(t):
-        if s != t and (s in t or t in s):
-            return teilgraphem(op)
-        return konsonantersatz(op, t_seg, lex)
+        # Kein Teilgraphem-Abgleich mehr: ng/g, sch/ch sind Verwechslungen
+        # (Original S. 25: *gig für ging = 33, «nicht Nr. 29»; *chön = 33).
+        return [konsonantersatz(op, t_seg, lex)]
+    r = _vokalisiertes_r(op, t_seg)
+    if r:
+        return [r]
     e = ereignis(studentGrapheme=s, targetGrapheme=t, kategorie="37")
     e["reason"] = f"<{s}> für <{t}>: Vokal und Konsonant vertauscht – kein spezifisches OLFA-Muster."
+    return [e]
+
+
+def eszett_ereignis(s: str, t: str) -> dict:
+    """Original S. 22/59, Version CH: 13–16 entfallen; ß-Schreibungen → 37."""
+    e = ereignis(studentGrapheme=s, targetGrapheme=t, kategorie="37", definition="de-CH")
+    e["reason"] = (f"<{s}> für <{t or '∅'}>: ß gibt es in der Schweizer Rechtschreibung nicht; die Kategorien 13–16 "
+                   "entfallen in der Version CH, solche Fehler werden unter 37 eingetragen (Original S. 22, 59).")
+    _excl(e, "13–16", "In der Schweizer Version gesperrt.")
+    _excl(e, "33", "Kein Konsonantenersatz: ß ist kein Graphem der Zielnorm.")
+    return e
+
+
+def formfehler_ereignis(schueler: str, ziel: str) -> dict:
+    """Falsche Wortform (*rufte für rief) = EIN Fehler unter 37 (Original S. 25)."""
+    e = ereignis(studentGrapheme=schueler.lower(), targetGrapheme=ziel.lower(), kategorie="37")
+    e["reason"] = (f"«{schueler}» für «{ziel}»: falsche Wortform (Flexion/Tempus), als ein Fehler unter 37 gewertet "
+                   "(Original S. 25: *rufte für rief). Grammatisch: Verbform – siehe Bereich B.")
+    e["possibleUnderlyingCause"] = "grammatisch: Wortform (B:Tempus/Verbformen)"
+    _excl(e, "29–35", "Eine Wortform wird nicht in Einzelgrapheme zerlegt.")
     return e
 
 
@@ -1247,30 +1463,73 @@ def _vokalpaar_auftrennen(s_seg: list[dict], ziel: str) -> list[dict]:
     return aus
 
 
+AUFTRENNBAR = {"sch": ["s", "ch"], "chs": ["ch", "s"], "ng": ["n", "g"],
+               "ei": ["e", "i"], "ai": ["a", "i"], "au": ["a", "u"], "eu": ["e", "u"], "äu": ["ä", "u"], "oi": ["o", "i"]}
+
+
+def _segmentvarianten(s_seg: list[dict], t_seg: list[dict]) -> list[list[dict]]:
+    """Das Kind hat Buchstaben geschrieben, keine Grapheme: «Prais» für Paris
+    enthält kein <ai>, sondern ein vertauschtes r und a (Original S. 48: 35);
+    «bischen» für bisschen kein <sch>, sondern <s> + <ch> (S. 21: 07). Für
+    jedes Mehrgraphem des Kindes, das im Zielwort nicht vorkommt, wird eine
+    Variante mit aufgetrennter Schreibung angeboten; gewählt wird die mit den
+    wenigsten Operationen, bei Gleichstand die ursprüngliche."""
+    ziel_g = {x["g"] for x in t_seg}
+    varianten = [s_seg]
+    for g, teile in AUFTRENNBAR.items():
+        if g in ziel_g or not any(x["g"] == g for x in s_seg):
+            continue
+        v: list[dict] = []
+        for x in s_seg:
+            if x["g"] == g:
+                pos = x["at"]
+                for teil in teile:
+                    v.append({"g": teil, "at": pos}); pos += len(teil)
+            else:
+                v.append(x)
+        varianten.append(v)
+    return varianten
+
+
+def _post_h(s_seg: list[dict]) -> frozenset[int]:
+    return frozenset(i for i, x in enumerate(s_seg)
+                     if x["g"] == "h" and i > 0 and ist_vokal_graphem(s_seg[i - 1]["g"]))
+
+
 def klassifiziere_wort(schueler: str, ziel: str, lexikon: dict | None = None,
-                       erzwingen: bool = False) -> dict[str, Any]:
+                       erzwingen: bool = False, formfehler: bool = False,
+                       ohne_gross_klein: bool = False) -> dict[str, Any]:
     lexikon = lexikon or {}
     lex = lexikon.get(ziel.lower())
-    aus = gross_klein(schueler, ziel)
+    aus = [] if ohne_gross_klein else gross_klein(schueler, ziel)
     s_seg, t_seg = segmentiere(schueler), segmentiere(ziel)
     if schueler.lower() == ziel.lower():
         return {"ereignisse": aus, "ops": [], "distanz": 0, "wortersetzung": False}
+    if formfehler:
+        aus.append(formfehler_ereignis(schueler, ziel))
+        return {"ereignisse": aus, "ops": [], "distanz": 1, "wortersetzung": False}
     s_seg = _vokalpaar_auftrennen(s_seg, ziel)
-    ops, distanz = align([x["g"] for x in s_seg], [x["g"] for x in t_seg])
+    beste: tuple[list[dict], int] | None = None
+    for variante in _segmentvarianten(s_seg, t_seg):
+        ops, distanz = align([x["g"] for x in variante], [x["g"] for x in t_seg], _post_h(variante))
+        if beste is None or distanz < beste[1]:
+            beste = (ops, distanz)
+    ops, distanz = beste  # type: ignore[misc]
     # Mehr als zwei Fünftel der Zielgrapheme abweichend: eher ein anderes Wort.
     grenze = max(1, math.ceil(0.4 * len(t_seg)))
     if distanz > grenze and not erzwingen:
         aus.append(ereignis(studentGrapheme=schueler.lower(), targetGrapheme=ziel.lower(), kategorie=None,
                             status="manual_review", kandidaten=[], featureSource="unbekannt",
-                            reason=f"{distanz} Graphemabweichungen bei {len(t_seg)} Zielgraphemen – das ist eher ein anderes Wort als eine Schreibung mit Fehlern."))
+                            reason=f"{distanz} Graphemabweichungen bei {len(t_seg)} Zielgraphemen – das ist eher ein anderes Wort "
+                                   "als eine Schreibung mit Fehlern (oder eine falsche Wortform, Original S. 25: ein Fehler unter 37)."))
         return {"ereignisse": aus, "ops": ops, "distanz": distanz, "wortersetzung": True}
     for op in ops:
         if op["op"] == "equal":
             continue
-        e = klassifiziere_op(op, t_seg, ziel, lex)
-        ti = op.get("ti")
-        e["charOffsetImWort"] = t_seg[ti]["at"] if ti is not None and ti < len(t_seg) else (t_seg[-1]["at"] if t_seg else 0)
-        aus.append(e)
+        for e in klassifiziere_op(op, t_seg, ziel, lex):
+            ti = op.get("ti")
+            e["charOffsetImWort"] = t_seg[ti]["at"] if ti is not None and ti < len(t_seg) else (t_seg[-1]["at"] if t_seg else 0)
+            aus.append(e)
     if {schueler.lower(), ziel.lower()} == {"das", "dass"}:
         for e in aus:
             e["possibleUnderlyingCause"] = "grammatisch: das/dass-Verwechslung (Konjunktion vs. Artikel/Pronomen)"
@@ -1302,15 +1561,9 @@ def validiere(e: dict, kontext: dict | None = None) -> dict:
     if e["kategorie"] == "31" and ist_marker:
         ablehnen("31 bei reiner Längenmarkierung", "09")
     if e["kategorie"] == "08" and kontext.get("vokalDavor") == "lang":
-        ablehnen("08 ohne Kurzvokal davor", "15" if t == "s" else "11")
-    if e["kategorie"] == "07" and s == "s" and t == "ss" and kontext.get("vokalDavor") == "lang":
-        ablehnen("07 bei s→ss nach Langvokal (A.5)", "13")
-    if e["kategorie"] in ("08", "11") and s == "ss" and t == "s" and kontext.get("vokalDavor") == "lang":
-        ablehnen("08/11 bei ss→s nach Langvokal (A.5)", "15")
+        ablehnen("08 ohne Kurzvokal davor", "11")
     if "ß" in t or "ß" in (kontext.get("ziel") or ""):
         ablehnen("Zielschreibung enthält ß (de-CH)", None)
-    if e["kategorie"] in ("13", "15"):
-        e["definition"] = "de-CH"
     e["validator"] = protokoll
     return e
 
@@ -1360,7 +1613,8 @@ def konsequenz_pruefen(e: dict) -> dict:
 def abschliessen(e: dict, kontext: dict | None = None, quellen: dict | None = None) -> dict:
     validiere(e, kontext)
     konsequenz_pruefen(e)
-    e["foerderbereich"] = AREA_MAP.get(e["kategorie"]) if e["kategorie"] else None
+    e["foerderbereich"] = ("F3" if e.get("f3") else AREA_MAP.get(e["kategorie"])) if e["kategorie"] else None
+    e["gruppe"] = GRUPPEN.get(e["kategorie"]) if e["kategorie"] else None
     e["name"] = KURZNAME.get(e["kategorie"]) if e["kategorie"] else None
     e["locale"] = "de-CH"; e["area"] = "A"
     konfidenz(e, quellen)
@@ -1448,12 +1702,27 @@ def wortgrenzen_ergebnis(teile: list[str], ziel: str, lexikon: dict | None = Non
     aus Manual §5.1: «Zahn arzt» ist 04 PLUS 01, «Zahn Arzt» nur 04. Bei 06
     entfällt der Zusatz: Ein abgetrenntes Suffix («in») ist kein Nomen."""
     aus = [wortgrenzen_ereignis(teile, ziel, lexikon)]
-    if ziel[:1].isupper() and aus[0]["kategorie"] == "04":
-        for teil in teile[1:]:
-            if teil[:1].islower():
+    if aus[0]["kategorie"] == "04":
+        if ziel[:1].isupper():
+            # Original S. 20: *Zahn Arzt und *mit Leid = nur 04 (das abgetrennte
+            # Nomen ist gross); *Zahn arzt, *mit leid = 04 + 01. Massgeblich ist
+            # der Kopf des Kompositums; ein Fehler je Wort (S. 48: *rein gehen).
+            kopf = teile[-1]
+            if kopf[:1].islower():
                 aus.append(ereignis(
-                    studentGrapheme=teil[0], targetGrapheme=teil[0].upper(), kategorie="01",
-                    reason=f"«{teil}» als abgetrennter Nomenbestandteil kleingeschrieben (Manual §5.1)."))
+                    studentGrapheme=kopf[0], targetGrapheme=kopf[0].upper(), kategorie="01",
+                    reason=f"«{kopf}» als Kopf des Nomens «{ziel}» kleingeschrieben (Original S. 20: *Zahn arzt = 04 + 01)."))
+        else:
+            for teil in teile:
+                if teil[:1].isupper():
+                    aus.append(ereignis(
+                        studentGrapheme=teil[0], targetGrapheme=teil[0].lower(), kategorie="02",
+                        reason=f"«{teil}» grossgeschrieben, obwohl «{ziel}» kein Nomen ist (Original S. 48: *weiter Reisen = 04 + 02)."))
+    # Innere Fehler der Teile: «Zahn Artzt» ist 04 plus 11.
+    zusammen = "".join(teile)
+    if zusammen.lower() != ziel.lower():
+        r = klassifiziere_wort(zusammen.lower(), ziel.lower(), lexikon, erzwingen=True, ohne_gross_klein=True)
+        aus.extend(r["ereignisse"])
     return aus
 
 
@@ -1464,6 +1733,16 @@ def zusammenschreibung_ereignis(schuelerwort: str, ziel: str) -> dict:
     _excl(e, "04", "Nicht getrennt statt zusammen, sondern umgekehrt.")
     e["featureSource"] = "heuristik"
     return e
+
+
+def zusammenschreibung_ergebnis(schuelerwort: str, ziel: str, lexikon: dict | None = None) -> list[dict]:
+    """05 samt inneren Fehlern: *garnich für «gar nicht» = 05 + 29 (Original S. 48)."""
+    aus = [zusammenschreibung_ereignis(schuelerwort, ziel)]
+    ziel_zusammen = re.sub(r"\s+", "", ziel)
+    if schuelerwort.lower() != ziel_zusammen.lower():
+        r = klassifiziere_wort(schuelerwort.lower(), ziel_zusammen.lower(), lexikon, erzwingen=True, ohne_gross_klein=True)
+        aus.extend(r["ereignisse"])
+    return aus
 
 
 # ------------------------------------- Deterministische Vorprüfungen -------
@@ -1583,9 +1862,9 @@ def analysiere_diktat(referenz: str, schuelertext: str, lexikon: dict | None = N
             zusaetzlich.append({"wort": p["schueler"], "satz": p["satz"], "at": p["at"]}); setze(p["schuelerTok"], "zusatz"); continue
         if art == "zusammen":
             zw = " ".join(p["zielWoerter"])
-            e = ereignis(studentGrapheme=p["schueler"], targetGrapheme=zw, kategorie="05",
-                         reason=f"«{p['schueler']}» statt «{zw}»: mehrere Wörter zusammengeschrieben.")
-            fertig(e, p, zw); setze(p["schuelerTok"], "fehler"); continue
+            for e in zusammenschreibung_ergebnis(p["schueler"], zw, lexikon):
+                fertig(e, p, zw)
+            setze(p["schuelerTok"], "fehler"); continue
         if art == "getrennt":
             for e in wortgrenzen_ergebnis(p["schuelerWoerter"], p["ziel"], lexikon):
                 fertig(e, p, p["ziel"])
@@ -1699,11 +1978,12 @@ def analysiere_liste(liste: Iterable[dict], schuelertext: str, lexikon: dict | N
             if normalisieren(tok["wort"]) != normalisieren(re.sub(r"\s+", "", ziel)):
                 verworfen.append({**z, "grund": "Zielform mit Leerzeichen passt nicht zum zusammengeschriebenen Wort"})
                 continue
-            festhalten(zusammenschreibung_ereignis(tok["wort"], ziel), tok, tok["wort"], ziel, sicherheit)
+            for e in zusammenschreibung_ergebnis(tok["wort"], ziel, lexikon):
+                festhalten(e, tok, tok["wort"], ziel, sicherheit)
             abdeckung[tok["index"]]["status"] = "fehler"
             continue
 
-        for e in klassifiziere_wort(tok["wort"], ziel, lexikon)["ereignisse"]:
+        for e in klassifiziere_wort(tok["wort"], ziel, lexikon, formfehler=bool(z.get("formfehler")))["ereignisse"]:
             festhalten(e, tok, tok["wort"], ziel, sicherheit)
         abdeckung[tok["index"]]["status"] = "fehler"
 
@@ -1731,12 +2011,12 @@ GOLDSTANDARD: list[dict[str, Any]] = [
     {"s": "Klatz", "t": "Platz", "erwartet": ["33"], "quelle": "§19"},
     {"s": "Graten", "t": "Garten", "erwartet": ["35"], "quelle": "§19"},
     {"s": "fuhrte", "t": "führte", "erwartet": ["36"], "quelle": "§19"},
-    {"s": "Fus", "t": "Fuss", "erwartet": ["13"], "quelle": "A.1"},
-    {"s": "Strase", "t": "Strasse", "erwartet": ["13"], "quelle": "A.1"},
-    {"s": "heisen", "t": "heissen", "erwartet": ["13"], "quelle": "A.1"},
-    {"s": "gros", "t": "gross", "erwartet": ["13"], "quelle": "A.1"},
-    {"s": "Preisse", "t": "Preise", "erwartet": ["15"], "quelle": "A.1"},
-    {"s": "Häusser", "t": "Häuser", "erwartet": ["15"], "quelle": "A.1"},
+    {"s": "Fus", "t": "Fuss", "erwartet": ["07"], "quelle": "A.1"},
+    {"s": "Strase", "t": "Strasse", "erwartet": ["07"], "quelle": "A.1"},
+    {"s": "heisen", "t": "heissen", "erwartet": ["07"], "quelle": "A.1"},
+    {"s": "gros", "t": "gross", "erwartet": ["07"], "quelle": "A.1"},
+    {"s": "Preisse", "t": "Preise", "erwartet": ["11"], "quelle": "A.1"},
+    {"s": "Häusser", "t": "Häuser", "erwartet": ["11"], "quelle": "A.1"},
     {"s": "musen", "t": "müssen", "erwartet": ["36", "07"], "quelle": "A.4"},
     {"s": "Buss", "t": "Bus", "erwartet": ["08"], "quelle": "A.4"},
     {"s": "warscheinlich", "t": "wahrscheinlich", "erwartet": ["09"], "quelle": "Bau-Prompt §14"},
@@ -1781,7 +2061,7 @@ GOLDSTANDARD: list[dict[str, Any]] = [
     {"s": "gefahrlich", "t": "gefährlich", "erwartet": ["36"], "quelle": "§9"},
     {"s": "erkähltet", "t": "erkältet", "erwartet": ["12"], "quelle": "§6"},
     {"s": "Nus", "t": "Nuss", "erwartet": ["07"], "quelle": "Lexikon: u in Nuss ist kurz"},
-    {"s": "Gose", "t": "Gosse", "erwartet": ["needs_context"], "quelle": "Bau-Prompt Stufe 2 (07/13 → F1/F3, Wort nicht im Lexikon)"},
+    {"s": "Gose", "t": "Gosse", "erwartet": ["07"], "quelle": "Bau-Prompt Stufe 2 (07/13 → F1/F3, Wort nicht im Lexikon)"},
     {"s": "gehrn", "t": "gern", "erwartet": ["resolved_by_area"], "quelle": "Ergänzung C.1 (10/12 → beide F2; vor r+Konsonant nicht ablesbar)"},
     # --- Grenzfallkorpus: je Fall die Regel, aus der die Erwartung folgt ------
     {"s": 'garten', "t": 'Garten', "erwartet": ['01'], "quelle": 'Korpus: Nomen klein: 01'},
@@ -1822,34 +2102,34 @@ GOLDSTANDARD: list[dict[str, Any]] = [
     {"s": 'Zukker', "t": 'Zucker', "erwartet": ['07'], "quelle": 'Korpus: analog Kazze: Verdoppelung erkannt, ck nicht gewählt'},
     {"s": 'Karote', "t": 'Karotte', "erwartet": ['07'], "quelle": 'Korpus: Fremdwort mit Kurzvokal o vor tt'},
     {"s": 'Renrad', "t": 'Rennrad', "erwartet": ['07'], "quelle": 'Korpus: nn gehört zur Schärfung in renn-, keine Morphemfuge'},
-    {"s": 'drausen', "t": 'draussen', "erwartet": ['13'], "quelle": 'Korpus: Diphthong au'},
-    {"s": 'Spies', "t": 'Spiess', "erwartet": ['13'], "quelle": 'Korpus: Langvokal ie'},
-    {"s": 'Grus', "t": 'Gruss', "erwartet": ['13'], "quelle": 'Korpus: Langvokal u'},
-    {"s": 'weis', "t": 'weiss', "erwartet": ['13'], "quelle": 'Korpus: Diphthong ei'},
-    {"s": 'Fleis', "t": 'Fleiss', "erwartet": ['13'], "quelle": 'Korpus: Diphthong ei'},
-    {"s": 'reisen', "t": 'reissen', "erwartet": ['13'], "quelle": 'Korpus: Diphthong ei (reisen ist ein anderes Wort – die Form entscheidet)'},
-    {"s": 'beisen', "t": 'beissen', "erwartet": ['13'], "quelle": 'Korpus: Diphthong ei'},
-    {"s": 'schliesen', "t": 'schliessen', "erwartet": ['13'], "quelle": 'Korpus: Langvokal ie'},
-    {"s": 'Schweis', "t": 'Schweiss', "erwartet": ['13'], "quelle": 'Korpus: Diphthong ei'},
-    {"s": 'süs', "t": 'süss', "erwartet": ['13'], "quelle": 'Korpus: Langvokal ü'},
-    {"s": 'Stos', "t": 'Stoss', "erwartet": ['13'], "quelle": 'Korpus: Langvokal o'},
-    {"s": 'Mas', "t": 'Mass', "erwartet": ['13'], "quelle": 'Korpus: Langvokal a (das Mass)'},
-    {"s": 'Spas', "t": 'Spass', "erwartet": ['13'], "quelle": 'Korpus: Langvokal a'},
-    {"s": 'Fusbal', "t": 'Fussball', "erwartet": ['13', '07'], "quelle": 'Korpus: zwei Stellen: Langvokal u (13) und Kurzvokal a (07)'},
-    {"s": 'Reiss', "t": 'Reis', "erwartet": ['15'], "quelle": 'Korpus: Diphthong ei'},
-    {"s": 'Eiss', "t": 'Eis', "erwartet": ['15'], "quelle": 'Korpus: Diphthong ei'},
-    {"s": 'Kreiss', "t": 'Kreis', "erwartet": ['15'], "quelle": 'Korpus: Diphthong ei'},
-    {"s": 'Hasse', "t": 'Hase', "erwartet": ['15'], "quelle": 'Korpus: Langvokal a'},
-    {"s": 'Nasse', "t": 'Nase', "erwartet": ['15'], "quelle": 'Korpus: Langvokal a'},
-    {"s": 'Rosse', "t": 'Rose', "erwartet": ['15'], "quelle": 'Korpus: Langvokal o'},
-    {"s": 'lessen', "t": 'lesen', "erwartet": ['15'], "quelle": 'Korpus: Langvokal e'},
-    {"s": 'Glass', "t": 'Glas', "erwartet": ['15'], "quelle": 'Korpus: Langvokal a – nicht 08'},
-    {"s": 'Grass', "t": 'Gras', "erwartet": ['15'], "quelle": 'Korpus: Langvokal a'},
-    {"s": 'Riesse', "t": 'Riese', "erwartet": ['15'], "quelle": 'Korpus: Langvokal ie'},
-    {"s": 'Hauss', "t": 'Haus', "erwartet": ['15'], "quelle": 'Korpus: Diphthong au'},
-    {"s": 'Mauss', "t": 'Maus', "erwartet": ['15'], "quelle": 'Korpus: Diphthong au'},
-    {"s": 'Gemüsse', "t": 'Gemüse', "erwartet": ['15'], "quelle": 'Korpus: Langvokal ü'},
-    {"s": 'Kesse', "t": 'Käse', "erwartet": ['17', '15'], "quelle": 'Korpus: e für ä (17) und ss nach langem ä (15)'},
+    {"s": "drausen", "t": "draussen", "erwartet": ["07"], "quelle": 'Korpus: Diphthong au'},
+    {"s": "Spies", "t": "Spiess", "erwartet": ["07"], "quelle": 'Korpus: Langvokal ie'},
+    {"s": "Grus", "t": "Gruss", "erwartet": ["07"], "quelle": 'Korpus: Langvokal u'},
+    {"s": "weis", "t": "weiss", "erwartet": ["07"], "quelle": 'Korpus: Diphthong ei'},
+    {"s": "Fleis", "t": "Fleiss", "erwartet": ["07"], "quelle": 'Korpus: Diphthong ei'},
+    {"s": "reisen", "t": "reissen", "erwartet": ["07"], "quelle": 'Korpus: Diphthong ei (reisen ist ein anderes Wort – die Form entscheidet)'},
+    {"s": "beisen", "t": "beissen", "erwartet": ["07"], "quelle": 'Korpus: Diphthong ei'},
+    {"s": "schliesen", "t": "schliessen", "erwartet": ["07"], "quelle": 'Korpus: Langvokal ie'},
+    {"s": "Schweis", "t": "Schweiss", "erwartet": ["07"], "quelle": 'Korpus: Diphthong ei'},
+    {"s": "süs", "t": "süss", "erwartet": ["07"], "quelle": 'Korpus: Langvokal ü'},
+    {"s": "Stos", "t": "Stoss", "erwartet": ["07"], "quelle": 'Korpus: Langvokal o'},
+    {"s": "Mas", "t": "Mass", "erwartet": ["07"], "quelle": 'Korpus: Langvokal a (das Mass)'},
+    {"s": "Spas", "t": "Spass", "erwartet": ["07"], "quelle": 'Korpus: Langvokal a'},
+    {"s": "Fusbal", "t": "Fussball", "erwartet": ["07", "07"], "quelle": 'Korpus: zwei Stellen: Langvokal u (13) und Kurzvokal a (07)'},
+    {"s": "Reiss", "t": "Reis", "erwartet": ["11"], "quelle": 'Korpus: Diphthong ei'},
+    {"s": "Eiss", "t": "Eis", "erwartet": ["11"], "quelle": 'Korpus: Diphthong ei'},
+    {"s": "Kreiss", "t": "Kreis", "erwartet": ["11"], "quelle": 'Korpus: Diphthong ei'},
+    {"s": "Hasse", "t": "Hase", "erwartet": ["11"], "quelle": 'Korpus: Langvokal a'},
+    {"s": "Nasse", "t": "Nase", "erwartet": ["11"], "quelle": 'Korpus: Langvokal a'},
+    {"s": "Rosse", "t": "Rose", "erwartet": ["11"], "quelle": 'Korpus: Langvokal o'},
+    {"s": "lessen", "t": "lesen", "erwartet": ["11"], "quelle": 'Korpus: Langvokal e'},
+    {"s": "Glass", "t": "Glas", "erwartet": ["11"], "quelle": 'Korpus: Langvokal a – nicht 08'},
+    {"s": "Grass", "t": "Gras", "erwartet": ["11"], "quelle": 'Korpus: Langvokal a'},
+    {"s": "Riesse", "t": "Riese", "erwartet": ["11"], "quelle": 'Korpus: Langvokal ie'},
+    {"s": "Hauss", "t": "Haus", "erwartet": ["11"], "quelle": 'Korpus: Diphthong au'},
+    {"s": "Mauss", "t": "Maus", "erwartet": ["11"], "quelle": 'Korpus: Diphthong au'},
+    {"s": "Gemüsse", "t": "Gemüse", "erwartet": ["11"], "quelle": 'Korpus: Langvokal ü'},
+    {"s": "Kesse", "t": "Käse", "erwartet": ["34", "11"], "quelle": 'Korpus: e für ä (17) und ss nach langem ä (15)'},
     {"s": 'mitt', "t": 'mit', "erwartet": ['08'], "quelle": 'Korpus: Kurzvokal i'},
     {"s": 'ann', "t": 'an', "erwartet": ['08'], "quelle": 'Korpus: Kurzvokal a'},
     {"s": 'umm', "t": 'um', "erwartet": ['08'], "quelle": 'Korpus: Kurzvokal u'},
@@ -1894,29 +2174,29 @@ GOLDSTANDARD: list[dict[str, Any]] = [
     {"s": 'ruig', "t": 'ruhig', "erwartet": ['09'], "quelle": 'Korpus: Dehnungs-h fehlt'},
     {"s": 'Reie', "t": 'Reihe', "erwartet": ['29'], "quelle": 'Korpus: h nach Diphthong ist kein Längenzeichen, sondern ein Konsonantenzeichen'},
     {"s": 'Tuhr', "t": 'Tur', "erwartet": ['10'], "quelle": 'Korpus: Manual §19'},
-    {"s": 'Tieger', "t": 'Tiger', "erwartet": ['10'], "quelle": 'Korpus: i ist lang, aber ohne ie geschrieben'},
-    {"s": 'Maschiene', "t": 'Maschine', "erwartet": ['10'], "quelle": 'Korpus: i lang ohne ie – 10, nicht 12'},
-    {"s": 'Kieno', "t": 'Kino', "erwartet": ['10'], "quelle": 'Korpus: i lang'},
-    {"s": 'Musiek', "t": 'Musik', "erwartet": ['10'], "quelle": 'Korpus: i lang'},
-    {"s": 'Biebel', "t": 'Bibel', "erwartet": ['10'], "quelle": 'Korpus: i lang'},
+    {"s": "Tieger", "t": "Tiger", "erwartet": ["37"], "quelle": 'Korpus: i ist lang, aber ohne ie geschrieben'},
+    {"s": "Maschiene", "t": "Maschine", "erwartet": ["37"], "quelle": 'Korpus: i lang ohne ie – 10, nicht 12'},
+    {"s": "Kieno", "t": "Kino", "erwartet": ["37"], "quelle": 'Korpus: i lang'},
+    {"s": "Musiek", "t": "Musik", "erwartet": ["37"], "quelle": 'Korpus: i lang'},
+    {"s": "Biebel", "t": "Bibel", "erwartet": ["37"], "quelle": 'Korpus: i lang'},
     {"s": 'nähmlich', "t": 'nämlich', "erwartet": ['10'], "quelle": 'Korpus: ä lang, h überflüssig'},
     {"s": 'Tohr', "t": 'Tor', "erwartet": ['10'], "quelle": 'Korpus: o lang'},
     {"s": 'Tühr', "t": 'Tür', "erwartet": ['10'], "quelle": 'Korpus: ü lang'},
     {"s": 'Nahme', "t": 'Name', "erwartet": ['10'], "quelle": 'Korpus: a lang'},
     {"s": 'Baahn', "t": 'Bahn', "erwartet": ['10'], "quelle": 'Korpus: Manual §6'},
-    {"s": 'wieder', "t": 'wider', "erwartet": ['10'], "quelle": 'Korpus: i in wider ist lang, ie überflüssig'},
+    {"s": "wieder", "t": "wider", "erwartet": ["37"], "quelle": "Original S. 21/25: ie für einfaches i bei /iː/ = 37 (Merkwort)"},
     {"s": 'Tiesch', "t": 'Tisch', "erwartet": ['12'], "quelle": 'Korpus: Manual §6'},
     {"s": 'Kiend', "t": 'Kind', "erwartet": ['12'], "quelle": 'Korpus: i kurz'},
     {"s": 'Fiesch', "t": 'Fisch', "erwartet": ['12'], "quelle": 'Korpus: i kurz'},
     {"s": 'Kahrte', "t": 'Karte', "erwartet": ['12'], "quelle": 'Korpus: a kurz'},
     {"s": 'Wahld', "t": 'Wald', "erwartet": ['12'], "quelle": 'Korpus: a kurz'},
     {"s": 'Sohne', "t": 'Sonne', "erwartet": ['12', '07'], "quelle": 'Korpus: h bei Kurzvokal (12) und fehlende Verdoppelung (07)'},
-    {"s": 'Beren', "t": 'Bären', "erwartet": ['17'], "quelle": 'Korpus: Manual §7.2'},
+    {"s": "Beren", "t": "Bären", "erwartet": ["34"], "quelle": "Original S. 23: e für langes ä = 34, nicht 17"},
     {"s": 'Heuser', "t": 'Häuser', "erwartet": ['17'], "quelle": 'Korpus: eu für äu'},
-    {"s": 'Kese', "t": 'Käse', "erwartet": ['17'], "quelle": 'Korpus: e für ä – auch ohne Ableitungsbasis ist die Form 17'},
+    {"s": "Kese", "t": "Käse", "erwartet": ["34"], "quelle": "Original S. 23: e für langes ä = 34, nicht 17"},
     {"s": 'Setze', "t": 'Sätze', "erwartet": ['17'], "quelle": 'Korpus: e für ä (Setze ist ein anderes Wort)'},
-    {"s": 'spet', "t": 'spät', "erwartet": ['17'], "quelle": 'Korpus: e für ä, nicht ableitbar – trotzdem 17'},
-    {"s": 'Ber', "t": 'Bär', "erwartet": ['17'], "quelle": 'Korpus: e für ä, nicht ableitbar – trotzdem 17'},
+    {"s": "spet", "t": "spät", "erwartet": ["34"], "quelle": "Original S. 23: e für langes ä = 34, nicht 17"},
+    {"s": "Ber", "t": "Bär", "erwartet": ["34"], "quelle": "Original S. 23: e für langes ä = 34, nicht 17"},
     {"s": 'Ältern', "t": 'Eltern', "erwartet": ['18'], "quelle": 'Korpus: ä für e – die Ableitung von alt führt in die Irre'},
     {"s": 'Bärg', "t": 'Berg', "erwartet": ['18'], "quelle": 'Korpus: ä für e'},
     {"s": 'Fräund', "t": 'Freund', "erwartet": ['18'], "quelle": 'Korpus: äu für eu'},
@@ -1960,8 +2240,8 @@ GOLDSTANDARD: list[dict[str, Any]] = [
     {"s": 'wenich', "t": 'wenig', "erwartet": ['27'], "quelle": 'Korpus: -ig → -ich'},
     {"s": 'Könich', "t": 'König', "erwartet": ['27'], "quelle": 'Korpus: -ig → -ich'},
     {"s": 'richtich', "t": 'richtig', "erwartet": ['27'], "quelle": 'Korpus: -ig → -ich'},
-    {"s": 'Zuch', "t": 'Zug', "erwartet": ['27'], "quelle": 'Korpus: ch für g im Silbenende'},
-    {"s": 'Berch', "t": 'Berg', "erwartet": ['27'], "quelle": 'Korpus: ch für g im Silbenende'},
+    {"s": "Zuch", "t": "Zug", "erwartet": ["33"], "quelle": "Original S. 24/25: 27 nur in -ig; ch für g im Stamm = 33 (vgl. *Bug für Buch)"},
+    {"s": "Berch", "t": "Berg", "erwartet": ["33"], "quelle": "Original S. 24/25: 27 nur in -ig; ch für g im Stamm = 33 (vgl. *Bug für Buch)"},
     {"s": 'sachen', "t": 'sagen', "erwartet": ['33'], "quelle": 'Korpus: ch für g im Silbenanlaut – nicht Silbenende, daher 33'},
     {"s": 'endlig', "t": 'endlich', "erwartet": ['28'], "quelle": 'Korpus: -ich → -ig'},
     {"s": 'mig', "t": 'mich', "erwartet": ['28'], "quelle": 'Korpus: g für ch im Silbenende'},
@@ -1980,7 +2260,7 @@ GOLDSTANDARD: list[dict[str, Any]] = [
     {"s": 'vir', "t": 'wir', "erwartet": ['26'], "quelle": 'Korpus: v für w'},
     {"s": 'venn', "t": 'wenn', "erwartet": ['26'], "quelle": 'Korpus: v für w'},
     {"s": 'Vald', "t": 'Wald', "erwartet": ['26'], "quelle": 'Korpus: v für w'},
-    {"s": 'Sule', "t": 'Schule', "erwartet": ['29'], "quelle": 'Korpus: Manual §9'},
+    {"s": "Sule", "t": "Schule", "erwartet": ["33"], "quelle": "Original S. 25: Graphem für Graphem (*chön = 33); s für sch ist ein Ersatz, kein fehlendes Graphem"},
     {"s": 'Blmen', "t": 'Blumen', "erwartet": ['31'], "quelle": 'Korpus: Manual §9'},
     {"s": 'komn', "t": 'kommen', "erwartet": ['07', '31'], "quelle": 'Korpus: m für mm (07) und e der Endung fehlt (31)'},
     {"s": 'Kinider', "t": 'Kinder', "erwartet": ['32'], "quelle": 'Korpus: Manual §9'},

@@ -86,7 +86,7 @@ Rechtschreibbereiche (S. 27): 01–03 Gross/Klein; 04–06 Getrennt/Zusammen; 07
 - **Gesamtfehler = Nrn. 1–37**; **F/100 = Gesamtfehler × 100 / Wörter** (S. 32).
 - **TF** (Tabelle 5, S. 30): 3. Mitte 21,5; Ende 3./Anf. 4. 16,4; 4. Mitte 13,3; Ende 4./Anf. 5. 11,1; ab 5. Klasse Gymnasium / Realschule / GS-HS: 5. Mitte 7,2 / 9,7 / 12,2; Ende 5. 6,0 / 8,7 / 11,5; 6. Mitte 5,0 / 8,0 / 11,0; Ende 6. 4,3 / 7,5 / 10,8; 7. Mitte 3,7 / 7,2 / 10,7; Ende 7. 3,2 / 7,0 / 10,7; 8. Mitte 2,8 / 6,8 / 10,8; Ende 8. 2,5 / 6,7 / 11,0; 9. Mitte 2,2 / 6,7 / 11,2. Formeln (S. 29): Gymn. 180/KL², RS 180/KL² + KL/2, HS/GS 180/KL² + KL.
 - **RF = F/100 : TF** (S. 34). **LW = (II % + III %) − (I % · RF)** (S. 35). Beispiel Olaf: F/100 23,9, TF 7,2 → RF 3,3; LW = 77 − 23·3,3 = 1,1 (S. 35).
-- Kontrollbefund Abb. 7 (S. 49): LW −443 entspricht 33,8 − 66,2·7,2, also RF = TF statt F/100 : TF; nach der Formel S. 35 ergäbe sich −416. **Das Tool folgt der Formel S. 34/35 und weist den Rechenweg aus.**
+- Kontrollbefund Abb. 7 (S. 49): LW −443 entspricht 33,8 − 66,2·7,2, also RF = TF statt F/100 : TF; nach der Formel S. 35 ergäbe sich −416 (mit den Prozenten nach S. 32: −417). **Das Tool folgt den Formeln S. 32–35 und weist den Rechenweg aus.**
 - KW und LW alle 2–3 Monate dokumentieren; sie sollen steigen und sich annähern; Differenz = orthographische Verunsicherung (S. 37). Sinkende Werte können kognitive Umstrukturierung anzeigen (S. 38).
 
 ## 7 Version 2 (S. 28, 58)
@@ -103,6 +103,8 @@ Zusätzliche Marker in der Liste: 01 «davon Abstrakta», 02 «davon Verben», 0
 | W4 | \*Epermntlarbor für Experimentallabor: Original zählt 4 Fehler, obwohl auch a und l (al\|labor) fehlen; Original weist selbst auf «kleine bis grössere Abweichungen» hin | S. 48 |
 | W5 | \*sag für Sack = 3 Fehler (S. 19) und \*Sag für Sack = 2 Fehler (S. 21) – konsistent (Grossschreibung), aber leicht zu verwechseln | S. 19, 21 |
 | W6 | Alternativlesarten ausdrücklich erlaubt: \*tz in \*Bodigatz auch als \*ts; \*s in \*gansen auch als z; \*koste für kostet(e) 29 oder 31 | S. 48 |
+| W7 | ng für g: in \*Fergungung (Z. 7) als 30 gezählt, in \*ubrings (Z. 14) und bei \*gig (S. 25) als 33 | S. 25, 48 |
+| W8 | Abb. 7 druckt 66,2 / 26,5 / 7,3 % (55/83 = 66,27 abgerundet) und KW −32; nach S. 32 (eine Nachkommastelle) ergibt sich 66,3 / 26,5 / 7,2 und KW −33 | S. 32, 49 |
 
 ## 9 Goldstandard aus dem Original
 

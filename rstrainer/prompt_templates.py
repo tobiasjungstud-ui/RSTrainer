@@ -54,7 +54,7 @@ Rückgabeformats."""
 
 #: Das Werkzeug ist ausschliesslich auf die Schweizer Rechtschreibung
 #: ausgelegt. Es gibt keine Variantenumschaltung – ein ß darf nirgends
-#: entstehen, und die Kategorien 13 und 15 sind entsprechend gesperrt.
+#: entstehen; die Kategorien 13–16 entfallen (Version CH der OLFA-Liste).
 RECHTSCHREIBHINWEIS = (
     "Verwende durchgehend die Schweizer Rechtschreibung: KEIN ß, stattdessen "
     "immer ss (also «Strasse», «gross», «dass», «heisst»). Ein ß ist in keinem "
@@ -198,10 +198,10 @@ heissen, draussen) in denselben Text.""",
 SCHWEIZ_REGEL = (
     "WICHTIG – Schweizer Rechtschreibung (de-CH): Es gibt kein ß. «Strasse», "
     "«gross», «heisst», «dass» sind KORREKT. Erzeuge nie eine Zielform mit ß. "
-    "Die Nummern 14 und 16 werden NIE vergeben. 13 = «s für ss» und 15 = «ss für s» "
-    "gelten nur nach langem Vokal oder Diphthong (Fus → Fuss, Preisse → Preise); "
-    "nach kurzem Vokal ist es Schärfung (07/08). Ein fälschlich gesetztes ß ist "
-    "ein Konsonantenersatz (33)."
+    "Die Nummern 13, 14, 15, 16, 21 und 22 werden NIE vergeben (Version CH der "
+    "OLFA-Liste: 13–16 entfallen). Ein ß in der Schülerschreibung ist Kategorie 37. "
+    "s für ss ist 07 (Fus → Fuss), ss für s ist 08 nach kurzem und 11 nach langem "
+    "Vokal oder Diphthong (Preisse → Preise)."
 )
 
 QUALITAETSREGELN = """\

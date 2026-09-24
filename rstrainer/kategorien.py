@@ -86,11 +86,15 @@ class Register:
         eintraege += [(a.id, a.label) for a in self.sammlung]
         return eintraege
 
+    #: Frühere de-CH-Neubelegung (Ergänzung A.3): 13 = s für ss, 15 = ss für s.
+    #: Nach dem Original (Version CH, S. 59) sind das 07 bzw. 11.
+    ALTBESTAND = {"13": "07", "15": "11"}
+
     def bereinigen(self, nr: str) -> str:
         """Kennungen, die es nicht mehr gibt, auf die Auffangkategorie lenken."""
         if self.existiert(nr) and not (self.liste.get(nr) and self.liste.get(nr).gesperrt):
             return nr
-        return "37"
+        return self.ALTBESTAND.get(nr, "37")
 
 
 def laden(liste: Kategorienliste | None = None,

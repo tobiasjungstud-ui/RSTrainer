@@ -43,9 +43,10 @@ def test_freitextprompt_hat_keine_vorlage_und_warnt_vor_stilkritik(liste, sammlu
 
 def test_prompt_verbietet_die_gesperrten_kategorien(liste, sammlung):
     prompt = auftraege.analyse_prompt_bauen("Text", "", liste, sammlung)
-    assert "\n14 = " not in prompt and "\n16 = " not in prompt
-    assert "\n13 = " in prompt and "\n15 = " in prompt
-    assert "14 und 16 werden NIE vergeben" in prompt
+    for nr in ("13", "14", "15", "16"):
+        assert f"\n{nr} = " not in prompt
+    assert "\n07 = " in prompt and "\n11 = " in prompt
+    assert "13, 14, 15, 16, 21 und 22 werden NIE vergeben" in prompt
 
 
 def test_prompt_zaehlt_bereits_angelegte_arten_auf(liste):

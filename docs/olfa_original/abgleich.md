@@ -1,6 +1,6 @@
 # Abgleich: Original OLFA 3–9+ (2023) ↔ technisches Manual / Ergänzung ↔ Engine
 
-Stand: **vor** jeder Engine-Änderung. Messgrundlage: `abgleich_messwerte.md` (jedes gedruckte
+Stand bei Erstellung: **vor** jeder Engine-Änderung; Ergebnis nach Umsetzung siehe `abschlussbericht.md`. Messgrundlage: `abgleich_messwerte.md` (jedes gedruckte
 Beispiel durch die Engine). Ergebnis heute: **Einzelbeispiele 146/181 (80,7 %)**,
 **Schülertext S. 48: 40/52 Wörter (76,9 %)**. Ziel nach Umsetzung: 100 % bei allen Fällen, die
 das Original eindeutig entscheidet; Widersprüche des Originals (W1–W6 in der Spezifikation §8)

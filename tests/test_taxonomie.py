@@ -130,9 +130,9 @@ def test_register_spaltet_name_und_nummer(register):
 
 def test_gesperrte_kategorien_sind_nicht_waehlbar(register):
     waehlbar = {nr for nr, _ in register.waehlbar()}
-    # de-CH (Ergänzung A.3): 13/15 neu belegt und wählbar, 14/16/21/22 nie.
-    assert "13" in waehlbar and "15" in waehlbar
-    assert not {"14", "16", "21", "22"} & waehlbar
+    # Version CH (Original S. 59): 13–16 entfallen; 21/22 unbesetzt.
+    assert not {"13", "14", "15", "16", "21", "22"} & waehlbar
+    assert register.bereinigen("13") == "07" and register.bereinigen("15") == "11"
 
 
 def test_bereinigen_lenkt_verschwundene_kennungen_auf_37(register):

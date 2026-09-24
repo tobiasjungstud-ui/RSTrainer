@@ -46,12 +46,13 @@ def _allgemein(con) -> None:
     st.subheader("Rechtschreibung")
     st.markdown(
         "Zielnorm ist die **Schweizer Standardorthografie (de-CH)**: kein ß, "
-        "durchgehend ss. Eine Umschaltung gibt es nicht. Nach der Ergänzung zum "
-        "technischen Manual (A.3) sind **13 = s für ss** und **15 = ss für s** neu "
-        "belegt – jeweils nach langem Vokal oder Diphthong (Fuss, Strasse, Preise), "
-        "Förderbereich F3. Entscheidend ist die Vokallänge vor der s-Stelle: kurz "
-        "heisst Schärfung (07/08). **14, 16, 21, 22** werden nie vergeben; ein "
-        "fälschlich gesetztes ß ist ein Konsonantenersatz (33)."
+        "durchgehend ss. Eine Umschaltung gibt es nicht. Das Tool folgt der "
+        "**Version CH der OLFA-Liste** (Original S. 59): Die Kategorien **13–16 "
+        "entfallen**, ein ß in der Schülerschreibung ist ein Fehler der Kategorie "
+        "**37** («sonst Nr. 37»). s für ss ist 07, ss für s ist 08 (nach kurzem "
+        "Vokal) oder 11 (nach langem Vokal/Diphthong); nach langem Vokal trägt die "
+        "Stelle zusätzlich das Fördermerkmal **F3** (lexikalische ss-Schreibung: "
+        "Fuss, Strasse, Preise). **13, 14, 15, 16, 21, 22** werden nie vergeben."
     )
     gesperrt = [k for k in g.kategorienliste() if k.gesperrt]
     if gesperrt:
@@ -75,15 +76,13 @@ def _olfa(con) -> None:
 
     liste = g.kategorienliste()
 
-    ohne_gruppe = sum(1 for k in liste if k.gruppe is None)
+    ohne_gruppe = sum(1 for k in liste if k.gruppe is None and k.nr not in ("21", "22", "36", "37"))
     if ohne_gruppe:
         st.info(
-            f"Bei {ohne_gruppe} von {len(liste)} Kategorien fehlt noch die "
-            "Entwicklungsgruppe **I / II / III**. Diese Angabe lag nicht vor "
-            "und wurde bewusst nicht geraten. Sie steht auf dem "
-            "Auswertungsbogen als Farbe der Kategorienummer (rot = I, "
-            "gelb = II, grün = III) und lässt sich unten in der Spalte "
-            "«Gruppe» nachtragen. Die App funktioniert auch ohne."
+            f"Bei {ohne_gruppe} von {len(liste)} Kategorien fehlt die "
+            "Entwicklungsgruppe **I / II / III** (Kopiervorlage S. 57). Ohne "
+            "Gruppe kann der Kompetenzwert nicht berechnet werden; die Angabe "
+            "lässt sich unten in der Spalte «Gruppe» nachtragen."
         )
 
     if liste.anzahl_ungeprueft:
@@ -104,6 +103,10 @@ def _olfa(con) -> None:
         if liste.meta.get("offene_punkte"):
             st.markdown("**Offene Punkte**")
             for zeile in liste.meta["offene_punkte"]:
+                st.markdown(f"- {zeile}")
+        if liste.meta.get("geklaert"):
+            st.markdown("**Nach dem Original geklärt**")
+            for zeile in liste.meta["geklaert"]:
                 st.markdown(f"- {zeile}")
 
     st.divider()

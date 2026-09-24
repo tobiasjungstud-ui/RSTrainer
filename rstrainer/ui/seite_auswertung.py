@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from .. import analysis, charts, config, db
+from .. import analysis, charts, config, db, olfa_werte
 from ..kategorien import (FB_REIHE, FOERDERBEREICHE, fehler_nach_foerderbereich,
                           foerderbereich_label, verteilung_foerderbereiche)
 from . import gemeinsam as g
@@ -44,6 +44,9 @@ def zeichnen(con, schueler) -> None:
         )
 
     st.divider()
+    _olfa_werte(diktate, fehler, reg)
+
+    st.divider()
     _bereichsuebersicht(con, schueler, fehler, reg)
 
     st.divider()
@@ -72,6 +75,62 @@ def zeichnen(con, schueler) -> None:
 
     st.divider()
     _export(con, schueler, punkte, trends, reg, balken, linien)
+
+
+def _olfa_werte(diktate, fehler, reg) -> None:
+    """OLFA-Kennwerte nach dem Original (S. 29–37): Gruppen I–III,
+    Kompetenzwert, Fehler auf 100 Wörter, tolerierte Fehlerzahl, Leistungswert.
+    Klasse und Schulform werden nicht gespeichert – nur für die Rechnung
+    gewählt (Datensparsamkeit)."""
+    import pandas as pd
+
+    st.subheader("OLFA-Kennwerte (Original S. 29–37)")
+    ids = {d["id"]: d for d in diktate}
+    auswahl = st.multiselect(
+        "Texte, die in die Rechnung eingehen (mehrere Texte aus kurzem Zeitraum dürfen zusammengefasst werden, S. 15)",
+        options=[d["id"] for d in diktate], default=[d["id"] for d in diktate],
+        format_func=lambda i: f"{ids[i]['datum']} · {ids[i]['titel']} ({ids[i]['wortzahl']} Wörter)",
+        key="werte_texte")
+    if not auswahl:
+        st.info("Bitte mindestens einen Text wählen.")
+        return
+    spalte_a, spalte_b = st.columns(2)
+    zeitpunkt = spalte_a.selectbox("Klassenstufe und Zeitpunkt (Tabelle 5, S. 30)",
+                                   ["– ohne –"] + olfa_werte.ZEITPUNKTE, index=9, key="werte_zeitpunkt")
+    schulform = spalte_b.selectbox("Schulform", list(olfa_werte.SCHULFORMEN),
+                                   format_func=olfa_werte.SCHULFORMEN.get, key="werte_schulform")
+    kats = [f["kategorie_nr"] for f in fehler if f["diktat_id"] in auswahl and reg.bereich(f["kategorie_nr"]) == "A"]
+    woerter = sum(ids[i]["wortzahl"] for i in auswahl)
+    w = olfa_werte.berechnen(kats, woerter, None if zeitpunkt == "– ohne –" else zeitpunkt, schulform)
+
+    k = st.columns(5)
+    k[0].metric("Wörter", w.woerter)
+    k[1].metric("Gesamtfehler (1–37)", w.gesamt)
+    k[2].metric("Fehler auf 100 Wörter", "–" if w.f100 is None else f"{w.f100}")
+    k[3].metric("Kompetenzwert KW", "–" if w.kw is None else f"{w.kw:g}")
+    k[4].metric("Leistungswert LW", "–" if w.lw is None else f"{w.lw:g}")
+    g1, g2, g3 = st.columns(3)
+    g1.metric("Gruppe I · protoalphabetisch", f"{w.gruppen['I']} · {w.prozent['I']} %")
+    g2.metric("Gruppe II · alphabetisch", f"{w.gruppen['II']} · {w.prozent['II']} %")
+    g3.metric("Gruppe III · orthographisch", f"{w.gruppen['III']} · {w.prozent['III']} %")
+    st.caption(f"Ohne Gruppe (zählen nur zur Gesamtfehlerzahl): 36 Umlaut {w.ohne_gruppe['36']}, 37 Sonstige {w.ohne_gruppe['37']}.")
+    if w.tf is not None:
+        st.caption(f"Tolerierte Fehlerzahl TF = {w.tf} auf 100 Wörter; relativer Fehlerwert RF = {w.rf}.")
+    for warnung in w.warnungen:
+        st.warning(warnung)
+    st.markdown(f"**Deutung des Kompetenzwerts (S. 36):** {olfa_werte.deutung_kw(w.kw)}")
+    if w.lw is not None:
+        st.markdown(olfa_werte.deutung_lw(w.kw, w.lw))
+    with st.expander("Rechenweg und OLFA-Liste (Kopiervorlage S. 59, Version CH)"):
+        for zeile in w.rechenweg:
+            st.markdown(f"- {zeile}")
+        zeilen = olfa_werte.tabelle_zeilen(kats, {nr: reg.name(nr) for nr in reg.waehlbar_nummern()} if hasattr(reg, "waehlbar_nummern") else {})
+        tabelle = pd.DataFrame([{
+            "Nr": z["nr"], "Kategorie": z["name"] or reg.name(z["nr"]),
+            "Anzahl": z["anzahl"], "Gruppe": z["gruppe"],
+            "Hinweis": "entfällt CH → 37" if z["gesperrt_ch"] else "",
+        } for z in zeilen])
+        st.dataframe(tabelle, hide_index=True, width="stretch")
 
 
 def _bereichsuebersicht(con, schueler, fehler, reg) -> None:
