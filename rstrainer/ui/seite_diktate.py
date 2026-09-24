@@ -58,13 +58,13 @@ def zeichnen(con, schueler) -> None:
 
 def _mischung(con, schueler, anzahl: int, anteil: float) -> analysis.Mischung:
     """Vorschlag aus bekannten Schwerpunkten und unerforschten Kategorien."""
-    diktate = db.diktat_liste(con, schueler["id"])
+    diktate = db.diktat_liste(con, schueler["id"], textart="geschrieben")
     punkte = [
         analysis.Diktatpunkt(d["id"], d["datum"], d["titel"], d["wortzahl"],
                              g.json_liste(d["ziel_kategorien"]))
         for d in diktate
     ]
-    fehler = [dict(f) for f in db.fehler_liste(con, schueler["id"])]
+    fehler = [dict(f) for f in db.fehler_liste(con, schueler["id"], textart="geschrieben")]
     return analysis.kategorien_mischen(punkte, fehler, g.register(), anzahl, anteil)
 
 
@@ -313,6 +313,7 @@ def _freier_text(con, schueler) -> None:
             titel = st.text_input("Titel *", placeholder="z. B. «Aufsatz Herbstferien»")
         with spalte_b:
             datum = st.date_input("Datum", value=date.today())
+        art = g.textart_wahl("texte_art")
         text = st.text_area("Text des Kindes *", height=240,
                             placeholder="Abgetippt oder eingefügt.")
         notiz = st.text_input("Notiz", placeholder="Auftrag, Umstände, Besonderes …")
@@ -322,8 +323,8 @@ def _freier_text(con, schueler) -> None:
             else:
                 neue_id = db.diktat_anlegen(
                     con, schueler["id"], titel, "", datum=datum.isoformat(),
-                    notiz=notiz, quelle="freitext", freigegeben=True,
-                    art="freitext", schuelertext=text,
+                    notiz=notiz, quelle=art, freigegeben=True,
+                    art=art, schuelertext=text,
                 )
                 g.merken(
                     f"Freier Text «{titel}» gespeichert (Nr. {neue_id}). "
@@ -362,13 +363,13 @@ def _archiv(con, schueler) -> None:
 
     reg = g.register()
     for diktat in reversed(diktate):
-        ist_frei = diktat["art"] == "freitext"
+        ist_frei = diktat["art"] in db.OHNE_VORLAGE
         kategorien = g.json_liste(diktat["ziel_kategorien"])
         fehler = [dict(f) for f in db.fehler_liste(con, schueler["id"], diktat["id"])]
         with st.expander(
-            f"{'📝' if ist_frei else '📄'} {diktat['datum']} · {diktat['titel']} "
+            f"{g.textart_symbol(diktat['art'])} {diktat['datum']} · {diktat['titel']} "
             f"({diktat['wortzahl']} Wörter)"
-            + (" · freier Text" if ist_frei else "")
+            + (" · diktiert (Sprachsoftware)" if diktat["art"] == "diktiert" else " · freier Text" if ist_frei else "")
         ):
             st.caption(_schwerpunkt_zeile(fehler))
             if kategorien:

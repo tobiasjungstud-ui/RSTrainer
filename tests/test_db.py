@@ -290,3 +290,33 @@ def test_uebersicht_zeigt_letztes_diktat_und_offene_freigaben(con, schueler_id):
     assert u["letztes_diktat_datum"] == "2026-05-01"
     assert u["letztes_diktat_titel"] == "Neu"
     assert u["diktate_ohne_freigabe"] == 1
+
+
+def test_diktierte_texte_bleiben_aus_der_rechtschreibsicht_draussen(con, schueler_id):
+    """Sprachsoftware-Texte: eigene Textart, ohne Vorlage, Fehler getrennt abrufbar."""
+    d1 = db.diktat_anlegen(con, schueler_id, "Diktat", "Der Hund bellt.", datum="2026-01-01")
+    d2 = db.diktat_anlegen(con, schueler_id, "Diktiert", "", datum="2026-02-01",
+                           art="diktiert", schuelertext="Ich habe gegangen zum Zoo weil regnet.")
+    d3 = db.diktat_anlegen(con, schueler_id, "Frei", "", datum="2026-03-01",
+                           art="freitext", schuelertext="Der hund belt.")
+    assert db.diktat_holen(con, d2)["wortzahl"] == 7           # Wortzahl aus dem Kindertext
+    assert db.diktat_holen(con, d2)["text_original"] == ""
+    db.fehler_anlegen(con, schueler_id, "08", d1, "Hund", "Hunt")
+    db.fehler_anlegen(con, schueler_id, "B_ZEITFORM", d2, "bin gegangen", "habe gegangen")
+    db.fehler_anlegen(con, schueler_id, "01", d3, "Hund", "hund")
+    db.fehler_anlegen(con, schueler_id, "10", None, "bellt", "belt")   # ohne Text = geschrieben
+
+    alle = db.diktat_liste(con, schueler_id)
+    assert [d["art"] for d in alle] == ["diktat", "diktiert", "freitext"]
+    assert [d["titel"] for d in db.diktat_liste(con, schueler_id, textart="geschrieben")] == ["Diktat", "Frei"]
+    assert [d["titel"] for d in db.diktat_liste(con, schueler_id, textart="diktiert")] == ["Diktiert"]
+
+    assert len(db.fehler_liste(con, schueler_id)) == 4
+    geschrieben = db.fehler_liste(con, schueler_id, textart="geschrieben")
+    assert [f["kategorie_nr"] for f in geschrieben] == ["08", "01", "10"]
+    diktiert = db.fehler_liste(con, schueler_id, textart="diktiert")
+    assert [f["kategorie_nr"] for f in diktiert] == ["B_ZEITFORM"]
+    assert [f["kategorie_nr"] for f in db.fehler_liste(con, schueler_id, d2, textart="geschrieben")] == []
+
+    db.diktat_aktualisieren(con, d2, schuelertext="Nur drei Wörter.")
+    assert db.diktat_holen(con, d2)["wortzahl"] == 3

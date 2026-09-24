@@ -70,7 +70,7 @@ def test_hier_erfasster_text_ist_sofort_ausgewaehlt_und_im_freitextmodus(seite):
         ("Aufsatz Herbstferien", "freitext", 10)]
 
     assert seite.selectbox[0].value == texte[0]["id"]
-    modus = seite.radio[0]
+    modus = next(r for r in seite.radio if r.label == "Modus der Fehleranalyse")
     assert modus.value == "freitext"
     assert len(modus.options) == 1            # ohne Vorlage kein Diktatmodus
     assert any(t.value.startswith("Ich ging zum Zahn arzt")
@@ -83,3 +83,29 @@ def test_weitere_texte_lassen_sich_ohne_seitenwechsel_nachtragen(seite):
     seite.text_area[0].set_value("Ich ging zum Zahn arzt.")
     seite.button[0].click().run()
     assert "📝 Weiteren freien Text erfassen" in [e.label for e in seite.get("expander")]
+
+
+def test_diktierter_text_wird_getrennt_gefuehrt(seite):
+    """Diktierte Texte (Sprachsoftware): markierbar, keine OLFA-Analyse, nur B–E."""
+    seite.run()
+    seite.text_input[0].set_value("Erzählung diktiert")
+    art = next(r for r in seite.radio if r.label == "Art des Textes")
+    art.set_value("diktiert")
+    seite.text_area[0].set_value("Ich habe gegangen zum Zoo weil es hat geregnet.")
+    seite.button[0].click().run()
+    assert not seite.exception
+
+    verbindung = db.verbinden(seite.pfad)
+    texte = db.diktat_liste(verbindung, 1)
+    assert [(t["titel"], t["art"], t["quelle"]) for t in texte] == [
+        ("Erzählung diktiert", "diktiert", "diktiert")]
+    assert db.diktat_liste(verbindung, 1, textart="geschrieben") == []
+    assert len(db.diktat_liste(verbindung, 1, textart="diktiert")) == 1
+    verbindung.close()
+
+    text = " ".join(i.value for i in seite.info) + " " + " ".join(w.value for w in seite.warning)
+    assert "Diktierter Text" in text
+    assert "Keine OLFA-Analyse" in text
+    # Kein Analysemodus (Diktat/Freitext) mehr – die OLFA-Analyse ist abgeschaltet.
+    assert not [r for r in seite.radio if r.label == "Modus der Fehleranalyse"]
+    assert " · diktiert" in seite.selectbox[0].format_func(texte[0]["id"])

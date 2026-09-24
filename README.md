@@ -436,7 +436,7 @@ nicht auf das Kind.
 
 ---
 
-## Zwei Arten von Texten
+## Drei Arten von Texten
 
 **Diktat** – die Lehrperson gibt eine fehlerfreie Vorlage vor, das Kind
 schreibt sie ab. Was von der Vorlage abweicht, ist objektiv ein Fehler.
@@ -446,7 +446,36 @@ Antwort auf eine Frage. Es gibt keine Vorlage, also auch keinen objektiven
 Massstab dafür, was falsch ist. Die Wortzahl richtet sich hier nach dem Text
 des Kindes, denn etwas anderes gibt es nicht zu zählen.
 
-Beide landen in derselben Auswertung und im selben Lernverlauf.
+Diese beiden sind **geschriebene Texte**: Sie landen in derselben
+Rechtschreibauswertung und im selben Lernverlauf.
+
+**Diktiert mit Sprachsoftware** – das Kind hat den Text einem
+Diktierprogramm gesprochen. Die Rechtschreibung stammt vom Programm, nicht
+vom Kind: Klassische Rechtschreibfehler entstehen hier nicht oder kaum, und
+ein vom Programm falsch erkanntes Wort ist kein Fehler des Kindes. Solche
+Texte würden das Bild der OLFA-Auswertung verfälschen. Sie werden deshalb
+beim Erfassen als *diktiert* markiert (Feld «Art des Textes» beim freien
+Text, in der Datenbank `diktate.art = 'diktiert'`) und **durchgehend
+getrennt geführt**:
+
+| Ebene | geschriebene Texte (Diktat, freier Text) | diktierte Texte |
+|---|---|---|
+| Eingabe | Vorlage oder Text des Kindes | Text des Kindes, mit 🎙️ markiert |
+| OLFA-Analyse (Bereich A) | ja, Regelwerk | **abgeschaltet** – Bereich A ist gesperrt |
+| Satzbau, Grammatik, Zeichensetzung, Textebene (B–E) | ja | ja, mit eigenem Prompt-Hinweis («Rechtschreibung nicht bewerten») |
+| Fehler von Hand | alle Bereiche | nur B–E |
+| OLFA-Kennwerte, Förderbereiche, Verlauf, Trends | nur aus geschriebenen Texten | nie |
+| Lernwörter, Förderplan, Übungsblätter, Empfehlungen, Mischung | nur aus geschriebenen Texten | nie |
+| Auswertung | Förderprofil wie bisher | eigener Abschnitt «Diktierte Texte (Sprachsoftware): Satzbau und Grammatik» mit Kategorien, Fördern-Hinweisen und jedem Befund im Satz |
+| Übersicht je Bereich | Quelle «geschriebene Texte» (Vorgabe) | Quelle «diktierte Texte» oder «beide» – A stammt in jedem Fall nur aus geschriebenen |
+| Informationsblatt | «Diktat» / «Freier Text» | «Diktierter Text (Sprachsoftware) – nur Satzbau und Grammatik» |
+
+Die Trennung liegt in der Datenschicht: `db.diktat_liste(...,
+textart="geschrieben" | "diktiert")` und `db.fehler_liste(..., textart=...)`
+liefern die jeweilige Sicht; jede Rechtschreibauswertung fragt ausschliesslich
+die geschriebene Sicht ab. Fehler ohne zugeordneten Text zählen als
+geschrieben. Im Artefakt übernehmen `texteGeschrieben()`, `fehlerGeschrieben()`
+und `fehlerDiktiert()` dieselbe Rolle.
 
 ---
 
@@ -841,6 +870,7 @@ python3 -m pytest tests/ -q
 | `test_grammatik.py` | Feste Liste B–E: Vollständigkeit, de-CH-Prosa, Helvetismen, Kennungen, Register, Analyse-Prompt und Rücklesen |
 | `test_taxonomie.py` | Pfade begradigen, Dubletten, Gegenteile nicht verschmelzen, Register, Schwerpunkte |
 | `test_analyse.py` | Analyse-Prompts, JSON zurücklesen, neue Fehlerarten, Aufräumplan, Regler Klassiker/Sondierung |
+| `test_ui_diktiert.py` | Diktierte Texte (Sprachsoftware): Auswertung getrennt, Kennwerte nur aus geschriebenen Texten, eigener Abschnitt, Prompt ohne Rechtschreibung, Infoblatt-Bezeichnung |
 | `test_freitext.py` | Freitextmodus: Regelprüfungen ohne Modell, Zielwort-Prompt, blinder Zweitdurchgang und Sicherheitsdeckel, Wortgrenzen, ehrliche Vollständigkeit, Modusauswahl |
 | `test_ui_fehlerseite.py` | Die Fehleranalyse-Seite ohne Text: Erfassung steht dort, der erfasste Text ist sofort ausgewählt |
 

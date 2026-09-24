@@ -143,7 +143,7 @@ def informationsblatt_schreiben(pfad: Path | str, schuelername: str,
     """Fehlerliste, Schwerpunkte und Kurzkommentar zu einem Text."""
     pfad = Path(pfad)
     pfad.parent.mkdir(parents=True, exist_ok=True)
-    bezeichnung = "Freier Text" if art == "freitext" else "Diktat"
+    bezeichnung = {"freitext": "Freier Text", "diktiert": "Diktierter Text (Sprachsoftware) – nur Satzbau und Grammatik"}.get(art, "Diktat")
 
     dokument = Document()
     _seite_einrichten(dokument)
@@ -207,7 +207,7 @@ def informationsblatt_schreiben(pfad: Path | str, schuelername: str,
         _seitenumbruch(dokument)
         ueberschrift = dokument.add_paragraph()
         ueberschrift.add_run(
-            "Text des Kindes" if art == "freitext" else "Diktattext (Original)").bold = True
+            "Text des Kindes" if art in ("freitext", "diktiert") else "Diktattext (Original)").bold = True
         _textblock(dokument, diktattext)
 
     dokument.save(str(pfad))

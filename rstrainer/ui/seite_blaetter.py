@@ -39,19 +39,20 @@ def zeichnen(con, schueler) -> None:
 # ---------------------------------------------------------------------------
 
 def _empfehlungen_holen(con, schueler) -> list[analysis.Empfehlung]:
-    diktate = db.diktat_liste(con, schueler["id"])
+    diktate = db.diktat_liste(con, schueler["id"], textart="geschrieben")
     punkte = [
         analysis.Diktatpunkt(d["id"], d["datum"], d["titel"], d["wortzahl"],
                              tuple(g.json_liste(d["ziel_kategorien"])))
         for d in diktate
     ]
-    fehler = [dict(f) for f in db.fehler_liste(con, schueler["id"])]
+    fehler = [dict(f) for f in db.fehler_liste(con, schueler["id"], textart="geschrieben")]
     return analysis.empfehlungen(punkte, fehler)
 
 
 def _fehler_und_woerter(con, schueler) -> tuple[list[dict], int]:
-    fehler = [dict(f) for f in db.fehler_liste(con, schueler["id"])]
-    woerter = sum(int(d["wortzahl"] or 0) for d in db.diktat_liste(con, schueler["id"]))
+    # Nur geschriebene Texte: Diktierte Texte tragen keine Rechtschreibung des Kindes.
+    fehler = [dict(f) for f in db.fehler_liste(con, schueler["id"], textart="geschrieben")]
+    woerter = sum(int(d["wortzahl"] or 0) for d in db.diktat_liste(con, schueler["id"], textart="geschrieben"))
     return fehler, woerter
 
 

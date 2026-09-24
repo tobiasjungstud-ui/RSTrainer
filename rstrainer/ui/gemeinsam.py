@@ -103,6 +103,24 @@ def kategorien_auswahl(reg: Register, beschriftung: str,
     return gewaehlt
 
 
+def textart_wahl(schluessel: str) -> str:
+    """Freier Text von Hand oder diktiert mit Sprachsoftware. Diktierte Texte
+    werden nur auf Satzbau und Grammatik (B–E) untersucht und bleiben aus der
+    Rechtschreibauswertung draussen."""
+    from .. import db
+    return st.radio(
+        "Art des Textes", ["freitext", "diktiert"], horizontal=True,
+        format_func=lambda a: db.TEXTARTEN[a], key=schluessel,
+        help=("Diktiert: Die Rechtschreibung stammt vom Programm, nicht vom Kind. Solche Texte "
+              "verfälschen die OLFA-Auswertung und werden deshalb getrennt geführt – Satzbau, "
+              "Grammatik, Zeichensetzung und Textebene werden trotzdem analysiert."),
+    )
+
+
+def textart_symbol(art: str) -> str:
+    return {"freitext": "📝", "diktiert": "🎙️"}.get(art, "📄")
+
+
 def befunde_anzeigen(befunde: list[Befund]) -> None:
     """Zeigt Plausibilitätshinweise – nie blockierend, immer sichtbar."""
     if not befunde:

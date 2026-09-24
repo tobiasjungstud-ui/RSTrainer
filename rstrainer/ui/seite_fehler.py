@@ -49,7 +49,8 @@ def zeichnen(con, schueler) -> None:
     # Streamlit kopiert Widget-Werte tief; sqlite3.Row lässt sich nicht picklen.
     # Deshalb immer nur die ID als Option übergeben und den Text nachschlagen.
     beschriftung = {
-        d["id"]: f"{'📝' if d['art'] == 'freitext' else '📄'} {d['datum']} · {d['titel']}"
+        d["id"]: f"{g.textart_symbol(d['art'])} {d['datum']} · {d['titel']}"
+                 + (" · diktiert" if d["art"] == "diktiert" else "")
         for d in diktate
     }
     diktat_id = st.selectbox(
@@ -61,6 +62,13 @@ def zeichnen(con, schueler) -> None:
     if diktat is None:
         return
     _freitext_erfassen(con, schueler, aufklappbar=True)
+    if diktat["art"] == "diktiert":
+        st.info(
+            "🎙️ **Diktierter Text (Sprachsoftware).** Die Rechtschreibung stammt vom Programm, "
+            "nicht vom Kind – eine OLFA-Analyse würde das Bild verfälschen und ist hier abgeschaltet. "
+            "Analysiert werden Satzbau, Grammatik, Zeichensetzung und Textebene (B–E), getrennt "
+            "von den geschriebenen Texten."
+        )
     reiter = st.tabs([
         "🔬 OLFA-Analyse",
         "🤖 Freie Analyse durch das Sprachmodell",
@@ -105,6 +113,7 @@ def _freitext_erfassen(con, schueler, aufklappbar: bool) -> None:
                 titel = st.text_input("Titel *", placeholder="z. B. «Aufsatz Herbstferien»")
             with spalte_b:
                 datum = st.date_input("Datum", value=date.today())
+            art = g.textart_wahl(f"fehler_art_{schueler['id']}")
             text = st.text_area("Text des Kindes *", height=200,
                                 placeholder="Abgetippt oder eingefügt.")
             notiz = st.text_input("Notiz", placeholder="Auftrag, Umstände, Besonderes …")
@@ -114,8 +123,8 @@ def _freitext_erfassen(con, schueler, aufklappbar: bool) -> None:
                 else:
                     neue_id = db.diktat_anlegen(
                         con, schueler["id"], titel, "", datum=datum.isoformat(),
-                        notiz=notiz, quelle="freitext", freigegeben=True,
-                        art="freitext", schuelertext=text,
+                        notiz=notiz, quelle=art, freigegeben=True,
+                        art=art, schuelertext=text,
                     )
                     # Der neue Text ist der, den man gerade auswerten will.
                     st.session_state["fehler_diktat"] = neue_id
@@ -133,6 +142,13 @@ def hat_vorlage(diktat) -> bool:
 
 
 def _olfa_ablauf(con, schueler, diktat) -> None:
+    if diktat["art"] == "diktiert":
+        st.warning(
+            "Keine OLFA-Analyse für diktierte Texte: Klassische Rechtschreibfehler entstehen hier "
+            "nicht oder kaum, weil die Sprachsoftware schreibt. Bitte den Reiter «Freie Analyse durch "
+            "das Sprachmodell» für Satzbau und Grammatik verwenden."
+        )
+        return
     mit_vorlage = hat_vorlage(diktat)
     beschriftung = {
         "diktat": "📄 Diktatmodus – gegen die Vorlage",
@@ -165,7 +181,7 @@ def _olfa_ablauf(con, schueler, diktat) -> None:
 # ---------------------------------------------------------------------------
 
 def _schuelertext_feld(con, diktat, schluessel: str) -> str:
-    ist_frei = diktat["art"] == "freitext"
+    ist_frei = diktat["art"] in db.OHNE_VORLAGE
     text = st.text_area(
         "Text des Kindes" if ist_frei else "Abgetippter Schülertext",
         value=diktat["schuelertext"] or "", height=200,
@@ -185,7 +201,8 @@ def _schuelertext_feld(con, diktat, schluessel: str) -> str:
 
 def _analyse_ablauf(con, schueler, diktat) -> None:
     reg = g.register()
-    ist_frei = diktat["art"] == "freitext"
+    ist_frei = diktat["art"] in db.OHNE_VORLAGE
+    ist_diktiert = diktat["art"] == "diktiert"
     st.caption(
         "Hier benennt das Sprachmodell die Fehler selbst – auch, was die "
         "OLFA-Liste nicht abdeckt, vor allem Grammatik. Wofür es keine Kategorie "
@@ -207,7 +224,7 @@ def _analyse_ablauf(con, schueler, diktat) -> None:
         st.session_state[f"analyse_prompt_text_{diktat['id']}"] = \
             auftraege.analyse_prompt_bauen(
                 text, "" if ist_frei else diktat["text_original"],
-                reg.liste, reg.sammlung,
+                reg.liste, reg.sammlung, ohne_rechtschreibung=ist_diktiert,
             )
         st.rerun()
 
@@ -230,6 +247,12 @@ def _analyse_ablauf(con, schueler, diktat) -> None:
                        "und einmal neben das Feld klicken.")
         else:
             ergebnis = auftraege.analyse_lesen(roh, reg.liste, reg.sammlung)
+            if ist_diktiert and not ergebnis.fehler:
+                weg = [z for z in ergebnis.zeilen if reg.bereich(z.kategorie_nr) == "A"]
+                ergebnis.zeilen = [z for z in ergebnis.zeilen if reg.bereich(z.kategorie_nr) != "A"]
+                if weg:
+                    st.info(f"{len(weg)} Rechtschreibbefund(e) verworfen – bei einem diktierten Text "
+                            "zählt nur Satzbau, Grammatik, Zeichensetzung und Textebene.")
             if ergebnis.fehler:
                 st.error(
                     f"{ergebnis.fehler} Bitte erneut versuchen – oder den "
@@ -649,7 +672,10 @@ def _von_hand(con, schueler, diktat) -> None:
         "Für Fehler, die keiner der beiden Wege findet – zum Beispiel Satzzeichen, "
         "Silbentrennung am Zeilenende oder unleserliche Stellen."
     )
-    optionen = [nr for nr, _ in reg.waehlbar()]
+    optionen = [nr for nr, _ in reg.waehlbar()
+                if diktat["art"] != "diktiert" or reg.bereich(nr) != "A"]
+    if diktat["art"] == "diktiert":
+        st.caption("Diktierter Text: nur Kategorien der Bereiche B–E wählbar.")
     with st.form(f"fehler_hand_{diktat['id']}", clear_on_submit=True):
         spalte_a, spalte_b = st.columns(2)
         with spalte_a:
@@ -679,7 +705,7 @@ def _fehlerliste(con, schueler, diktat) -> None:
     import pandas as pd
 
     reg = g.register()
-    ist_frei = diktat["art"] == "freitext"
+    ist_frei = diktat["art"] in db.OHNE_VORLAGE
     fehler = db.fehler_liste(con, schueler["id"], diktat["id"])
     if not fehler:
         st.info("Zu diesem Text sind noch keine Fehler erfasst.")

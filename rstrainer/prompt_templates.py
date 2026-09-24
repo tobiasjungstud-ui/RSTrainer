@@ -516,6 +516,35 @@ Ist der Text fehlerfrei, gib eine leere Liste zurück.
 {analyse_format}
 """
 
+#: Diktierte Texte (Sprachsoftware): Die Rechtschreibung stammt vom Programm.
+#: Bewertet werden nur Satzbau, Grammatik, Zeichensetzung und Textebene.
+ANALYSE_DIKTIERT = """\
+{analyse_kopf}
+
+Du wertest einen Text aus, den das Kind **mit einer Sprachsoftware diktiert** hat. \
+Die Rechtschreibung stammt vom Programm, nicht vom Kind. Deshalb gilt:
+
+## Rechtschreibung wird NICHT bewertet
+- Keine OLFA-Kategorien (01–37) vergeben – auch nicht für Wörter, die die Software \
+falsch erkannt hat. Ein falsch erkanntes Wort ist kein Rechtschreibfehler des Kindes.
+- Gross-/Kleinschreibung und Getrennt-/Zusammenschreibung ebenfalls nicht bewerten.
+
+## Was bewertet wird: Satzbau, Grammatik, Zeichensetzung, Textebene
+Diktierte Texte zeigen, wie das Kind Sätze baut. Genau das ist hier gefragt: \
+Satzgrenzen, Satzglieder, Kongruenz, Kasus, Tempus, Konjunktionen, Bezüge, \
+Zeichensetzung (soweit sie das Kind diktiert oder nicht diktiert hat), Kohärenz. \
+Streng bleiben: Umgangssprache, Helvetismen und einfache Formulierungen sind keine \
+Fehler; nur, was grammatikalisch oder im Textaufbau objektiv falsch ist.
+
+Ist der Text fehlerfrei, gib eine leere Liste zurück.
+
+## Text des Kindes
+{schuelertext}
+
+{analyse_format}
+"""
+
+
 # ---------------------------------------------------------------------------
 # Aufräumen der gelernten Fehlerarten
 # ---------------------------------------------------------------------------

@@ -261,7 +261,7 @@ def diktat_anlegen(con, schueler_id: int, titel: str, text_original: str,
     """
     from .textwerkzeuge import woerter_zaehlen
 
-    bezug = schuelertext if art == "freitext" else text_original
+    bezug = schuelertext if art in OHNE_VORLAGE else text_original
     with transaktion(con):
         cur = con.execute(
             "INSERT INTO diktate (schueler_id, titel, text_original, wortzahl, datum,"
@@ -279,10 +279,31 @@ def diktat_anlegen(con, schueler_id: int, titel: str, text_original: str,
     return int(cur.lastrowid)
 
 
-def diktat_liste(con, schueler_id: int, nur_freigegebene: bool = False) -> list[sqlite3.Row]:
+#: Textarten. «diktiert» = mit Sprachsoftware diktiert: Die Rechtschreibung
+#: stammt vom Programm, nicht vom Kind – solche Texte bleiben aus jeder
+#: OLFA-Auswertung (Kennwerte, Förderplan, Lernwörter) draussen und werden
+#: nur auf Satzbau, Grammatik, Zeichensetzung und Textebene (B–E) untersucht.
+TEXTARTEN = {"diktat": "Diktat mit Vorlage", "freitext": "Freier Text (von Hand geschrieben)",
+             "diktiert": "Diktiert mit Sprachsoftware (nur Satzbau und Grammatik)"}
+OHNE_VORLAGE = ("freitext", "diktiert")
+
+
+def _textart_bedingung(textart: str | None, spalte: str = "art") -> str:
+    """SQL-Zusatz für die Sicht «geschrieben» (Diktat + freier Text) oder «diktiert»."""
+    if textart == "diktiert":
+        return f" AND {spalte} = 'diktiert'"
+    if textart == "geschrieben":
+        return f" AND {spalte} != 'diktiert'"
+    return ""
+
+
+def diktat_liste(con, schueler_id: int, nur_freigegebene: bool = False,
+                 textart: str | None = None) -> list[sqlite3.Row]:
+    """``textart``: None = alle, «geschrieben» = ohne diktierte, «diktiert» = nur diktierte."""
     sql = "SELECT * FROM diktate WHERE schueler_id = ?"
     if nur_freigegebene:
         sql += " AND freigegeben = 1"
+    sql += _textart_bedingung(textart)
     sql += " ORDER BY date(datum) ASC, id ASC"
     return con.execute(sql, (schueler_id,)).fetchall()
 
@@ -302,7 +323,7 @@ def diktat_aktualisieren(con, diktat_id: int, **felder) -> None:
     if "text_original" in felder:
         felder.setdefault("wortzahl", woerter_zaehlen(felder["text_original"]))
     if "schuelertext" in felder and diktat_holen(con, diktat_id) is not None \
-            and diktat_holen(con, diktat_id)["art"] == "freitext":
+            and diktat_holen(con, diktat_id)["art"] in OHNE_VORLAGE:
         felder["wortzahl"] = woerter_zaehlen(felder["schuelertext"])
     if not felder:
         return
@@ -375,13 +396,21 @@ def fehler_mehrere_anlegen(con, schueler_id: int, eintraege: list[dict]) -> int:
     return len(zeilen)
 
 
-def fehler_liste(con, schueler_id: int, diktat_id: int | None = None) -> list[sqlite3.Row]:
-    sql = "SELECT * FROM fehler WHERE schueler_id = ?"
+def fehler_liste(con, schueler_id: int, diktat_id: int | None = None,
+                 textart: str | None = None) -> list[sqlite3.Row]:
+    """``textart`` wie bei ``diktat_liste``: Fehler aus diktierten Texten lassen
+    sich so aus jeder Rechtschreibauswertung heraushalten. Fehler ohne Text
+    zählen als «geschrieben»."""
+    sql = "SELECT f.* FROM fehler f LEFT JOIN diktate d ON d.id = f.diktat_id WHERE f.schueler_id = ?"
     params: list[Any] = [schueler_id]
     if diktat_id is not None:
-        sql += " AND diktat_id = ?"
+        sql += " AND f.diktat_id = ?"
         params.append(diktat_id)
-    sql += " ORDER BY date(datum) ASC, id ASC"
+    if textart == "diktiert":
+        sql += " AND d.art = 'diktiert'"
+    elif textart == "geschrieben":
+        sql += " AND (d.art IS NULL OR d.art != 'diktiert')"
+    sql += " ORDER BY date(f.datum) ASC, f.id ASC"
     return con.execute(sql, params).fetchall()
 
 

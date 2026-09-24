@@ -326,7 +326,8 @@ def _bekannte_arten(sammlung: Sammlung) -> str:
 
 def analyse_prompt_bauen(schuelertext: str, originaltext: str = "",
                          liste: Kategorienliste | None = None,
-                         sammlung: Sammlung | None = None) -> str:
+                         sammlung: Sammlung | None = None,
+                         ohne_rechtschreibung: bool = False) -> str:
     """Baut den Analyse-Prompt – mit Vorlage (Diktat) oder ohne (freier Text).
 
     Der Unterschied ist nicht kosmetisch: Beim Diktat ist objektiv bestimmt,
@@ -352,6 +353,10 @@ def analyse_prompt_bauen(schuelertext: str, originaltext: str = "",
             analyse_kopf=kopf, analyse_format=pt.ANALYSE_FORMAT,
             originaltext=originaltext.strip(), schuelertext=(schuelertext or "").strip(),
         )
+    if ohne_rechtschreibung:
+        return pt.ANALYSE_DIKTIERT.format(
+            analyse_kopf=kopf, schuelertext=schuelertext.strip(),
+            analyse_format=pt.ANALYSE_FORMAT)
     return pt.ANALYSE_FREITEXT.format(
         analyse_kopf=kopf, analyse_format=pt.ANALYSE_FORMAT,
         schuelertext=(schuelertext or "").strip(),
