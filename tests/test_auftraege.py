@@ -122,9 +122,8 @@ def test_uebungsblattprompt_verbietet_loesungen_auf_der_aufgabenseite(liste):
         "test_aufgaben": 6,
     }, liste)
     assert "KEINE Lösungen" in prompt or "KEINE Lösungen" in prompt.replace("\n", " ")
-    assert pt.MARKE_UEBUNG in prompt
-    assert pt.MARKE_TEST in prompt
-    assert pt.MARKE_LOESUNG in prompt
+    assert pt.MARKE_JSON in prompt
+    assert '"aufgaben"' in prompt and '"loesung"' in prompt
 
 
 def test_unbekannter_typ_wird_abgelehnt(liste):

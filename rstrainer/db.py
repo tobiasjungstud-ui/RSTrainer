@@ -150,6 +150,9 @@ def verbinden(pfad: Path | str | None = None) -> sqlite3.Connection:
                         ("merkmal", "TEXT DEFAULT ''"), ("foerderbereich", "TEXT")):
         if spalte not in vorhanden:
             con.execute(f"ALTER TABLE fehler ADD COLUMN {spalte} {typ}")
+    # Blätter als Aufgabenliste (JSON) neben dem Text – ältere Blätter haben nur Text.
+    if "aufgaben" not in {r["name"] for r in con.execute("PRAGMA table_info(blaetter)")}:
+        con.execute("ALTER TABLE blaetter ADD COLUMN aufgaben TEXT")
     con.commit()
     return con
 
@@ -471,14 +474,15 @@ def fehler_haeufigkeit(con, schueler_id: int) -> list[sqlite3.Row]:
 
 def blatt_anlegen(con, schueler_id: int, titel: str, kategorien: list[str],
                   inhalt_uebung: str, inhalt_test: str, loesungen: str = "",
-                  datum: str | None = None) -> int:
+                  datum: str | None = None, aufgaben: list[dict] | None = None) -> int:
     with transaktion(con):
         cur = con.execute(
             "INSERT INTO blaetter (schueler_id, titel, kategorien, inhalt_uebung,"
-            " inhalt_test, loesungen, datum, erstellt_am)"
-            " VALUES (?,?,?,?,?,?,?,?)",
+            " inhalt_test, loesungen, datum, erstellt_am, aufgaben)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
             (schueler_id, titel.strip(), json.dumps(kategorien, ensure_ascii=False),
-             inhalt_uebung, inhalt_test, loesungen, datum or _heute(), _jetzt()),
+             inhalt_uebung, inhalt_test, loesungen, datum or _heute(), _jetzt(),
+             json.dumps(aufgaben, ensure_ascii=False) if aufgaben else None),
         )
     return int(cur.lastrowid)
 

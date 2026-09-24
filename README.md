@@ -182,6 +182,54 @@ Beide Antworten werden mit dem Freigabedatum in der Datenbank festgehalten.
 
 ---
 
+## Übungsblätter: aus der Analyse abgeleitet, Aufgabe für Aufgabe steuerbar
+
+Ein Blatt ist keine Textwand mehr, sondern eine **Liste von Aufgaben** (JSON
+aus dem Chat, gleiches Schema in beiden Fassungen). Drei Regler genügen:
+
+| Regler | Stufen | Was er steuert |
+|---|---|---|
+| **Niveau** | leicht · mittel · anspruchsvoll | was die Aufgabe verlangt: Wortmaterial, Stützung, Leistungsart (unverändert) |
+| **Umfang** | kurz · normal · lang | 2/3/4 Aufgaben je Bereich, 4/6/8 im Mini-Test, Bearbeitungszeit |
+| **Übungsebene** | automatisch · Lautebene · gemischt · Regelebene | welche Aufgabenformate überhaupt in Frage kommen |
+
+Die Übungsebene folgt dem Original (S. 36, 24, 49): Kompetenzwert unter 50
+oder überwiegend Gruppe-I-Fehler heisst **Lautebene** – Wörter in Grapheme
+gliedern (Übung 8.1), Orthographeme markieren (8.2), Vokallänge hören, die
+eigenen Lernwörter; dem Kind werden keine Fehlschreibungen vorgelegt (keine
+Fehlersuche, kein Ankreuzen). 50–70 mischt Regel- und Lautebene, über 70
+gibt es nur noch Regelarbeit: Sortieren, Ableiten, Fehlersuche mit
+Distraktoren, Begründen, eigene Produktion.
+
+Der **Förderplan** geht in den Prompt: je Bereich die Strategie
+(Verlängern, Ableiten, Nomenprobe, Abhören) statt der Regel, der Kontrast,
+der geübt werden muss (ss nach kurzem gegen langem Vokal, ie gegen Merkwörter
+mit i, ableitbares gegen nicht ableitbares ä), und die **Lernwörter des
+Kindes** – Wiederholungsfehler zuerst (S. 19, 27–28), richtig geschrieben,
+mit dem Hinweis, was das Kind geschrieben hat. Jedes Lernwort muss im
+Übungsteil vorkommen; der Mini-Test nimmt andere Wörter derselben Stelle.
+
+**Prüfung mit der Engine:** Jede Aufgabe wird geprüft – ß, Format auf der
+Ebene erlaubt, Lösung vorhanden, Lösungswort nicht schon im Material,
+Buchstabenvorgabe auf «anspruchsvoll» verboten, Lernwörter geübt, Test nicht
+leichter als die Übung. Bei einer Fehlersuche läuft jeder eingebaute Fehler
+durch die Engine: Gehört «Kater → Käter» nicht zu F1, steht das an der
+Aufgabe (36 ist Umlautbezeichnung, nicht Schärfung).
+
+**Im Tool sichtbar und steuerbar:** Vorder- und Rückseite werden als Blatt
+gezeigt. Mit der Maus über eine Aufgabe fahren (Tastatur: Fokus; Touch:
+immer sichtbar) bringt die Werkzeuge: **Bearbeiten** (Aufgabe, Material,
+Lösung, Merksatz von Hand), **Austauschen**, nach oben, nach unten,
+**Entfernen**. Im Editor liegen sechs **Chips**, die den Prompt für diese
+eine Aufgabe steuern: Leichter · Schwerer · Andere Wörter · Lernwörter des
+Kindes · Begründung verlangen · Anderes Format, dazu ein freies Wunschfeld.
+«Prompt: Überarbeiten» oder «Prompt: Austauschen» erzeugt einen kurzen
+Auftrag (RST-AUF-…) mit der Aufgabe als JSON und dem Rahmen des Blattes; die
+Antwort wird eingefügt und ersetzt genau diese Aufgabe. Wo das Sprachmodell
+direkt erreichbar ist, geht das mit einem Klick. Gespeicherte Blätter lassen
+sich aus dem Archiv wieder in den Editor öffnen. In der Streamlit-Fassung
+liegen dieselben Werkzeuge in einem Aufklapper unter jeder Aufgabe.
+
 ## Blätter als PDF oder als Word-Datei
 
 Jedes druckbare Dokument – Übungsblatt mit Mini-Test, Informationsblatt zu
@@ -772,7 +820,7 @@ erst, wenn das Sprachmodell einen Text auswertet.
 python3 -m pytest tests/ -q
 ```
 
-**Stand: 997 Tests, alle grün.** Abgedeckt sind:
+**Stand: 1011 Tests, alle grün.** Abgedeckt sind:
 
 | Datei | Prüft |
 |---|---|
@@ -786,6 +834,8 @@ python3 -m pytest tests/ -q
 | `test_olfa_und_export.py` | Kategorienliste, unbesetzte Nummern 21/22, Testmodus, CSV/JSON-Export, `.gitignore` |
 | `test_charts.py` | Diagramme, feste Farbreihenfolge, Serienbegrenzung |
 | `test_olfa_engine.py` | Goldstandard: 291 Wort- und 13 Satzpaare (§19, A.1, Bau-Prompt, Grenzfallkorpus), Graphemsegmentierung, Transposition, Nie-Raten, Konsequenzprüfung C.1, Validator §17/A.5, Konfidenz C.2, Halluzinationsfilter, Umstufungsmuster C.3 |
+| `test_blatt.py` | Förderplan (Ebene nach KW, Lernwörter, Umfang), JSON-Aufgaben lesen und in Drucktext wandeln, Prüfung mit der Engine, Bearbeiten/Verschieben/Ersetzen, Teilprompt und Antwort, Rückfall auf das alte Textformat |
+| `test_ui_blaetter.py` | Blattseite durchgespielt: Regler → Prompt → JSON-Antwort → Aufgabenkarten → Chip-Prompt → Aufgabe ersetzen → Entfernen → Speichern |
 | `test_original.py` | Jedes gedruckte Beispiel des Originals (181) und der Schülertext S. 48 (92 Fehler) durch die Engine; Version CH (ß → 37, 13–16 gesperrt); Wortgrenzen mit Folgefehlern; Out-of-the-box: jedes Beispiel mit vertauschter Gross-/Kleinschreibung und im Trägersatz durch den Diktatmodus |
 | `test_olfa_werte.py` | Rechenproben aus dem Original: Abb. 7 (S. 49), Beispiel Olaf (S. 33–35), Tabelle 5 und Formeln (S. 29–30), Zählregel S. 16, Wächter und KW-Bänder S. 36 |
 | `test_grammatik.py` | Feste Liste B–E: Vollständigkeit, de-CH-Prosa, Helvetismen, Kennungen, Register, Analyse-Prompt und Rücklesen |

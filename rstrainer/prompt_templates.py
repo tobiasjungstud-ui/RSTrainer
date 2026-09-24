@@ -35,6 +35,7 @@ MARKE_ENDE = "===RSTRAINER-ENDE==="
 MARKE_UEBUNG = "---UEBUNGSBLATT---"
 MARKE_TEST = "---MINITEST---"
 MARKE_LOESUNG = "---LOESUNGEN---"
+MARKE_JSON = "---JSON---"
 KOPF_TRENNER = "---"
 
 
@@ -296,69 +297,51 @@ und prüfe am Schluss jede Aufgabe gegen sie.
 
 {anforderung}
 
-### Förderschwerpunkte
-Alle Aufgaben müssen erkennbar zu genau diesen Kategorien gehören. Ordne \
-jeder Aufgabe im Aufgabentext sichtbar die Kategorienummer zu, damit die \
-Lehrperson die Zuordnung prüfen kann.
+{foerderplan}
+
+### Förderschwerpunkte (OLFA-Kategorien)
+Alle Aufgaben müssen erkennbar zu genau diesen Kategorien gehören; im Feld \
+«bereich» steht der Förderbereich (F1–F10), zu dem die Kategorie gehört.
 
 {kategorienblock}
 
-### Aufbau Übungsteil (Vorderseite)
-Pro Förderschwerpunkt {aufgaben_pro_kategorie} Aufgaben, aufsteigend im \
-Schwierigkeitsgrad. Die Formate wählst du nach dem Anforderungsniveau oben. \
-Zur Auswahl stehen, von gestützt nach ungestützt:
-- Lückenwörter ergänzen (Suchort markiert)
-- richtige von falscher Schreibung unterscheiden und ankreuzen
-- Wörter nach Regel sortieren
-- Wortfamilie bilden / verlängern zur Ableitung
-- Fehler in einem zusammenhängenden Text finden und berichtigen (Suchort \
-nicht markiert)
-- Entscheidung schriftlich begründen (Ableitungswort oder Regel nennen)
-- eigene Sätze unter einer Bedingung schreiben
-
-Die gestützten Formate ganz oben sind nur zulässig, soweit das \
-Anforderungsniveau sie erlaubt.
-
-Formuliere zu jedem Schwerpunkt EINEN kurzen Merksatz (höchstens zwei Zeilen, \
-kindgerecht, ohne Fachjargon) vor den zugehörigen Aufgaben.
-
-### Aufbau Mini-Test (Rückseite)
-- Insgesamt {test_aufgaben} Aufgaben, alle Förderschwerpunkte abgedeckt.
-- Andere Wörter als im Übungsteil, gleiches Anforderungsniveau. Der Test darf \
-nicht leichter sein als der Übungsteil: Dieselben Formatvorgaben gelten hier \
-unverändert.
-- Am Ende eine Zeile «Erreichte Punkte: ____ von {test_aufgaben}».
-- KEINE Merksätze und KEINE Lösungshinweise auf der Testseite.
+### Aufbau
+- Übungsteil (Vorderseite): je Förderbereich die im Förderplan genannte Zahl \
+Aufgaben, aufsteigend im Schwierigkeitsgrad, nur aus den erlaubten Formaten. \
+Die erste Aufgabe eines Bereichs trägt einen Merksatz (höchstens zwei Zeilen, \
+kindgerecht), der die Strategie nennt, nicht die Regel. Jede Aufgabe nennt im \
+Feld «strategie» das Verfahren, mit dem das Kind sich selbst kontrollieren kann.
+- Mini-Test (Rückseite): die im Förderplan genannte Zahl Aufgaben, alle \
+Förderbereiche abgedeckt, andere Wörter als im Übungsteil, gleiches \
+Anforderungsniveau und dieselben Formatvorgaben – der Test darf nicht \
+leichter sein. Keine Merksätze, keine Hilfen. Punkte je Aufgabe im Feld «punkte».
+- Lösungen ausschliesslich im Feld «loesung». Auf Vorder- und Rückseite \
+dürfen KEINE Lösungen stehen – weder in Klammern, noch als ausgefülltes \
+Beispiel, noch als durchgestrichene Variante.
+- Bei «fehlersuche»: jeden eingebauten Fehler unter «fehler» als Paar \
+falsch/richtig aufführen; jeder Fehler muss zum Bereich der Aufgabe gehören.
 
 ### Prüfe dich selbst, bevor du antwortest
-Geh jede Aufgabe einzeln durch und beantworte für dich: Erfüllt sie die \
-Vorgaben unter «Anforderungsniveau»? Eine Aufgabe, die das nicht tut, \
-ersetzt du – auch wenn sie inhaltlich schön ist. Prüfe besonders: Steht \
-irgendwo ein einzusetzender Buchstabe in Klammern, obwohl das Niveau ihn \
-verbietet? Ist eine Ankreuzform gar kein existierendes Wort? Stammt ein Wort \
-aus dem Primarschul-Wortschatz?
-
-### Sehr wichtig
-Auf der Vorderseite und auf der Rückseite dürfen KEINE Lösungen stehen – \
-weder in Klammern, noch als Beispiel mit ausgefüllter Lücke, noch als \
-durchgestrichene Variante. Lösungen gehören ausschliesslich in den \
-Lösungsabschnitt am Ende deiner Antwort.
+Geh jede Aufgabe einzeln durch: Erfüllt sie das Anforderungsniveau? Ist das \
+Format auf der Übungsebene erlaubt? Kommen die Lernwörter des Kindes im \
+Übungsteil vor? Steht irgendwo eine Lösung auf der Aufgabenseite? Ist eine \
+Ankreuzform gar kein existierendes Wort? Eine Aufgabe, die das nicht \
+besteht, ersetzt du – auch wenn sie inhaltlich schön ist.
 
 {qualitaetsregeln}
 
 ### Rückgabeformat
-Antworte ausschliesslich mit dem folgenden Block, ohne Vor- oder Nachtext:
+Antworte ausschliesslich mit dem folgenden Block, ohne Vor- oder Nachtext. \
+Nach {marke_json} folgt gültiges JSON (keine Kommentare, keine Auslassungen):
 
 {marke_anfang}
 AUFTRAG: {auftrag_code}
 TYP: uebungsblatt
 TITEL: <kurzer Titel, höchstens 6 Wörter>
-{marke_uebung}
-<Übungsteil. Reiner Text. Aufgaben nummeriert. Lücken als _______ .>
-{marke_test}
-<Mini-Test. Reiner Text. Aufgaben nummeriert.>
-{marke_loesung}
-<Lösungen zu Übungsteil und Mini-Test, nach Aufgabennummer geordnet.>
+{marke_json}
+{{"aufgaben": [
+{aufgabenschema}
+]}}
 {marke_ende}
 """
 
@@ -421,9 +404,8 @@ VORLAGEN = {
 PFLICHTPLATZHALTER = {
     "diktat": {"auftrag_code", "kategorienblock", "wortzahl", "anforderung",
                "marke_anfang", "marke_ende"},
-    "uebungsblatt": {"auftrag_code", "kategorienblock", "anforderung",
-                     "marke_anfang", "marke_ende",
-                     "marke_uebung", "marke_test", "marke_loesung"},
+    "uebungsblatt": {"auftrag_code", "kategorienblock", "anforderung", "foerderplan",
+                     "marke_anfang", "marke_ende", "marke_json", "aufgabenschema"},
     "minitest": {"auftrag_code", "kategorienblock", "anforderung",
                  "marke_anfang", "marke_ende",
                  "marke_test", "marke_loesung"},

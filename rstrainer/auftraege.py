@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import grammatik, olfa_engine
+from . import blatt
 from . import prompt_templates as pt
 from .diffing import kategorie_vorschlaege, marker_bestimmen
 from .olfa import Kategorienliste
@@ -115,6 +116,9 @@ def prompt_bauen(typ: str, parameter: dict[str, Any], liste: Kategorienliste,
         "marke_uebung": pt.MARKE_UEBUNG,
         "marke_test": pt.MARKE_TEST,
         "marke_loesung": pt.MARKE_LOESUNG,
+        "marke_json": pt.MARKE_JSON,
+        "aufgabenschema": blatt.AUFGABENSCHEMA,
+        "foerderplan": parameter.get("foerderplan_text") or "",
         "kopf_trenner": pt.KOPF_TRENNER,
         "stufe": pt.STUFE.get(schwierigkeit, pt.STUFE["mittel"]),
         # Der Schwierigkeitsgrad muss sagen, WAS die Aufgabe verlangt – eine
@@ -126,7 +130,7 @@ def prompt_bauen(typ: str, parameter: dict[str, Any], liste: Kategorienliste,
         ),
     }
     werte.update({k: v for k, v in parameter.items()
-                  if k not in ("kategorien", "sondierung")})
+                  if k not in ("kategorien", "sondierung", "foerderplan_text", "foerderplan")})
 
     try:
         text = pt.VORLAGEN[typ].format(**werte)
@@ -156,6 +160,7 @@ class Ergebnis:
     loesungen: str = ""
     strukturiert: bool = False
     hinweise: list[str] = field(default_factory=list)
+    aufgaben: list[dict] = field(default_factory=list)
 
     @property
     def ist_leer(self) -> bool:
@@ -247,7 +252,18 @@ def ergebnis_lesen(eingefuegt: str, erwarteter_code: str | None = None,
     ergebnis.auftrag_code = kopf.get("AUFTRAG") or None
     ergebnis.typ = (kopf.get("TYP") or "").strip().lower() or None
 
-    abschnitte = _abschnitte_lesen(rest)
+    if pt.MARKE_JSON in rest:
+        aufgaben, fehler_json = blatt.aufgaben_lesen(rest)
+        ergebnis.aufgaben = aufgaben
+        ergebnis.hinweise.extend(fehler_json)
+        if aufgaben:
+            ergebnis.uebungsteil, ergebnis.testteil, ergebnis.loesungen = blatt.aufgaben_zu_text(aufgaben)
+            ergebnis.haupttext = ergebnis.uebungsteil or ergebnis.testteil
+        else:
+            ergebnis.haupttext = rest
+        abschnitte = {}
+    else:
+        abschnitte = _abschnitte_lesen(rest)
     if abschnitte:
         ergebnis.uebungsteil = abschnitte.get("uebung", "")
         ergebnis.testteil = abschnitte.get("test", "")

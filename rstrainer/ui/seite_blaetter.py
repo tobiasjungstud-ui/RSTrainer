@@ -1,8 +1,10 @@
 """Seite: Übungsblätter und Mini-Tests.
 
-Ablauf wie beim Diktat: Empfehlung ansehen → Themen festlegen → Prompt →
-Ergebnis einfügen → Prüfungen → Freigabe mit zwei ausdrücklichen
-Rückfragen (Lösungen sichtbar? Niveau passend?) → Docx-Export.
+Ablauf: Förderschwerpunkte und drei Regler (Niveau, Umfang, Übungsebene) →
+Förderplan aus Kompetenzwert und Lernwörtern des Kindes → Prompt → Antwort
+als Aufgabenliste → jede Aufgabe einzeln ansehen, prüfen, von Hand ändern
+oder mit einem Chip-Prompt überarbeiten/austauschen → Freigabe mit zwei
+ausdrücklichen Rückfragen → Export.
 """
 
 from __future__ import annotations
@@ -12,7 +14,8 @@ from datetime import date
 
 import streamlit as st
 
-from .. import analysis, auftraege, config, db, validation
+from .. import analysis, auftraege, blatt, config, db, validation
+from ..olfa_engine import FOERDERBEREICHE
 from . import gemeinsam as g
 
 SCHWIERIGKEITEN = {
@@ -46,10 +49,38 @@ def _empfehlungen_holen(con, schueler) -> list[analysis.Empfehlung]:
     return analysis.empfehlungen(punkte, fehler)
 
 
+def _fehler_und_woerter(con, schueler) -> tuple[list[dict], int]:
+    fehler = [dict(f) for f in db.fehler_liste(con, schueler["id"])]
+    woerter = sum(int(d["wortzahl"] or 0) for d in db.diktat_liste(con, schueler["id"]))
+    return fehler, woerter
+
+
+def _plan_aus_state(con, schueler) -> blatt.Foerderplan | None:
+    roh = st.session_state.get("blatt_plan")
+    if not roh:
+        return None
+    fehler, woerter = _fehler_und_woerter(con, schueler)
+    return blatt.foerderplan(roh["bereiche"], fehler, woerter, anspruch=roh["anspruch"],
+                             umfang=roh["umfang"], ebene=roh["ebene"])
+
+
+def _foerderplan_anzeigen(plan: blatt.Foerderplan, reg) -> None:
+    ebene = blatt.EBENEN[plan.ebene]
+    kw = "–" if plan.kw is None else f"{plan.kw:g}"
+    st.markdown(f"**Übungsebene: {ebene['name']}** (Kompetenzwert {kw}) – {plan.ebene_grund}")
+    st.caption("Erlaubte Formate: " + ", ".join(blatt.FORMATE[f]["name"] for f in plan.formate)
+               + (" · nicht vorgesehen: " + ", ".join(blatt.FORMATE[f]["name"] for f in plan.verboten) if plan.verboten else ""))
+    for bereich in plan.bereiche:
+        ws = plan.lernwoerter.get(bereich, [])
+        fb = FOERDERBEREICHE.get(bereich, {})
+        text = ", ".join(f"{w.ziel} ({w.anzahl}×)" for w in ws) or "noch keine Fehlwörter erfasst"
+        st.markdown(f"- **{bereich} · {fb.get('name', '')}** – Strategie: {fb.get('foerdern', '')}. Lernwörter: {text}")
+
+
 def _neues_blatt(con, schueler) -> None:
     reg = g.register()
 
-    st.subheader("Schritt 1 · Förderschwerpunkte festlegen")
+    st.subheader("Schritt 1 · Förderschwerpunkte und drei Regler")
     vorschlaege = _empfehlungen_holen(con, schueler)
     if vorschlaege:
         st.markdown("**Vorschlag des Tools**")
@@ -60,11 +91,6 @@ def _neues_blatt(con, schueler) -> None:
                     f"*{e.trend.text}* · Priorität {e.punktzahl}"
                 )
                 st.caption(e.begruendung)
-                st.caption(
-                    f"Zeitgewichtete Rate {e.details['gewichtete_rate']} Fehler/100 "
-                    f"Wörter · Trendfaktor {e.details['trendfaktor']} · "
-                    f"Verbreitung {e.details['verbreitung']}"
-                )
         vorauswahl = [e.kategorie_nr for e in vorschlaege]
     else:
         st.info(
@@ -73,46 +99,57 @@ def _neues_blatt(con, schueler) -> None:
         )
         vorauswahl = []
 
-    st.caption("Der Vorschlag lässt sich jederzeit übersteuern.")
-
+    fehler, woerter = _fehler_und_woerter(con, schueler)
     with st.form("blatt_prompt"):
         kategorien = g.kategorien_auswahl(
             reg, "Förderschwerpunkte (1–3)", vorauswahl=vorauswahl,
             schluessel="blatt_kategorien", hoechstens=3,
         )
-        spalte_a, spalte_b = st.columns(2)
-        with spalte_a:
-            schwierigkeit = st.selectbox(
-                "Schwierigkeitsgrad", list(SCHWIERIGKEITEN), index=1,
-                format_func=lambda x: SCHWIERIGKEITEN[x],
-                help="Bestimmt zugleich die Zielstufe im Prompt.",
-            )
-            aufgaben = st.number_input("Aufgaben je Schwerpunkt", 2, 8, 3)
-        with spalte_b:
-            bearbeitungszeit = st.text_input("Bearbeitungszeit", value="20 Minuten")
-            test_aufgaben = st.number_input("Aufgaben im Mini-Test", 3, 15, 6)
-
-        if st.form_submit_button("Prompt generieren", type="primary"):
+        sp = st.columns(3)
+        schwierigkeit = sp[0].selectbox(
+            "Niveau", list(SCHWIERIGKEITEN), index=1, format_func=lambda x: SCHWIERIGKEITEN[x],
+            help="Was die Aufgabe verlangt: Wortmaterial, Stützung, Leistungsart.")
+        umfang = sp[1].selectbox(
+            "Umfang", list(blatt.UMFANG), index=1,
+            format_func=lambda u: {"kurz": "kurz – 2 je Bereich, Test 4", "normal": "normal – 3 je Bereich, Test 6",
+                                   "lang": "lang – 4 je Bereich, Test 8"}[u])
+        ebene = sp[2].selectbox(
+            "Übungsebene", ["auto", "lautebene", "gemischt", "regelebene"], index=0,
+            format_func=lambda e: "automatisch nach Kompetenzwert (S. 36)" if e == "auto" else blatt.EBENEN[e]["name"],
+            help="Lautebene: Gliedern, Hören, Lernwörter – keine Fehlschreibungen vorzeigen. Regelebene: Fehlersuche, Begründen, Produktion.")
+        if st.form_submit_button("Förderplan und Prompt erzeugen", type="primary"):
             if not kategorien:
                 st.error("Bitte mindestens einen Förderschwerpunkt wählen.")
             else:
+                bereiche = []
+                for nr in kategorien:
+                    fb = blatt.bereich_von(nr)
+                    if fb and fb not in bereiche:
+                        bereiche.append(fb)
+                if not bereiche:
+                    st.error("Die gewählten Kategorien liegen ausserhalb der Rechtschreibung (Bereich A) – für sie gibt es kein OLFA-Übungsblatt.")
+                    return
+                plan = blatt.foerderplan(bereiche, fehler, woerter, anspruch=schwierigkeit, umfang=umfang,
+                                         ebene=None if ebene == "auto" else ebene)
+                st.session_state["blatt_plan"] = {"bereiche": bereiche, "anspruch": schwierigkeit, "umfang": umfang,
+                                                  "ebene": None if ebene == "auto" else ebene}
+                zeit = {"kurz": "15 Minuten", "normal": "20 Minuten", "lang": "30 Minuten"}[umfang]
                 parameter = {
-                    "kategorien": kategorien,
-                    "schwierigkeit": schwierigkeit,
-                    "bearbeitungszeit": bearbeitungszeit,
-                    "aufgaben_pro_kategorie": int(aufgaben),
-                    "test_aufgaben": int(test_aufgaben),
+                    "kategorien": kategorien, "schwierigkeit": schwierigkeit, "bearbeitungszeit": zeit,
+                    "aufgaben_pro_kategorie": plan.aufgaben_je_bereich, "test_aufgaben": plan.test_aufgaben,
+                    "foerderplan": plan.als_dict(), "foerderplan_text": blatt.foerderplan_block(plan),
                 }
                 try:
                     code, prompt = auftraege.prompt_bauen(
                         "uebungsblatt", parameter, reg.liste, sammlung=reg.sammlung,
                     )
-                except KeyError as fehler:
-                    st.error(str(fehler))
+                except KeyError as fehler_:
+                    st.error(str(fehler_))
                     return
-                db.auftrag_anlegen(con, schueler["id"], code, "uebungsblatt",
-                                   parameter, prompt)
+                db.auftrag_anlegen(con, schueler["id"], code, "uebungsblatt", parameter, prompt)
                 st.session_state["blatt_auftrag"] = code
+                for k in ("blatt_ergebnis", "blatt_aufgaben", "blatt_eingefuegt"):
+                    st.session_state.pop(k, None)
                 st.rerun()
 
     code = st.session_state.get("blatt_auftrag")
@@ -122,6 +159,12 @@ def _neues_blatt(con, schueler) -> None:
     if auftrag is None or auftrag["schueler_id"] != schueler["id"]:
         st.session_state.pop("blatt_auftrag", None)
         return
+    plan = _plan_aus_state(con, schueler)
+
+    st.divider()
+    st.subheader("Förderplan (geht so in den Prompt)")
+    if plan:
+        _foerderplan_anzeigen(plan, reg)
 
     st.divider()
     st.subheader("Schritt 2 · Prompt in den Chat kopieren")
@@ -133,9 +176,6 @@ def _neues_blatt(con, schueler) -> None:
         "Antwort aus dem Chat", height=220, key="blatt_eingefuegt",
         placeholder="Komplette Antwort hierher kopieren.",
     )
-    # Bewusst NICHT über "disabled" gesperrt: Streamlit übermittelt den Inhalt
-    # eines Textfeldes erst, wenn es den Fokus verliert. Ein gesperrter Knopf
-    # wirkt dann wie ein Fehler, obwohl nur noch ein Klick daneben fehlt.
     if st.button("Ergebnis auswerten"):
         if not (eingefuegt or "").strip():
             st.warning(
@@ -143,44 +183,126 @@ def _neues_blatt(con, schueler) -> None:
                 "einmal neben das Feld klicken."
             )
         else:
-            st.session_state["blatt_ergebnis"] = auftraege.ergebnis_lesen(
-                eingefuegt, erwarteter_code=code, erwarteter_typ="uebungsblatt"
-            )
+            ergebnis = auftraege.ergebnis_lesen(eingefuegt, erwarteter_code=code, erwarteter_typ="uebungsblatt")
+            st.session_state["blatt_ergebnis"] = ergebnis
+            st.session_state["blatt_aufgaben"] = ergebnis.aufgaben
             st.rerun()
 
     ergebnis = st.session_state.get("blatt_ergebnis")
     if ergebnis is not None:
-        _vorschau_und_freigabe(con, schueler, auftrag, ergebnis)
+        _vorschau_und_freigabe(con, schueler, auftrag, ergebnis, plan)
 
 
 # ---------------------------------------------------------------------------
-# Prüfung + Freigabe
+# Aufgabenvorschau mit Bearbeiten, Chips und Austausch
 # ---------------------------------------------------------------------------
 
-def _vorschau_und_freigabe(con, schueler, auftrag, ergebnis) -> None:
+def _aufgabe_karte(a: dict, plan: blatt.Foerderplan, befunde: list[dict], anforderung: str) -> None:
+    """Eine Aufgabe als Karte: Inhalt, darunter aufklappbar Bearbeiten, Chips
+    und der Teilprompt zum Überarbeiten oder Austauschen."""
+    schluessel = f"{a['teil']}_{a['nr']}"
+    fmt = blatt.FORMATE.get(a["format"], {}).get("name", a["format"])
+    with st.container(border=True):
+        kopf, werkzeuge = st.columns([5, 2])
+        kopf.markdown(f"**{a['nr']} · {a['bereich']} · {fmt}**"
+                      + (f" — Strategie: *{a['strategie']}*" if a["strategie"] else "")
+                      + (f" · {a['punkte']} P." if a["teil"] == "test" and a["punkte"] > 1 else ""))
+        for b in befunde:
+            (st.warning if b["stufe"] == "warnung" else st.info)(b["text"])
+        if a["merksatz"] and a["teil"] == "uebung":
+            st.markdown(f"> **Merke:** {a['merksatz']}")
+        st.markdown(a["aufgabe"])
+        if a["material"]:
+            st.text(a["material"])
+        k = werkzeuge.columns(3)
+        if k[0].button("↑", key=f"auf_{schluessel}", help="nach oben"):
+            st.session_state["blatt_aufgaben"] = blatt.aufgabe_verschieben(st.session_state["blatt_aufgaben"], a["teil"], a["nr"], -1)
+            st.rerun()
+        if k[1].button("↓", key=f"ab_{schluessel}", help="nach unten"):
+            st.session_state["blatt_aufgaben"] = blatt.aufgabe_verschieben(st.session_state["blatt_aufgaben"], a["teil"], a["nr"], 1)
+            st.rerun()
+        if k[2].button("✕", key=f"weg_{schluessel}", help="Aufgabe entfernen"):
+            st.session_state["blatt_aufgaben"] = blatt.aufgabe_entfernen(st.session_state["blatt_aufgaben"], a["teil"], a["nr"])
+            st.rerun()
+
+        with st.expander("Bearbeiten · Chips · Austauschen"):
+            st.caption("Von Hand ändern:")
+            aufgabe = st.text_input("Aufgabenstellung", value=a["aufgabe"], key=f"e_auf_{schluessel}")
+            material = st.text_area("Material", value=a["material"], key=f"e_mat_{schluessel}", height=90)
+            loesung = st.text_area("Lösung (nur auf dem Lösungsblatt)", value=a["loesung"], key=f"e_loe_{schluessel}", height=60)
+            merksatz = st.text_input("Merksatz (nur Übungsteil)", value=a["merksatz"], key=f"e_mer_{schluessel}") if a["teil"] == "uebung" else a["merksatz"]
+            if st.button("Änderung übernehmen", key=f"e_ok_{schluessel}"):
+                neu = {**a, "aufgabe": aufgabe, "material": material, "loesung": loesung, "merksatz": merksatz}
+                st.session_state["blatt_aufgaben"] = blatt.aufgabe_ersetzen(st.session_state["blatt_aufgaben"], a["teil"], a["nr"], neu)
+                st.rerun()
+
+            st.caption("Vom Sprachmodell überarbeiten lassen – einen Chip wählen (oder keinen) und einen Wunsch eintragen:")
+            chip_spalten = st.columns(len(blatt.CHIPS))
+            gewaehlt = st.session_state.get(f"chip_{schluessel}")
+            for i, (cid, c) in enumerate(blatt.CHIPS.items()):
+                if chip_spalten[i].button(("✓ " if gewaehlt == cid else "") + c["name"], key=f"chip_{schluessel}_{cid}"):
+                    st.session_state[f"chip_{schluessel}"] = None if gewaehlt == cid else cid
+                    st.rerun()
+            wunsch = st.text_input("Wunsch (frei)", key=f"wunsch_{schluessel}", placeholder="z. B. mit Wörtern aus dem Thema Wald")
+            p1, p2 = st.columns(2)
+            if p1.button("Prompt: Überarbeiten", key=f"tp_ue_{schluessel}"):
+                st.session_state[f"tp_{schluessel}"] = blatt.teilprompt_bauen(a, plan, "ueberarbeiten", gewaehlt, wunsch, anforderung)
+            if p2.button("Prompt: Austauschen", key=f"tp_at_{schluessel}"):
+                st.session_state[f"tp_{schluessel}"] = blatt.teilprompt_bauen(a, plan, "austauschen", gewaehlt, wunsch, anforderung)
+            tp = st.session_state.get(f"tp_{schluessel}")
+            if tp:
+                tcode, ttext = tp
+                st.code(ttext, language="markdown")
+                antwort = st.text_area("Antwort des Chats hier einfügen", key=f"tpa_{schluessel}", height=120)
+                if st.button("Aufgabe ersetzen", key=f"tpr_{schluessel}", type="primary"):
+                    neu, hinweise = blatt.aufgabe_lesen(antwort)
+                    if neu is None:
+                        st.error(" ".join(hinweise))
+                    else:
+                        st.session_state["blatt_aufgaben"] = blatt.aufgabe_ersetzen(st.session_state["blatt_aufgaben"], a["teil"], a["nr"], neu)
+                        st.session_state.pop(f"tp_{schluessel}", None)
+                        st.rerun()
+
+
+def _vorschau_und_freigabe(con, schueler, auftrag, ergebnis, plan) -> None:
     reg = g.register()
     parameter = json.loads(auftrag["parameter"] or "{}")
     kategorien = [str(k) for k in parameter.get("kategorien", [])]
+    anforderung = auftraege._anforderung("uebungsblatt", parameter.get("schwierigkeit", "mittel"))
 
     st.divider()
-    st.subheader("Schritt 4 · Kontrolle vor der Freigabe")
+    st.subheader("Schritt 4 · Blatt ansehen, prüfen, anpassen")
     st.info("**Noch nichts gespeichert.** Erst die Freigabe unten speichert das Blatt.")
-
     for hinweis in ergebnis.hinweise:
         st.warning(hinweis)
 
-    titel = st.text_input("Titel des Blattes", value=ergebnis.titel or "Übungsblatt")
-    uebung = st.text_area("Übungsteil (Vorderseite)", value=ergebnis.uebungsteil,
-                          height=240, key="blatt_uebung")
-    test = st.text_area("Mini-Test (Rückseite)", value=ergebnis.testteil,
-                        height=200, key="blatt_test")
-    loesungen = st.text_area("Lösungen (separates Blatt)", value=ergebnis.loesungen,
-                             height=140, key="blatt_loesungen")
+    aufgaben = st.session_state.get("blatt_aufgaben") or []
+    if aufgaben and plan:
+        befunde = blatt.aufgaben_pruefen(aufgaben, plan)
+        allgemein = [b for b in befunde if b["nr"] == 0]
+        for b in allgemein:
+            (st.warning if b["stufe"] == "warnung" else st.info)(b["text"])
+        tab_u, tab_t, tab_l = st.tabs(["Vorderseite · Übungsteil", "Rückseite · Mini-Test", "Lösungsblatt"])
+        with tab_u:
+            for a in [x for x in aufgaben if x["teil"] == "uebung"]:
+                _aufgabe_karte(a, plan, [b for b in befunde if b["teil"] == "uebung" and b["nr"] == a["nr"]], anforderung)
+        with tab_t:
+            for a in [x for x in aufgaben if x["teil"] == "test"]:
+                _aufgabe_karte(a, plan, [b for b in befunde if b["teil"] == "test" and b["nr"] == a["nr"]], anforderung)
+        uebung, test, loesungen = blatt.aufgaben_zu_text(aufgaben)
+        with tab_l:
+            st.text(loesungen)
+        with st.expander("Drucktext (so kommt es aufs Blatt)"):
+            st.text(uebung)
+            st.text(test)
+    else:
+        uebung = st.text_area("Übungsteil (Vorderseite)", value=ergebnis.uebungsteil, height=240, key="blatt_uebung")
+        test = st.text_area("Mini-Test (Rückseite)", value=ergebnis.testteil, height=200, key="blatt_test")
+        loesungen = st.text_area("Lösungen (separates Blatt)", value=ergebnis.loesungen, height=140, key="blatt_loesungen")
 
+    titel = st.text_input("Titel des Blattes", value=ergebnis.titel or "Übungsblatt")
     st.markdown("**Automatische Plausibilitätsprüfung**")
-    g.befunde_anzeigen(
-        validation.blatt_pruefen(uebung, test, loesungen, kategorien, reg)
-    )
+    g.befunde_anzeigen(validation.blatt_pruefen(uebung, test, loesungen, kategorien, reg))
 
     st.divider()
     st.markdown("### Freigabe")
@@ -211,21 +333,20 @@ def _vorschau_und_freigabe(con, schueler, auftrag, ergebnis) -> None:
     if st.button("Blatt speichern", type="primary", disabled=not alles_bestaetigt):
         blatt_id = db.blatt_anlegen(
             con, schueler["id"], titel, kategorien, uebung, test, loesungen,
-            datum=datum.isoformat(),
+            datum=datum.isoformat(), aufgaben=aufgaben or None,
         )
         db.blatt_freigeben(con, blatt_id, pruef_loesungen, pruef_niveau)
         db.auftrag_status_setzen(con, auftrag["code"], auftraege.STATUS_FREIGEGEBEN,
                                  ergebnis_roh=uebung)
-        for schluessel in ("blatt_auftrag", "blatt_ergebnis", "blatt_eingefuegt",
-                           "blatt_freigabe", "blatt_pruef_loesungen",
-                           "blatt_pruef_niveau"):
-            st.session_state.pop(schluessel, None)
+        for schluessel in list(st.session_state):
+            if schluessel.startswith(("blatt_", "tp_", "tpa_", "chip_", "wunsch_", "e_")):
+                st.session_state.pop(schluessel, None)
         g.merken(f"Blatt «{titel}» gespeichert (Nr. {blatt_id}).")
         st.rerun()
 
     if st.button("Verwerfen", key="blatt_verwerfen"):
         db.auftrag_status_setzen(con, auftrag["code"], auftraege.STATUS_VERWORFEN)
-        for schluessel in ("blatt_auftrag", "blatt_ergebnis", "blatt_eingefuegt"):
+        for schluessel in ("blatt_auftrag", "blatt_ergebnis", "blatt_eingefuegt", "blatt_aufgaben", "blatt_plan"):
             st.session_state.pop(schluessel, None)
         st.rerun()
 
