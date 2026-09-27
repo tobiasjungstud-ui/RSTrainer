@@ -481,18 +481,32 @@ und `fehlerDiktiert()` dieselbe Rolle.
 
 ## Fehlererfassung
 
-Die Fehleranalyse funktioniert in beiden Fällen – und der **Modus ist
+Die Fehleranalyse funktioniert in allen drei Textarten – und der **Modus ist
 ausdrücklich wählbar**. Unter *Fehler → OLFA-Analyse* steht oben eine
-Auswahl:
+Auswahl mit drei Karten:
 
-| Modus | Voraussetzung | Wer bestimmt das Zielwort |
-|---|---|---|
-| 📄 **Diktatmodus** | eine Vorlage | der Referenztext, per Alignment |
-| 📝 **Freitextmodus** | keine | Regelprüfungen und das Sprachmodell |
+| Modus | Voraussetzung | Wer bestimmt das Zielwort | Was wird bewertet |
+|---|---|---|---|
+| 📄 **Diktatmodus** | eine Vorlage | der Referenztext, per Alignment | Rechtschreibung (Bereich A) |
+| 📝 **Freitextmodus (handschriftlich)** | keine Vorlage, von Hand geschrieben | Regelprüfungen und das Sprachmodell | Rechtschreibung (Bereich A) |
+| 🎙️ **Sprachdiktat** | Text als *diktiert* markiert | – (Bereich A entfällt) | Satzbau, Grammatik, Zeichensetzung, Textebene (B–E) |
 
 Vorbelegt ist der genauere Weg: Diktatmodus, wo es eine Vorlage gibt, sonst
-Freitextmodus. Wählen Sie für ein Diktat den Freitextmodus, weist die App
-darauf hin, dass sie Genauigkeit verschenken.
+Freitextmodus; ein als *diktiert* markierter Text läuft immer und
+ausschliesslich im Sprachdiktat-Modus – die beiden anderen Karten sind für
+ihn gesperrt, weil die Rechtschreibung von der Software stammt, nicht vom
+Kind. Wählen Sie für ein Diktat den Freitextmodus, weist die App darauf hin,
+dass sie Genauigkeit verschenken.
+
+### Rückmeldung zu jedem Durchgang
+
+Nach jedem Analyse-Durchgang – in allen drei Modi – steht eine kurze,
+deterministisch abgeleitete Rückmeldung: **Das ist gut** (Bereiche, die
+dieser Durchgang geprüft hat und in denen nichts auffiel) und **Das üben wir
+als Nächstes** (die häufigsten Funde dieses Durchgangs, mit Beispiel). Sie
+kommt ohne zusätzlichen Aufruf des Sprachmodells aus, weil sie ausschliesslich
+auf den bereits klassifizierten Funden dieses einen Durchgangs beruht
+(`rstrainer/feedback.py`, im Artefakt `feedbackErstellen`/`feedbackHtml`).
 
 Einen freien Schülertext geben Sie direkt auf dieser Seite ein – ohne Umweg
 über *Texte*. Ist für ein Profil noch gar nichts erfasst, steht das
@@ -870,6 +884,7 @@ python3 -m pytest tests/ -q
 | `test_grammatik.py` | Feste Liste B–E: Vollständigkeit, de-CH-Prosa, Helvetismen, Kennungen, Register, Analyse-Prompt und Rücklesen |
 | `test_taxonomie.py` | Pfade begradigen, Dubletten, Gegenteile nicht verschmelzen, Register, Schwerpunkte |
 | `test_analyse.py` | Analyse-Prompts, JSON zurücklesen, neue Fehlerarten, Aufräumplan, Regler Klassiker/Sondierung |
+| `test_feedback.py` | Rückmeldung «Das ist gut / Das üben wir als Nächstes»: fehlerfreier Durchgang, Bereiche ohne Treffer, Begrenzung der Liste |
 | `test_ui_diktiert.py` | Diktierte Texte (Sprachsoftware): Auswertung getrennt, Kennwerte nur aus geschriebenen Texten, eigener Abschnitt, Prompt ohne Rechtschreibung, Infoblatt-Bezeichnung |
 | `test_freitext.py` | Freitextmodus: Regelprüfungen ohne Modell, Zielwort-Prompt, blinder Zweitdurchgang und Sicherheitsdeckel, Wortgrenzen, ehrliche Vollständigkeit, Modusauswahl |
 | `test_ui_fehlerseite.py` | Die Fehleranalyse-Seite ohne Text: Erfassung steht dort, der erfasste Text ist sofort ausgewählt |

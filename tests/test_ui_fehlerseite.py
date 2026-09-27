@@ -105,7 +105,8 @@ def test_diktierter_text_wird_getrennt_gefuehrt(seite):
 
     text = " ".join(i.value for i in seite.info) + " " + " ".join(w.value for w in seite.warning)
     assert "Diktierter Text" in text
-    assert "Keine OLFA-Analyse" in text
-    # Kein Analysemodus (Diktat/Freitext) mehr – die OLFA-Analyse ist abgeschaltet.
-    assert not [r for r in seite.radio if r.label == "Modus der Fehleranalyse"]
+    assert "Sprachdiktat" in text and "OLFA-Analyse würde das Bild verfälschen" in text
+    # Der Analysemodus zeigt jetzt genau die eine Option «Sprachdiktat» – gesperrt auf diesen Modus.
+    modus = next(r for r in seite.radio if r.label == "Modus der Fehleranalyse")
+    assert modus.value == "sprachdiktat" and len(modus.options) == 1
     assert " · diktiert" in seite.selectbox[0].format_func(texte[0]["id"])

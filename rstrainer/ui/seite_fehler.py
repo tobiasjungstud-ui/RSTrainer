@@ -1,25 +1,34 @@
 """Seite: Fehlererfassung – OLFA-Analyse, freie Analyse oder von Hand.
 
 **OLFA-Analyse** klassifiziert deterministisch (rstrainer.olfa_engine) und hat
-zwei wählbare Modi:
+drei wählbare Modi:
 
 * *Diktatmodus* – der Schülertext wird gegen die Vorlage ausgerichtet. Was
   falsch ist, steht objektiv fest; kein Sprachmodell ist beteiligt.
-* *Freitextmodus* – ohne Vorlage fehlt dieser Massstab. Das Sprachmodell wird
-  deshalb genau eine Frage gefragt: Welches Wort war gemeint? Klassifiziert
-  wird auch hier vom Regelwerk. Vorgeschaltet sind Prüfungen, die ohne Modell
-  auskommen (ß ist in de-CH immer falsch; frühere Fehlschreibungen dieses
-  Kindes), und ein optionaler blinder Zweitdurchgang. Was nur ein Durchgang
-  gesehen hat oder worin sich die Durchgänge widersprechen, wird nicht als
-  sicher ausgegeben, sondern zur Kontrolle vorgelegt.
+* *Freitextmodus (handschriftlich)* – ohne Vorlage fehlt dieser Massstab. Das
+  Sprachmodell wird deshalb genau eine Frage gefragt: Welches Wort war
+  gemeint? Klassifiziert wird auch hier vom Regelwerk. Vorgeschaltet sind
+  Prüfungen, die ohne Modell auskommen (ß ist in de-CH immer falsch; frühere
+  Fehlschreibungen dieses Kindes), und ein optionaler blinder Zweitdurchgang.
+  Was nur ein Durchgang gesehen hat oder worin sich die Durchgänge
+  widersprechen, wird nicht als sicher ausgegeben, sondern zur Kontrolle
+  vorgelegt.
+* *Sprachdiktat* – der Text ist mit einer Diktier-Software gesprochen worden.
+  Die Rechtschreibung stammt vom Programm, nicht vom Kind: Eine OLFA-Analyse
+  würde das Bild verfälschen und ist deshalb abgeschaltet. Massgeblich sind
+  Satzbau, Grammatik, Zeichensetzung und Textebene – dafür siehe unten.
 
 **Freie Analyse durch das Sprachmodell** benennt zusätzlich, was die OLFA-Liste
 nicht abdeckt – vor allem Grammatik – und legt dafür eigene Fehlerarten an.
+Für einen Sprachdiktat-Text ist dies der einzige Weg zu einer Klassifikation
+(Bereiche B–E; Bereich A bleibt gesperrt).
 
 **Von Hand** – für alles, was keiner dieser Wege sieht.
 
 Was aus diesen Wegen kommt, ist immer nur ein Vorschlag. Bestätigt und
-zugeordnet wird von der Lehrperson; nichts wird ungeprüft übernommen.
+zugeordnet wird von der Lehrperson; nichts wird ungeprüft übernommen. Zu jedem
+Durchgang gibt es eine kurze **Rückmeldung** – was gut ist, was als Nächstes zu
+üben ist –, deterministisch aus den Funden dieses Durchgangs abgeleitet.
 """
 
 from __future__ import annotations
@@ -28,7 +37,7 @@ from datetime import date
 
 import streamlit as st
 
-from .. import auftraege, config, db, diffing, olfa_engine, taxonomie
+from .. import auftraege, config, db, diffing, feedback, olfa_engine, taxonomie
 from ..kategorien import foerderbereich_von, schwerpunkte
 from . import gemeinsam as g
 
@@ -142,25 +151,33 @@ def hat_vorlage(diktat) -> bool:
 
 
 def _olfa_ablauf(con, schueler, diktat) -> None:
-    if diktat["art"] == "diktiert":
-        st.warning(
-            "Keine OLFA-Analyse für diktierte Texte: Klassische Rechtschreibfehler entstehen hier "
-            "nicht oder kaum, weil die Sprachsoftware schreibt. Bitte den Reiter «Freie Analyse durch "
-            "das Sprachmodell» für Satzbau und Grammatik verwenden."
-        )
-        return
+    ist_sprachdiktat = diktat["art"] == "diktiert"
     mit_vorlage = hat_vorlage(diktat)
     beschriftung = {
         "diktat": "📄 Diktatmodus – gegen die Vorlage",
-        "freitext": "📝 Freitextmodus – ohne Vorlage",
+        "freitext": "📝 Freitextmodus (handschriftlich) – ohne Vorlage",
+        "sprachdiktat": "🎙️ Sprachdiktat – nur Satzbau und Grammatik",
     }
-    modi = (["diktat", "freitext"] if mit_vorlage else ["freitext"])
+    if ist_sprachdiktat:
+        modi = ["sprachdiktat"]
+    else:
+        modi = (["diktat", "freitext"] if mit_vorlage else ["freitext"])
     modus = st.radio(
         "Modus der Fehleranalyse", modi, format_func=beschriftung.get,
         horizontal=True, key=f"olfa_modus_{diktat['id']}",
         help=("Der Diktatmodus ist genauer, weil objektiv feststeht, was falsch "
-              "ist. Er setzt eine Vorlage voraus."),
+              "ist. Er setzt eine Vorlage voraus. Ein Sprachdiktat-Text läuft "
+              "immer im Sprachdiktat-Modus: Die Rechtschreibung stammt von der "
+              "Software und wird hier nicht bewertet."),
     )
+    if ist_sprachdiktat:
+        st.info(
+            "🎙️ **Sprachdiktat.** Die Rechtschreibung stammt von der Sprachsoftware, nicht vom "
+            "Kind – eine OLFA-Analyse würde das Bild verfälschen und ist deshalb abgeschaltet. "
+            "Satzbau, Grammatik, Zeichensetzung und Textebene werden im Reiter «Freie Analyse "
+            "durch das Sprachmodell» geprüft, getrennt von den geschriebenen Texten."
+        )
+        return
     if not mit_vorlage:
         st.caption("Zu diesem Text gibt es keine Vorlage – nur der Freitextmodus "
                    "ist möglich.")
@@ -179,6 +196,27 @@ def _olfa_ablauf(con, schueler, diktat) -> None:
 # ---------------------------------------------------------------------------
 # Schülertext – Grundlage aller drei Wege
 # ---------------------------------------------------------------------------
+
+def _feedback_anzeigen(bereiche_geprueft: list[str], funde: list[feedback.Fund]) -> None:
+    """Rückmeldung zu einem Analyse-Durchgang – für alle drei Modi gleich
+    aufgebaut: prägnante Punkte, was gut ist, und was als Nächstes zu üben
+    ist. Rein deterministisch aus den Funden dieses Durchgangs."""
+    reg = g.register()
+    gut, verbessern = feedback.feedback_erstellen(bereiche_geprueft, funde, reg)
+    st.markdown("##### 💬 Rückmeldung zu diesem Durchgang")
+    spalte_a, spalte_b = st.columns(2)
+    with spalte_a:
+        st.markdown("**Das ist gut**")
+        for z in gut:
+            st.markdown(f"- {z}")
+    with spalte_b:
+        st.markdown("**Das üben wir als Nächstes**")
+        for z in verbessern:
+            st.markdown(f"- {z}")
+        if not verbessern:
+            st.caption("–")
+    st.divider()
+
 
 def _schuelertext_feld(con, diktat, schluessel: str) -> str:
     ist_frei = diktat["art"] in db.OHNE_VORLAGE
@@ -203,16 +241,23 @@ def _analyse_ablauf(con, schueler, diktat) -> None:
     reg = g.register()
     ist_frei = diktat["art"] in db.OHNE_VORLAGE
     ist_diktiert = diktat["art"] == "diktiert"
-    st.caption(
-        "Hier benennt das Sprachmodell die Fehler selbst – auch, was die "
-        "OLFA-Liste nicht abdeckt, vor allem Grammatik. Wofür es keine Kategorie "
-        "gibt, legt es eine an und ordnet sie hierarchisch ein "
-        "(z. B. «Grammatik › Kasus › Dativ statt Akkusativ»). Für die "
-        "Rechtschreibung ist die **OLFA-Analyse** genauer: Dort klassifiziert "
-        "das Regelwerk, nicht das Modell."
-        + ("" if ist_frei else
-           " Beim Diktat zählt nur, was von der Vorlage abweicht.")
-    )
+    if ist_diktiert:
+        st.caption(
+            "🎙️ **Modus: Sprachdiktat.** Rechtschreibbefunde werden im Prompt ausdrücklich "
+            "ausgeschlossen und – falls das Modell trotzdem welche liefert – aus der Antwort "
+            "verworfen. Massgeblich sind Satzbau, Grammatik, Zeichensetzung und Textebene."
+        )
+    else:
+        st.caption(
+            "Hier benennt das Sprachmodell die Fehler selbst – auch, was die "
+            "OLFA-Liste nicht abdeckt, vor allem Grammatik. Wofür es keine Kategorie "
+            "gibt, legt es eine an und ordnet sie hierarchisch ein "
+            "(z. B. «Grammatik › Kasus › Dativ statt Akkusativ»). Für die "
+            "Rechtschreibung ist die **OLFA-Analyse** genauer: Dort klassifiziert "
+            "das Regelwerk, nicht das Modell."
+            + ("" if ist_frei else
+               " Beim Diktat zählt nur, was von der Vorlage abweicht.")
+        )
 
     text = _schuelertext_feld(con, diktat, "analyse_text")
 
@@ -267,6 +312,10 @@ def _analyse_ablauf(con, schueler, diktat) -> None:
         return
 
     st.divider()
+    _feedback_anzeigen(
+        ["B", "C", "D", "E"],
+        [feedback.Fund(z.kategorie_nr, z.wort_schueler, z.wort_original) for z in ergebnis.zeilen],
+    )
     if not ergebnis.zeilen:
         st.success("Das Sprachmodell hat keinen Fehler gefunden.")
         return
@@ -347,6 +396,10 @@ def _diff_ablauf(con, schueler, diktat) -> None:
            if ergebnis["zusaetzlich"] else "")
     )
 
+    _feedback_anzeigen(
+        ["A"],
+        [feedback.Fund(e["kategorie"], e["studentForm"], e["targetForm"]) for e in ereignisse],
+    )
     if not ereignisse:
         st.success("Keine Abweichungen gefunden.")
         return
@@ -519,6 +572,10 @@ def _freitext_ablauf(con, schueler, diktat) -> None:
                 schwelle=olfa_engine.ZIELWORT_SCHWELLE)
         )
 
+    _feedback_anzeigen(
+        ["A"],
+        [feedback.Fund(e["kategorie"], e["studentForm"], e["targetForm"]) for e in ereignisse],
+    )
     if not ereignisse:
         st.success("Es wurde kein Fehler gemeldet.")
         return
