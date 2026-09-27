@@ -498,6 +498,17 @@ ihn gesperrt, weil die Rechtschreibung von der Software stammt, nicht vom
 Kind. Wählen Sie für ein Diktat den Freitextmodus, weist die App darauf hin,
 dass sie Genauigkeit verschenken.
 
+**Sprachdiktat lässt sich nur auswählen, wenn der Text als solcher markiert
+ist** – die Karte ist sonst absichtlich gesperrt, weil ihre Verfügbarkeit
+direkt daran hängt, ob dieser Text aus der Rechtschreibauswertung
+herausgehalten wird oder nicht. War ein Text schon erfasst, bevor er als
+*diktiert* markiert wurde (oder umgekehrt, aus Versehen so markiert), lässt
+sich das nachträglich umstellen: Direkt unter der Moduswahl steht dafür ein
+Knopf – *„Diesen Text nachträglich als diktiert markieren“* bei einem freien
+Text ohne Vorlage, *„Markierung aufheben“* bei einem bereits als diktiert
+geführten Text. Ein Diktat mit Vorlage lässt sich nicht umstellen, weil es
+strukturell ein anderer Text ist (`rstrainer.db.diktat_art_setzen`).
+
 ### Rückmeldung zu jedem Durchgang
 
 Nach jedem Analyse-Durchgang – in allen drei Modi – steht eine kurze,

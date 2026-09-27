@@ -320,3 +320,27 @@ def test_diktierte_texte_bleiben_aus_der_rechtschreibsicht_draussen(con, schuele
 
     db.diktat_aktualisieren(con, d2, schuelertext="Nur drei Wörter.")
     assert db.diktat_holen(con, d2)["wortzahl"] == 3
+
+
+def test_diktat_art_setzen_stellt_zwischen_freitext_und_diktiert_um(con, schueler_id):
+    """Ein bestehender, bereits erfasster Text lässt sich nachträglich als
+    diktiert markieren – sonst bleibt Sprachdiktat für ihn für immer gesperrt."""
+    frei = db.diktat_anlegen(con, schueler_id, "Aufsatz", "", art="freitext",
+                             schuelertext="Der Hund bellt laut im Garten.")
+    db.diktat_art_setzen(con, frei, "diktiert")
+    assert db.diktat_holen(con, frei)["art"] == "diktiert"
+    assert db.diktat_holen(con, frei)["quelle"] == "diktiert"
+    assert [d["titel"] for d in db.diktat_liste(con, schueler_id, textart="diktiert")] == ["Aufsatz"]
+
+    # Und wieder zurück, falls es ein Versehen war.
+    db.diktat_art_setzen(con, frei, "freitext")
+    assert db.diktat_holen(con, frei)["art"] == "freitext"
+    assert db.diktat_liste(con, schueler_id, textart="diktiert") == []
+
+
+def test_diktat_art_setzen_verweigert_diktat_mit_vorlage(con, schueler_id):
+    mit_vorlage = db.diktat_anlegen(con, schueler_id, "Diktat", "Der Hund bellt.")
+    with pytest.raises(ValueError):
+        db.diktat_art_setzen(con, mit_vorlage, "diktiert")
+    with pytest.raises(ValueError):
+        db.diktat_art_setzen(con, mit_vorlage, "diktat")

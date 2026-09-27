@@ -333,6 +333,28 @@ def diktat_aktualisieren(con, diktat_id: int, **felder) -> None:
                     (*felder.values(), diktat_id))
 
 
+def diktat_art_setzen(con, diktat_id: int, art: str) -> None:
+    """Stellt einen bestehenden, bereits erfassten Text nachträglich zwischen
+    «freitext» und «diktiert» um – z. B. weil beim Erfassen vergessen wurde,
+    den Text als diktiert (Sprachsoftware) zu markieren, oder umgekehrt, weil
+    das ein Versehen war. Betrifft nur Texte ohne Vorlage: Ein Diktat mit
+    Vorlage (``art='diktat'``) lässt sich hier nicht umstellen, da es ein
+    strukturell anderer Text ist (fehlerfreie Vorlage vorhanden)."""
+    if art not in OHNE_VORLAGE:
+        raise ValueError(f"Nur 'freitext' oder 'diktiert' sind hier zulässig, nicht {art!r}.")
+    bisher = diktat_holen(con, diktat_id)
+    if bisher is None:
+        return
+    if bisher["art"] not in OHNE_VORLAGE:
+        raise ValueError(
+            "Ein Diktat mit Vorlage lässt sich nicht nachträglich als freier "
+            "oder diktierter Text umstellen."
+        )
+    with transaktion(con):
+        con.execute("UPDATE diktate SET art = ?, quelle = ? WHERE id = ?",
+                    (art, art, diktat_id))
+
+
 def diktat_freigeben(con, diktat_id: int, freigegeben: bool = True) -> None:
     """Setzt das allgemeine Freigabe-Häkchen samt Zeitstempel."""
     with transaktion(con):

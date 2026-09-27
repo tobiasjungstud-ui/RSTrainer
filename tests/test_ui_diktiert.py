@@ -112,3 +112,52 @@ def test_infoblatt_bezeichnet_diktierte_texte(tmp_path, modul, endung):
         text = "\n".join(a.text for a in Document(pfad).paragraphs)
         assert "Diktierter Text (Sprachsoftware)" in text
         assert "Text des Kindes" in text
+
+
+def test_text_laesst_sich_nachtraeglich_als_diktiert_markieren(tmp_path, monkeypatch):
+    """Wer beim Erfassen vergessen hat, «diktiert» anzukreuzen, kann das hier
+    nachholen – sonst bliebe die Sprachdiktat-Karte für diesen Text für immer
+    gesperrt."""
+    monkeypatch.setenv("RSTRAINER_DATEN", str(tmp_path))
+    pfad = tmp_path / "nachtraeglich.sqlite3"
+    con = db.verbinden(pfad)
+    sid = db.schueler_anlegen(con, "Kind", "8a")
+    db.diktat_anlegen(con, sid, "Aufsatz", "", art="freitext",
+                      schuelertext="Er gehen heim und hat Hunger.")
+    con.close()
+
+    SEITE = '''
+import streamlit as st
+from rstrainer import db
+from rstrainer.ui import seite_fehler
+con = db.verbinden(st.session_state["_pfad"])
+seite_fehler.zeichnen(con, db.schueler_liste(con)[0])
+'''
+    datei = Path(tempfile.mkdtemp()) / "seite.py"
+    datei.write_text(SEITE, encoding="utf-8")
+    lauf = AppTest.from_file(str(datei), default_timeout=90)
+    lauf.session_state["_pfad"] = pfad
+    lauf.run()
+    assert not lauf.exception
+
+    modus = next(r for r in lauf.radio if r.label == "Modus der Fehleranalyse")
+    assert modus.value == "freitext" and len(modus.options) == 1  # keine Vorlage → nur Freitextmodus
+
+    knopf = next(b for b in lauf.button
+                if "nachträglich als diktiert" in (b.label or ""))
+    knopf.click().run()
+    assert not lauf.exception
+
+    con2 = db.verbinden(pfad)
+    assert db.diktat_liste(con2, sid, textart="diktiert")[0]["titel"] == "Aufsatz"
+    con2.close()
+
+    modus2 = next(r for r in lauf.radio if r.label == "Modus der Fehleranalyse")
+    assert modus2.value == "sprachdiktat" and len(modus2.options) == 1
+
+    rueck = next(b for b in lauf.button if "Markierung aufheben" in (b.label or ""))
+    rueck.click().run()
+    assert not lauf.exception
+    con3 = db.verbinden(pfad)
+    assert db.diktat_liste(con3, sid, textart="diktiert") == []
+    con3.close()

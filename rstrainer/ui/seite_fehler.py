@@ -177,10 +177,30 @@ def _olfa_ablauf(con, schueler, diktat) -> None:
             "Satzbau, Grammatik, Zeichensetzung und Textebene werden im Reiter «Freie Analyse "
             "durch das Sprachmodell» geprüft, getrennt von den geschriebenen Texten."
         )
+        if st.button(
+            "↩️ Markierung aufheben – wieder als frei geschriebenen Text auswerten",
+            key=f"art_zurueck_{diktat['id']}",
+        ):
+            db.diktat_art_setzen(con, diktat["id"], "freitext")
+            g.merken("Text wieder als frei geschrieben markiert.")
+            st.rerun()
         return
     if not mit_vorlage:
         st.caption("Zu diesem Text gibt es keine Vorlage – nur der Freitextmodus "
                    "ist möglich.")
+        if diktat["art"] in db.OHNE_VORLAGE:
+            st.caption(
+                "War dieser Text in Wahrheit diktiert (Sprachsoftware)? Dann hier nachträglich "
+                "markieren – die Sprachdiktat-Karte oben ist erst danach wählbar, und der Text "
+                "wird ab sofort aus der Rechtschreibauswertung herausgehalten."
+            )
+            if st.button(
+                "🎙️ Diesen Text nachträglich als diktiert (Sprachsoftware) markieren",
+                key=f"art_diktiert_{diktat['id']}",
+            ):
+                db.diktat_art_setzen(con, diktat["id"], "diktiert")
+                g.merken("Text als diktiert (Sprachsoftware) markiert.")
+                st.rerun()
     elif modus == "freitext":
         st.warning(
             "Der Diktatmodus wäre hier genauer: Zu diesem Text gibt es eine "
