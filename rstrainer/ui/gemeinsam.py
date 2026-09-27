@@ -104,7 +104,7 @@ def kategorien_auswahl(reg: Register, beschriftung: str,
 
 
 def textart_symbol(art: str) -> str:
-    return {"freitext": "📝", "diktiert": "🎙️"}.get(art, "📄")
+    return {"freitext": "📝", "freies_diktat": "📖", "diktiert": "🎙️"}.get(art, "📄")
 
 
 def befunde_anzeigen(befunde: list[Befund]) -> None:

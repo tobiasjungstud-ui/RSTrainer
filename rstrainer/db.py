@@ -285,9 +285,20 @@ def diktat_anlegen(con, schueler_id: int, titel: str, text_original: str,
 #: (Bereich A wie B–E). Solche Texte bleiben trotzdem aus jeder allgemeinen
 #: OLFA-Auswertung (Kennwerte, Förderplan, Lernwörter) draussen und haben ihr
 #: eigenes Fehlerprofil (Auswertung → Reiter «Diktieren»).
+#: «freies_diktat» = ein echtes Diktat (z. B. aus einem Buch vorgelesen), dessen
+#: Vorlage aber nicht ins System eingegeben wurde – die Zielwörter werden wie im
+#: Freitextmodus bestimmt, das Ergebnis zählt aber ganz normal zur
+#: Rechtschreibauswertung («geschrieben»), nicht zu «diktiert».
 TEXTARTEN = {"diktat": "Diktat mit Vorlage", "freitext": "Freier Text (von Hand geschrieben)",
+             "freies_diktat": "Freies Diktat (Vorlage nicht erfasst)",
              "diktiert": "Diktiert mit Sprachsoftware"}
-OHNE_VORLAGE = ("freitext", "diktiert")
+OHNE_VORLAGE = ("freitext", "freies_diktat", "diktiert")
+
+#: Analysemodus (UI) ↔ gespeicherte Textart. Ein Text ohne Vorlage lässt sich
+#: frei zwischen diesen drei Modi umschalten; die Wahl trägt sich sofort in
+#: die Textart ein (siehe ``diktat_art_setzen``).
+MODUS_ZU_ART = {"freitext": "freitext", "freies_diktat": "freies_diktat", "sprachdiktat": "diktiert"}
+ART_ZU_MODUS = {art: modus for modus, art in MODUS_ZU_ART.items()}
 
 
 def _textart_bedingung(textart: str | None, spalte: str = "art") -> str:
@@ -337,16 +348,16 @@ def diktat_aktualisieren(con, diktat_id: int, **felder) -> None:
 
 def diktat_art_setzen(con, diktat_id: int, art: str) -> None:
     """Ordnet einen Text ohne Vorlage der Analyse-Modus-Wahl nach zwischen
-    «freitext» (Freitextmodus, handschriftlich) und «diktiert» (Sprachdiktat)
-    um. Das ist keine separate, vorab zu treffende Entscheidung, sondern
-    folgt unmittelbar dem in der Fehleranalyse gewählten Modus: Wer dort
-    Sprachdiktat anklickt, meint einen Text ohne Vorlage – die Umstellung
-    geschieht deshalb automatisch, nicht über eine eigene Markierung.
+    «freitext» (Freitextmodus, handschriftlich), «freies_diktat» (echtes
+    Diktat ohne erfasste Vorlage) und «diktiert» (Sprachdiktat) um. Das ist
+    keine separate, vorab zu treffende Entscheidung, sondern folgt unmittelbar
+    dem in der Fehleranalyse gewählten Modus – die Umstellung geschieht
+    automatisch, nicht über eine eigene Markierung.
 
     Ein Text MIT Vorlage (eine echte, fehlerfreie Referenz) lässt sich nicht
     umstellen, weil er strukturell ein anderer Text ist."""
     if art not in OHNE_VORLAGE:
-        raise ValueError(f"Nur 'freitext' oder 'diktiert' sind hier zulässig, nicht {art!r}.")
+        raise ValueError(f"Nur {OHNE_VORLAGE} sind hier zulässig, nicht {art!r}.")
     bisher = diktat_holen(con, diktat_id)
     if bisher is None:
         return

@@ -71,14 +71,11 @@ def zeichnen(con, schueler) -> None:
 
     # Streamlit kopiert Widget-Werte tief; sqlite3.Row lässt sich nicht picklen.
     # Deshalb immer nur die ID als Option übergeben und den Text nachschlagen.
-    beschriftung = {NEU: "✍️ Freier Text – neu eingeben (Aufsatz von Hand oder Sprachdiktat)"}
+    beschriftung = {NEU: "✍️ Freier Text – neu eingeben (Aufsatz, Freies Diktat oder Sprachdiktat)"}
+    zusatz_je_art = {"diktiert": " · Sprachdiktat", "freitext": " · freier Text (von Hand)",
+                     "freies_diktat": " · Freies Diktat (Vorlage nicht erfasst)"}
     for d in diktate:
-        if d["art"] == "diktiert":
-            zusatz = " · Sprachdiktat"
-        elif d["art"] == "freitext":
-            zusatz = " · freier Text (von Hand)"
-        else:
-            zusatz = " · Diktat mit Vorlage"
+        zusatz = zusatz_je_art.get(d["art"], " · Diktat mit Vorlage")
         beschriftung[d["id"]] = f"{g.textart_symbol(d['art'])} {d['datum']} · {d['titel']}{zusatz}"
     optionen = [NEU] + [d["id"] for d in reversed(diktate)]
     diktat_id = st.selectbox(
@@ -125,19 +122,25 @@ def zeichnen(con, schueler) -> None:
 
 MODUS_FREI = {
     "freitext": "📝 Freitextmodus – das Kind hat selbst von Hand geschrieben (Rechtschreibung zählt)",
+    "freies_diktat": "📖 Freies Diktat – nach einer Vorlage diktiert, die nicht erfasst ist (z. B. aus einem Buch)",
     "sprachdiktat": "🎙️ Sprachdiktat – das Kind hat mit Spracheingabe diktiert (eigenes Fehlerprofil)",
 }
+MODUS_NAME = {"freitext": "Freier Text", "freies_diktat": "Freies Diktat", "sprachdiktat": "Sprachdiktat"}
 
 
 def _neuer_freier_text(con, schueler) -> None:
-    """«Freier Text» in der Textwahl: ein neuer Text ohne Vorlage. Der
-    Diktatmodus entfällt hier – gewählt wird nur, wie der Text entstanden ist:
-    von Hand (Freitextmodus) oder mit Spracheingabe (Sprachdiktat). Genau diese
-    Wahl bestimmt die Art des gespeicherten Textes und damit, ob er in die
-    Rechtschreibauswertung eingeht oder in das eigene Profil «Diktieren»."""
+    """«Freier Text» in der Textwahl: ein neuer Text ohne erfasste Vorlage.
+    Der Diktatmodus entfällt hier – gewählt wird nur, wie der Text entstanden
+    ist: von Hand frei geschrieben (Freitextmodus), nach einer Vorlage
+    diktiert, die nicht im System steht, etwa aus einem Buch vorgelesen
+    (Freies Diktat), oder mit Spracheingabe diktiert (Sprachdiktat). Freies
+    Diktat läuft technisch wie der Freitextmodus (Zielwörter über das
+    Sprachmodell, danach dasselbe Regelwerk) und zählt genauso zur
+    Rechtschreibauswertung – der Unterschied ist rein die Herkunft des Textes.
+    Genau diese Wahl bestimmt die Art des gespeicherten Textes."""
     st.caption(
-        "Ein freier Text hat keine Vorlage – der **Diktatmodus entfällt**. Wählen Sie, wie der "
-        "Text entstanden ist. Gespeichert wird er mit dem Klick unten; danach ist er oben "
+        "Ein freier Text hat keine erfasste Vorlage – der **Diktatmodus entfällt**. Wählen Sie, "
+        "wie der Text entstanden ist. Gespeichert wird er mit dem Klick unten; danach ist er oben "
         "ausgewählt und die Analyse läuft im gewählten Modus."
     )
     with st.form(f"freitext_neu_{schueler['id']}", clear_on_submit=True):
@@ -151,7 +154,9 @@ def _neuer_freier_text(con, schueler) -> None:
             key=f"neu_modus_{schueler['id']}",
             help=("Sprachdiktat: Die Rechtschreibung stammt vom Programm, nicht vom Kind – "
                   "bewertet werden Satzbau, Grammatik, Zeichensetzung und Textebene, in einem "
-                  "eigenen Fehlerprofil (Auswertung → Reiter «Diktieren»)."),
+                  "eigenen Fehlerprofil (Auswertung → Reiter «Diktieren»). Freies Diktat: ein "
+                  "echtes Diktat, dessen Vorlage nur nicht eingegeben ist – zählt normal zur "
+                  "Rechtschreibauswertung."),
         )
         text = st.text_area("Text des Kindes *", height=200,
                             placeholder="Abgetippt, eingefügt – oder das Ergebnis der Spracheingabe.")
@@ -160,7 +165,7 @@ def _neuer_freier_text(con, schueler) -> None:
             if not titel.strip() or not text.strip():
                 st.error("Titel und Text sind Pflichtfelder.")
             else:
-                art = "diktiert" if modus == "sprachdiktat" else "freitext"
+                art = db.MODUS_ZU_ART[modus]
                 neue_id = db.diktat_anlegen(
                     con, schueler["id"], titel, "", datum=datum.isoformat(),
                     notiz=notiz, quelle=art, freigegeben=True,
@@ -169,8 +174,7 @@ def _neuer_freier_text(con, schueler) -> None:
                 # Der neue Text ist der, den man gerade auswerten will.
                 st.session_state["fehler_diktat_naechster"] = neue_id
                 st.session_state[f"olfa_modus_{neue_id}"] = modus
-                g.merken(f"{'Sprachdiktat' if art == 'diktiert' else 'Freier Text'} «{titel}» "
-                         "gespeichert und ausgewählt.")
+                g.merken(f"{MODUS_NAME[modus]} «{titel}» gespeichert und ausgewählt.")
                 st.rerun()
 
 
@@ -180,7 +184,7 @@ def _neuer_freier_text(con, schueler) -> None:
 
 def hat_vorlage(diktat) -> bool:
     """Nur ein Text mit Vorlage kann im Diktatmodus ausgewertet werden."""
-    return diktat["art"] != "freitext" and bool((diktat["text_original"] or "").strip())
+    return diktat["art"] not in db.OHNE_VORLAGE and bool((diktat["text_original"] or "").strip())
 
 
 def _olfa_ablauf(con, schueler, diktat) -> None:
@@ -188,32 +192,36 @@ def _olfa_ablauf(con, schueler, diktat) -> None:
     treffende «Art des Textes». Ein Text mit Vorlage läuft ausschliesslich im
     Diktatmodus. Ein Text ohne Vorlage («freier Text», ob gerade eben getippt
     oder schon einmal gespeichert) lässt zwischen Freitextmodus
-    (handschriftlich) und Sprachdiktat frei wählen – wer Sprachdiktat
-    anklickt, meint damit diesen Text, nicht eine separate Markierung. Die
-    Wahl trägt sich sofort in die Datenbank ein (``db.diktat_art_setzen``),
-    damit Kennwerte und Förderbereiche weiterhin nur geschriebene Texte
-    zählen."""
+    (handschriftlich), Freies Diktat (Vorlage nicht erfasst, z. B. aus einem
+    Buch) und Sprachdiktat frei wählen – wer eine der drei Karten anklickt,
+    meint damit diesen Text, nicht eine separate Markierung. Die Wahl trägt
+    sich sofort in die Datenbank ein (``db.diktat_art_setzen``); Freitextmodus
+    und Freies Diktat zählen beide zur Rechtschreibauswertung, nur
+    Sprachdiktat zum eigenen Profil."""
     mit_vorlage = hat_vorlage(diktat)
     beschriftung = {
         "diktat": "📄 Diktatmodus – gegen die Vorlage",
         "freitext": "📝 Freitextmodus (handschriftlich) – ohne Vorlage",
+        "freies_diktat": "📖 Freies Diktat – Vorlage nicht erfasst",
         "sprachdiktat": "🎙️ Sprachdiktat – eigenes Fehlerprofil",
     }
     if mit_vorlage:
         modi = ["diktat"]
     else:
-        modi = ["freitext", "sprachdiktat"]
-    vorgabe = "sprachdiktat" if diktat["art"] == "diktiert" else modi[0]
+        modi = ["freitext", "freies_diktat", "sprachdiktat"]
+    vorgabe = db.ART_ZU_MODUS.get(diktat["art"], modi[0])
     modus = st.radio(
         "Modus der Fehleranalyse", modi, format_func=beschriftung.get,
         index=modi.index(vorgabe) if vorgabe in modi else 0,
         horizontal=True, key=f"olfa_modus_{diktat['id']}",
         help=("Ein Text mit Vorlage läuft immer im Diktatmodus: Was falsch ist, steht objektiv "
               "fest. Ein Text ohne Vorlage lässt sich frei zwischen Freitextmodus (von Hand "
-              "geschrieben, Rechtschreibung zählt) und Sprachdiktat (mit Sprachsoftware "
-              "diktiert, in einem eigenen Fehlerprofil) wählen."),
+              "geschrieben, Rechtschreibung zählt), Freies Diktat (nach einer nicht erfassten "
+              "Vorlage diktiert, z. B. aus einem Buch – zählt ebenfalls zur Rechtschreibung) "
+              "und Sprachdiktat (mit Sprachsoftware diktiert, in einem eigenen Fehlerprofil) "
+              "wählen."),
     )
-    neue_art = "diktiert" if modus == "sprachdiktat" else "freitext"
+    neue_art = db.MODUS_ZU_ART.get(modus, "freitext")
     if not mit_vorlage and neue_art != diktat["art"]:
         db.diktat_art_setzen(con, diktat["id"], neue_art)
         st.rerun()
@@ -221,6 +229,12 @@ def _olfa_ablauf(con, schueler, diktat) -> None:
     if mit_vorlage:
         _diff_ablauf(con, schueler, diktat)
         return
+    if modus == "freies_diktat":
+        st.caption(
+            "📖 **Freies Diktat.** Die Vorlage ist nicht erfasst – die Zielwörter werden deshalb "
+            "wie im Freitextmodus über das Sprachmodell bestimmt, danach klassifiziert dasselbe "
+            "Regelwerk. Das Ergebnis zählt ganz normal zur Rechtschreibauswertung."
+        )
     if modus == "sprachdiktat":
         st.info(
             "🎙️ **Sprachdiktat.** Die Sprachsoftware transkribiert lautgetreu – klassische "

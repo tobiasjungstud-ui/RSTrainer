@@ -214,7 +214,8 @@ def informationsblatt_schreiben(pfad: Path | str, schuelername: str,
     """Fehlerliste, Schwerpunkte und Kurzkommentar zu einem Text."""
     pfad = Path(pfad)
     pfad.parent.mkdir(parents=True, exist_ok=True)
-    bezeichnung = {"freitext": "Freier Text", "diktiert": "Diktierter Text (Sprachsoftware)"}.get(art, "Diktat")
+    bezeichnung = {"freitext": "Freier Text", "freies_diktat": "Freies Diktat",
+                  "diktiert": "Diktierter Text (Sprachsoftware)"}.get(art, "Diktat")
 
     teile: list = _kopfzeile(
         schuelername, datum, f"Auswertung: {diktat_titel}",
@@ -257,7 +258,7 @@ def informationsblatt_schreiben(pfad: Path | str, schuelername: str,
     if diktattext.strip():
         teile.append(PageBreak())
         teile.append(Paragraph(
-            "Text des Kindes" if art in ("freitext", "diktiert") else "Diktattext (Original)", FETT))
+            "Text des Kindes" if art in ("freitext", "freies_diktat", "diktiert") else "Diktattext (Original)", FETT))
         teile += _textblock(diktattext)
 
     _dokument(pfad, f"Auswertung: {diktat_titel}").build(teile)

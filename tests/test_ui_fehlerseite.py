@@ -72,7 +72,7 @@ def test_hier_erfasster_text_ist_sofort_ausgewaehlt_und_im_freitextmodus(seite):
     assert seite.selectbox[0].value == texte[0]["id"]
     modus = next(r for r in seite.radio if r.label == "Modus der Fehleranalyse")
     assert modus.value == "freitext"
-    assert len(modus.options) == 2            # ohne Vorlage: Freitextmodus oder Sprachdiktat
+    assert len(modus.options) == 3            # ohne Vorlage: Freitextmodus, Freies Diktat, Sprachdiktat
     assert any(t.value.startswith("Ich ging zum Zahn arzt")
                for t in seite.text_area if t.label == "Text des Kindes")
 
@@ -91,7 +91,7 @@ def test_weitere_texte_lassen_sich_ohne_seitenwechsel_nachtragen(seite):
     assert not seite.exception
     assert "Titel *" in [t.label for t in seite.text_input]
     modus = next(r for r in seite.radio if r.label == "Modus der Fehleranalyse")
-    assert modus.value == "freitext" and len(modus.options) == 2   # frei: Freitextmodus oder Sprachdiktat, kein Diktatmodus
+    assert modus.value == "freitext" and len(modus.options) == 3   # frei: 3 Modi, kein Diktatmodus
 
 
 def test_diktierter_text_wird_getrennt_gefuehrt(seite):
@@ -103,7 +103,7 @@ def test_diktierter_text_wird_getrennt_gefuehrt(seite):
     seite.run()
     seite.text_input[0].set_value("Erzählung diktiert")
     modus_neu = next(r for r in seite.radio if r.label == "Modus der Fehleranalyse")
-    assert modus_neu.value == "freitext" and len(modus_neu.options) == 2   # kein Diktatmodus für freien Text
+    assert modus_neu.value == "freitext" and len(modus_neu.options) == 3   # kein Diktatmodus für freien Text
     modus_neu.set_value("sprachdiktat")
     seite.text_area[0].set_value("Ich habe gegangen zum Zoo weil es hat geregnet.")
     seite.button[0].click().run()

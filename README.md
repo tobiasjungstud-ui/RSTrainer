@@ -436,7 +436,7 @@ nicht auf das Kind.
 
 ---
 
-## Drei Arten von Texten
+## Vier Arten von Texten
 
 **Diktat** – die Lehrperson gibt eine fehlerfreie Vorlage vor, das Kind
 schreibt sie ab. Was von der Vorlage abweicht, ist objektiv ein Fehler.
@@ -446,7 +446,15 @@ Antwort auf eine Frage. Es gibt keine Vorlage, also auch keinen objektiven
 Massstab dafür, was falsch ist. Die Wortzahl richtet sich hier nach dem Text
 des Kindes, denn etwas anderes gibt es nicht zu zählen.
 
-Diese beiden sind **geschriebene Texte**: Sie landen in derselben
+**Freies Diktat** – ein echtes Diktat (die Lehrperson liest eine feste
+Vorlage vor, z. B. aus einem Buch), dessen Vorlage aber nicht ins System
+eingegeben wird. Objektiv falsch ist trotzdem, was von der – nur nicht
+erfassten – Vorlage abweicht; das Werkzeug kennt diese Vorlage bloss nicht.
+Technisch läuft die Analyse deshalb wie im Freitextmodus: Das Sprachmodell
+bestimmt die Zielwörter, danach klassifiziert dasselbe Regelwerk. Die
+Wortzahl richtet sich wie beim freien Text nach dem Text des Kindes.
+
+Diese drei sind **geschriebene Texte**: Sie landen in derselben
 Rechtschreibauswertung und im selben Lernverlauf.
 
 **Diktiert mit Sprachsoftware** – das Kind hat den Text einem
@@ -464,9 +472,9 @@ diesen Text auf `diktate.art = 'diktiert'` um
 Ab dann ist der Text **durchgehend getrennt geführt**, damit die
 allgemeine Rechtschreibauswertung unverfälscht bleibt:
 
-| Ebene | geschriebene Texte (Diktat, freier Text) | diktierte Texte |
+| Ebene | geschriebene Texte (Diktat, freier Text, freies Diktat) | diktierte Texte |
 |---|---|---|
-| Eingabe | Vorlage (Texte) oder «Freier Text – neu» mit Freitextmodus | «Freier Text – neu» mit Modus Sprachdiktat, mit 🎙️ markiert |
+| Eingabe | Vorlage (Texte) oder «Freier Text – neu» mit Freitextmodus/Freies Diktat | «Freier Text – neu» mit Modus Sprachdiktat, mit 🎙️ markiert |
 | OLFA-Analyse (Bereich A) | ja, Regelwerk | ja, dasselbe Regelwerk – zählt aber zum eigenen Profil, nicht zur allgemeinen Auswertung |
 | Satzbau, Grammatik, Zeichensetzung, Textebene (B–E) | ja | ja |
 | Fehler von Hand | alle Bereiche | alle Bereiche |
@@ -496,17 +504,27 @@ Wege:
 * **Freier Text – neu eingeben** – ein neuer Text ohne Vorlage. Der
   Diktatmodus entfällt; gewählt wird nur, wie der Text entstanden ist:
   **Freitextmodus**, wenn das Kind selbst von Hand geschrieben hat (Aufsatz,
-  Bericht), oder **Sprachdiktat**, wenn es mit Spracheingabe diktiert hat.
-  Gespeichert wird der Text beim Start der Analyse – mit genau dieser Art.
-  Schon gespeicherte freie Texte stehen ebenfalls in der Textwahl und lassen
-  sich weiter bearbeiten; ihr Modus bleibt zwischen Freitextmodus und
-  Sprachdiktat umschaltbar.
+  Bericht), **Freies Diktat**, wenn es nach einer Vorlage diktiert wurde,
+  die nicht erfasst ist (z. B. aus einem Buch vorgelesen), oder
+  **Sprachdiktat**, wenn es mit Spracheingabe diktiert hat. Gespeichert wird
+  der Text beim Start der Analyse – mit genau dieser Art. Schon gespeicherte
+  freie Texte stehen ebenfalls in der Textwahl und lassen sich weiter
+  bearbeiten; ihr Modus bleibt zwischen allen drei Wegen umschaltbar.
 
 | Modus | Text | Wer bestimmt das Zielwort | Was wird bewertet | Zählt für |
 |---|---|---|---|---|
 | 📄 **Diktatmodus** | bestehender Text mit Vorlage, von Hand geschrieben | der Referenztext, per Alignment | Rechtschreibung (Bereich A) | Reiter «Geschrieben» |
 | 📝 **Freitextmodus** | freier Text, vom Kind selbst von Hand geschrieben | Regelprüfungen und das Sprachmodell | Rechtschreibung (Bereich A) | Reiter «Geschrieben» |
+| 📖 **Freies Diktat** | freier Text, diktiert nach einer nicht erfassten Vorlage (z. B. aus einem Buch) | Regelprüfungen und das Sprachmodell (dieselbe Zielwort-Bestimmung wie im Freitextmodus) | Rechtschreibung (Bereich A) | Reiter «Geschrieben» |
 | 🎙️ **Sprachdiktat** | freier Text, mit Spracheingabe diktiert | Regelprüfungen und das Sprachmodell (dieselbe Zielwort-Bestimmung wie im Freitextmodus) | Rechtschreibung (Bereich A) **und** Satzbau, Grammatik, Zeichensetzung, Textebene (B–E) | Reiter «Diktieren» |
+
+**Freies Diktat, kurz erklärt.** Manchmal ist die Vorlage ein Buchtext, den
+die Lehrperson nicht abtippen will – aber es ist trotzdem ein echtes Diktat
+mit einer objektiv richtigen Schreibung, kein frei gewähltes Thema. Freies
+Diktat bildet genau das ab: technisch identisch mit dem Freitextmodus
+(Zielwörter über das Sprachmodell, danach das Regelwerk), aber als eigene
+Textart geführt, damit Archiv und Exportbezeichnung stimmen. Es zählt ganz
+normal zur Rechtschreibauswertung – anders als Sprachdiktat.
 
 **Warum das Sprachdiktat ein eigenes Fehlerprofil hat, aber nicht weniger
 geprüft wird.** Beim Diktieren mit Spracheingabe schreibt das Programm
@@ -908,7 +926,7 @@ python3 -m pytest tests/ -q
 | `test_taxonomie.py` | Pfade begradigen, Dubletten, Gegenteile nicht verschmelzen, Register, Schwerpunkte |
 | `test_analyse.py` | Analyse-Prompts, JSON zurücklesen, neue Fehlerarten, Aufräumplan, Regler Klassiker/Sondierung |
 | `test_feedback.py` | Rückmeldung «Das ist gut / Das üben wir als Nächstes»: fehlerfreier Durchgang, Bereiche ohne Treffer, Begrenzung der Liste |
-| `test_ui_diktiert.py` | Diktierte Texte (Sprachsoftware): Auswertung getrennt, Kennwerte nur aus geschriebenen Texten, eigener Abschnitt, Prompt ohne Rechtschreibung, Infoblatt-Bezeichnung |
+| `test_ui_diktiert.py` | Diktierte Texte (Sprachsoftware): eigenes Fehlerprofil im Reiter «Diktieren» inkl. Bereich A, Kennwerte nur aus geschriebenen Texten, Modus-Umschaltung, Freies Diktat zählt zu «geschrieben» |
 | `test_freitext.py` | Freitextmodus: Regelprüfungen ohne Modell, Zielwort-Prompt, blinder Zweitdurchgang und Sicherheitsdeckel, Wortgrenzen, ehrliche Vollständigkeit, Modusauswahl |
 | `test_ui_fehlerseite.py` | Die Fehleranalyse-Seite ohne Text: Erfassung steht dort, der erfasste Text ist sofort ausgewählt |
 
