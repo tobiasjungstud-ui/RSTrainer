@@ -453,14 +453,16 @@ Rechtschreibauswertung und im selben Lernverlauf.
 Diktierprogramm gesprochen. Die Rechtschreibung stammt vom Programm, nicht
 vom Kind: Klassische Rechtschreibfehler entstehen hier nicht oder kaum, und
 ein vom Programm falsch erkanntes Wort ist kein Fehler des Kindes. Solche
-Texte würden das Bild der OLFA-Auswertung verfälschen. Sie werden deshalb
-beim Erfassen als *diktiert* markiert (Feld «Art des Textes» beim freien
-Text, in der Datenbank `diktate.art = 'diktiert'`) und **durchgehend
-getrennt geführt**:
+Texte würden das Bild der OLFA-Auswertung verfälschen. Sie sind deshalb
+nicht separat zu markieren, sondern werden es durch den Analysemodus: Wer
+bei der Fehleranalyse für einen freien Text **Sprachdiktat** statt
+Freitextmodus wählt, stellt damit genau diesen Text auf `diktate.art =
+'diktiert'` um (`rstrainer.db.diktat_art_setzen`) – der Klick ist selbst die
+Entscheidung. Ab dann ist der Text **durchgehend getrennt geführt**:
 
 | Ebene | geschriebene Texte (Diktat, freier Text) | diktierte Texte |
 |---|---|---|
-| Eingabe | Vorlage oder Text des Kindes | Text des Kindes, mit 🎙️ markiert |
+| Eingabe | Vorlage oder Text des Kindes | Text des Kindes, per Analysemodus «Sprachdiktat» umgestellt, mit 🎙️ markiert |
 | OLFA-Analyse (Bereich A) | ja, Regelwerk | **abgeschaltet** – Bereich A ist gesperrt |
 | Satzbau, Grammatik, Zeichensetzung, Textebene (B–E) | ja | ja, mit eigenem Prompt-Hinweis («Rechtschreibung nicht bewerten») |
 | Fehler von Hand | alle Bereiche | nur B–E |
@@ -488,26 +490,26 @@ Auswahl mit drei Karten:
 | Modus | Voraussetzung | Wer bestimmt das Zielwort | Was wird bewertet |
 |---|---|---|---|
 | 📄 **Diktatmodus** | eine Vorlage | der Referenztext, per Alignment | Rechtschreibung (Bereich A) |
-| 📝 **Freitextmodus (handschriftlich)** | keine Vorlage, von Hand geschrieben | Regelprüfungen und das Sprachmodell | Rechtschreibung (Bereich A) |
-| 🎙️ **Sprachdiktat** | Text als *diktiert* markiert | – (Bereich A entfällt) | Satzbau, Grammatik, Zeichensetzung, Textebene (B–E) |
+| 📝 **Freitextmodus (handschriftlich)** | keine Vorlage | Regelprüfungen und das Sprachmodell | Rechtschreibung (Bereich A) |
+| 🎙️ **Sprachdiktat** | keine Vorlage | – (Bereich A entfällt) | Satzbau, Grammatik, Zeichensetzung, Textebene (B–E) |
 
-Vorbelegt ist der genauere Weg: Diktatmodus, wo es eine Vorlage gibt, sonst
-Freitextmodus; ein als *diktiert* markierter Text läuft immer und
-ausschliesslich im Sprachdiktat-Modus – die beiden anderen Karten sind für
-ihn gesperrt, weil die Rechtschreibung von der Software stammt, nicht vom
-Kind. Wählen Sie für ein Diktat den Freitextmodus, weist die App darauf hin,
-dass sie Genauigkeit verschenken.
-
-**Sprachdiktat lässt sich nur auswählen, wenn der Text als solcher markiert
-ist** – die Karte ist sonst absichtlich gesperrt, weil ihre Verfügbarkeit
-direkt daran hängt, ob dieser Text aus der Rechtschreibauswertung
-herausgehalten wird oder nicht. War ein Text schon erfasst, bevor er als
-*diktiert* markiert wurde (oder umgekehrt, aus Versehen so markiert), lässt
-sich das nachträglich umstellen: Direkt unter der Moduswahl steht dafür ein
-Knopf – *„Diesen Text nachträglich als diktiert markieren“* bei einem freien
-Text ohne Vorlage, *„Markierung aufheben“* bei einem bereits als diktiert
-geführten Text. Ein Diktat mit Vorlage lässt sich nicht umstellen, weil es
-strukturell ein anderer Text ist (`rstrainer.db.diktat_art_setzen`).
+**Es gibt keine separate, vorab zu treffende „Art des Textes“.** Ein
+ausgewählter, bestehender Text mit Vorlage (ein echtes Diktat) läuft immer
+und ausschliesslich im Diktatmodus – Freitextmodus und Sprachdiktat wären
+dafür sinnlos und sind entsprechend gesperrt. Ein **freier Text ohne
+Vorlage** dagegen lässt sich jederzeit frei zwischen Freitextmodus
+(handschriftlich, Rechtschreibung zählt) und Sprachdiktat (mit
+Sprachsoftware diktiert, nur Satzbau und Grammatik zählen) umschalten –
+genau wie sich Diktatmodus und Freitextmodus bei einer Vorlage schon immer
+umschalten liessen. Der Klick auf **Sprachdiktat** ist selbst die
+Entscheidung: Er meint diesen konkreten Text ohne Vorlage und schreibt die
+Umstellung sofort in die Datenbank (`rstrainer.db.diktat_art_setzen`,
+Feld `art`), ganz ohne separaten Knopf oder Vorab-Markierung beim Erfassen.
+Ein späterer Rückwechsel auf Freitextmodus macht das ebenso einfach
+rückgängig. Diese Umstellung sorgt dafür, dass Kennwerte, Förderbereiche und
+Übungsblätter weiterhin nur aus geschriebenen Texten zählen (siehe
+„Drei Arten von Texten“ oben) – ohne dass die Lehrperson das separat
+verwalten muss.
 
 ### Rückmeldung zu jedem Durchgang
 

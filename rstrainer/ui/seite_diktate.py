@@ -313,18 +313,22 @@ def _freier_text(con, schueler) -> None:
             titel = st.text_input("Titel *", placeholder="z. B. «Aufsatz Herbstferien»")
         with spalte_b:
             datum = st.date_input("Datum", value=date.today())
-        art = g.textart_wahl("texte_art")
         text = st.text_area("Text des Kindes *", height=240,
                             placeholder="Abgetippt oder eingefügt.")
         notiz = st.text_input("Notiz", placeholder="Auftrag, Umstände, Besonderes …")
+        st.caption(
+            "Ob dieser Text von Hand geschrieben oder mit einer Sprachsoftware diktiert wurde, "
+            "wählen Sie beim Analysieren unter **Fehleranalyse** – dort steht der Analysemodus "
+            "(Freitextmodus oder Sprachdiktat) direkt zur Wahl."
+        )
         if st.form_submit_button("Text speichern", type="primary"):
             if not titel.strip() or not text.strip():
                 st.error("Titel und Text sind Pflichtfelder.")
             else:
                 neue_id = db.diktat_anlegen(
                     con, schueler["id"], titel, "", datum=datum.isoformat(),
-                    notiz=notiz, quelle=art, freigegeben=True,
-                    art=art, schuelertext=text,
+                    notiz=notiz, quelle="freitext", freigegeben=True,
+                    art="freitext", schuelertext=text,
                 )
                 g.merken(
                     f"Freier Text «{titel}» gespeichert (Nr. {neue_id}). "

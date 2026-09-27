@@ -122,18 +122,21 @@ def _freitext_erfassen(con, schueler, aufklappbar: bool) -> None:
                 titel = st.text_input("Titel *", placeholder="z. B. «Aufsatz Herbstferien»")
             with spalte_b:
                 datum = st.date_input("Datum", value=date.today())
-            art = g.textart_wahl(f"fehler_art_{schueler['id']}")
             text = st.text_area("Text des Kindes *", height=200,
                                 placeholder="Abgetippt oder eingefügt.")
             notiz = st.text_input("Notiz", placeholder="Auftrag, Umstände, Besonderes …")
+            st.caption(
+                "Ob von Hand geschrieben oder mit einer Sprachsoftware diktiert, wählen Sie "
+                "gleich unten beim Analysemodus – Freitextmodus oder Sprachdiktat."
+            )
             if st.form_submit_button("Text speichern und auswerten", type="primary"):
                 if not titel.strip() or not text.strip():
                     st.error("Titel und Text sind Pflichtfelder.")
                 else:
                     neue_id = db.diktat_anlegen(
                         con, schueler["id"], titel, "", datum=datum.isoformat(),
-                        notiz=notiz, quelle=art, freigegeben=True,
-                        art=art, schuelertext=text,
+                        notiz=notiz, quelle="freitext", freigegeben=True,
+                        art="freitext", schuelertext=text,
                     )
                     # Der neue Text ist der, den man gerade auswerten will.
                     st.session_state["fehler_diktat"] = neue_id
@@ -151,66 +154,52 @@ def hat_vorlage(diktat) -> bool:
 
 
 def _olfa_ablauf(con, schueler, diktat) -> None:
-    ist_sprachdiktat = diktat["art"] == "diktiert"
+    """Der Modus ist die einzige Entscheidung – keine separate, vorab zu
+    treffende «Art des Textes». Ein Text mit Vorlage läuft ausschliesslich im
+    Diktatmodus. Ein Text ohne Vorlage («freier Text», ob gerade eben getippt
+    oder schon einmal gespeichert) lässt zwischen Freitextmodus
+    (handschriftlich) und Sprachdiktat frei wählen – wer Sprachdiktat
+    anklickt, meint damit diesen Text, nicht eine separate Markierung. Die
+    Wahl trägt sich sofort in die Datenbank ein (``db.diktat_art_setzen``),
+    damit Kennwerte und Förderbereiche weiterhin nur geschriebene Texte
+    zählen."""
     mit_vorlage = hat_vorlage(diktat)
     beschriftung = {
         "diktat": "📄 Diktatmodus – gegen die Vorlage",
         "freitext": "📝 Freitextmodus (handschriftlich) – ohne Vorlage",
         "sprachdiktat": "🎙️ Sprachdiktat – nur Satzbau und Grammatik",
     }
-    if ist_sprachdiktat:
-        modi = ["sprachdiktat"]
+    if mit_vorlage:
+        modi = ["diktat"]
     else:
-        modi = (["diktat", "freitext"] if mit_vorlage else ["freitext"])
+        modi = ["freitext", "sprachdiktat"]
+    vorgabe = "sprachdiktat" if diktat["art"] == "diktiert" else modi[0]
     modus = st.radio(
         "Modus der Fehleranalyse", modi, format_func=beschriftung.get,
+        index=modi.index(vorgabe) if vorgabe in modi else 0,
         horizontal=True, key=f"olfa_modus_{diktat['id']}",
-        help=("Der Diktatmodus ist genauer, weil objektiv feststeht, was falsch "
-              "ist. Er setzt eine Vorlage voraus. Ein Sprachdiktat-Text läuft "
-              "immer im Sprachdiktat-Modus: Die Rechtschreibung stammt von der "
-              "Software und wird hier nicht bewertet."),
+        help=("Ein Text mit Vorlage läuft immer im Diktatmodus: Was falsch ist, steht objektiv "
+              "fest. Ein Text ohne Vorlage lässt sich frei zwischen Freitextmodus (von Hand "
+              "geschrieben, Rechtschreibung zählt) und Sprachdiktat (mit Sprachsoftware "
+              "diktiert, nur Satzbau und Grammatik zählen) wählen."),
     )
-    if ist_sprachdiktat:
+    neue_art = "diktiert" if modus == "sprachdiktat" else "freitext"
+    if not mit_vorlage and neue_art != diktat["art"]:
+        db.diktat_art_setzen(con, diktat["id"], neue_art)
+        st.rerun()
+
+    if mit_vorlage:
+        _diff_ablauf(con, schueler, diktat)
+        return
+    if modus == "sprachdiktat":
         st.info(
             "🎙️ **Sprachdiktat.** Die Rechtschreibung stammt von der Sprachsoftware, nicht vom "
             "Kind – eine OLFA-Analyse würde das Bild verfälschen und ist deshalb abgeschaltet. "
             "Satzbau, Grammatik, Zeichensetzung und Textebene werden im Reiter «Freie Analyse "
             "durch das Sprachmodell» geprüft, getrennt von den geschriebenen Texten."
         )
-        if st.button(
-            "↩️ Markierung aufheben – wieder als frei geschriebenen Text auswerten",
-            key=f"art_zurueck_{diktat['id']}",
-        ):
-            db.diktat_art_setzen(con, diktat["id"], "freitext")
-            g.merken("Text wieder als frei geschrieben markiert.")
-            st.rerun()
         return
-    if not mit_vorlage:
-        st.caption("Zu diesem Text gibt es keine Vorlage – nur der Freitextmodus "
-                   "ist möglich.")
-        if diktat["art"] in db.OHNE_VORLAGE:
-            st.caption(
-                "War dieser Text in Wahrheit diktiert (Sprachsoftware)? Dann hier nachträglich "
-                "markieren – die Sprachdiktat-Karte oben ist erst danach wählbar, und der Text "
-                "wird ab sofort aus der Rechtschreibauswertung herausgehalten."
-            )
-            if st.button(
-                "🎙️ Diesen Text nachträglich als diktiert (Sprachsoftware) markieren",
-                key=f"art_diktiert_{diktat['id']}",
-            ):
-                db.diktat_art_setzen(con, diktat["id"], "diktiert")
-                g.merken("Text als diktiert (Sprachsoftware) markiert.")
-                st.rerun()
-    elif modus == "freitext":
-        st.warning(
-            "Der Diktatmodus wäre hier genauer: Zu diesem Text gibt es eine "
-            "Vorlage, gegen die sich jede Abweichung objektiv bestimmen lässt."
-        )
-
-    if modus == "diktat":
-        _diff_ablauf(con, schueler, diktat)
-    else:
-        _freitext_ablauf(con, schueler, diktat)
+    _freitext_ablauf(con, schueler, diktat)
 
 
 # ---------------------------------------------------------------------------

@@ -72,7 +72,7 @@ def test_hier_erfasster_text_ist_sofort_ausgewaehlt_und_im_freitextmodus(seite):
     assert seite.selectbox[0].value == texte[0]["id"]
     modus = next(r for r in seite.radio if r.label == "Modus der Fehleranalyse")
     assert modus.value == "freitext"
-    assert len(modus.options) == 1            # ohne Vorlage kein Diktatmodus
+    assert len(modus.options) == 2            # ohne Vorlage: Freitextmodus oder Sprachdiktat
     assert any(t.value.startswith("Ich ging zum Zahn arzt")
                for t in seite.text_area if t.label == "Text des Kindes")
 
@@ -86,13 +86,20 @@ def test_weitere_texte_lassen_sich_ohne_seitenwechsel_nachtragen(seite):
 
 
 def test_diktierter_text_wird_getrennt_gefuehrt(seite):
-    """Diktierte Texte (Sprachsoftware): markierbar, keine OLFA-Analyse, nur B–E."""
+    """Diktierte Texte (Sprachsoftware): kein Vorab-Markieren – der Klick auf
+    «Sprachdiktat» im Analysemodus meint genau diesen Text ohne Vorlage und
+    stellt ihn automatisch um. Keine OLFA-Analyse, nur B–E."""
     seite.run()
     seite.text_input[0].set_value("Erzählung diktiert")
-    art = next(r for r in seite.radio if r.label == "Art des Textes")
-    art.set_value("diktiert")
     seite.text_area[0].set_value("Ich habe gegangen zum Zoo weil es hat geregnet.")
     seite.button[0].click().run()
+    assert not seite.exception
+
+    # Frisch erfasst: keine Art-Wahl nötig, ein Text ohne Vorlage lässt sich
+    # sofort zwischen Freitextmodus und Sprachdiktat wählen.
+    modus = next(r for r in seite.radio if r.label == "Modus der Fehleranalyse")
+    assert modus.value == "freitext" and len(modus.options) == 2
+    modus.set_value("sprachdiktat").run()
     assert not seite.exception
 
     verbindung = db.verbinden(seite.pfad)
@@ -103,10 +110,15 @@ def test_diktierter_text_wird_getrennt_gefuehrt(seite):
     assert len(db.diktat_liste(verbindung, 1, textart="diktiert")) == 1
     verbindung.close()
 
-    text = " ".join(i.value for i in seite.info) + " " + " ".join(w.value for w in seite.warning)
-    assert "Diktierter Text" in text
+    text = " ".join(i.value for i in seite.info)
     assert "Sprachdiktat" in text and "OLFA-Analyse würde das Bild verfälschen" in text
-    # Der Analysemodus zeigt jetzt genau die eine Option «Sprachdiktat» – gesperrt auf diesen Modus.
-    modus = next(r for r in seite.radio if r.label == "Modus der Fehleranalyse")
-    assert modus.value == "sprachdiktat" and len(modus.options) == 1
+    modus2 = next(r for r in seite.radio if r.label == "Modus der Fehleranalyse")
+    assert modus2.value == "sprachdiktat"
     assert " · diktiert" in seite.selectbox[0].format_func(texte[0]["id"])
+
+    # Und zurück: einfach wieder Freitextmodus anklicken.
+    modus2.set_value("freitext").run()
+    assert not seite.exception
+    verbindung2 = db.verbinden(seite.pfad)
+    assert db.diktat_liste(verbindung2, 1, textart="diktiert") == []
+    verbindung2.close()

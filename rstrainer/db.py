@@ -334,21 +334,24 @@ def diktat_aktualisieren(con, diktat_id: int, **felder) -> None:
 
 
 def diktat_art_setzen(con, diktat_id: int, art: str) -> None:
-    """Stellt einen bestehenden, bereits erfassten Text nachträglich zwischen
-    «freitext» und «diktiert» um – z. B. weil beim Erfassen vergessen wurde,
-    den Text als diktiert (Sprachsoftware) zu markieren, oder umgekehrt, weil
-    das ein Versehen war. Betrifft nur Texte ohne Vorlage: Ein Diktat mit
-    Vorlage (``art='diktat'``) lässt sich hier nicht umstellen, da es ein
-    strukturell anderer Text ist (fehlerfreie Vorlage vorhanden)."""
+    """Ordnet einen Text ohne Vorlage der Analyse-Modus-Wahl nach zwischen
+    «freitext» (Freitextmodus, handschriftlich) und «diktiert» (Sprachdiktat)
+    um. Das ist keine separate, vorab zu treffende Entscheidung, sondern
+    folgt unmittelbar dem in der Fehleranalyse gewählten Modus: Wer dort
+    Sprachdiktat anklickt, meint einen Text ohne Vorlage – die Umstellung
+    geschieht deshalb automatisch, nicht über eine eigene Markierung.
+
+    Ein Text MIT Vorlage (eine echte, fehlerfreie Referenz) lässt sich nicht
+    umstellen, weil er strukturell ein anderer Text ist."""
     if art not in OHNE_VORLAGE:
         raise ValueError(f"Nur 'freitext' oder 'diktiert' sind hier zulässig, nicht {art!r}.")
     bisher = diktat_holen(con, diktat_id)
     if bisher is None:
         return
-    if bisher["art"] not in OHNE_VORLAGE:
+    if (bisher["text_original"] or "").strip():
         raise ValueError(
-            "Ein Diktat mit Vorlage lässt sich nicht nachträglich als freier "
-            "oder diktierter Text umstellen."
+            "Ein Text mit Vorlage lässt sich nicht als freier oder "
+            "diktierter Text umstellen."
         )
     with transaktion(con):
         con.execute("UPDATE diktate SET art = ?, quelle = ? WHERE id = ?",

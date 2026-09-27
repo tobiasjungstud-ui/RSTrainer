@@ -114,12 +114,12 @@ def test_infoblatt_bezeichnet_diktierte_texte(tmp_path, modul, endung):
         assert "Text des Kindes" in text
 
 
-def test_text_laesst_sich_nachtraeglich_als_diktiert_markieren(tmp_path, monkeypatch):
-    """Wer beim Erfassen vergessen hat, «diktiert» anzukreuzen, kann das hier
-    nachholen – sonst bliebe die Sprachdiktat-Karte für diesen Text für immer
-    gesperrt."""
+def test_modus_stellt_einen_bestehenden_freien_text_automatisch_um(tmp_path, monkeypatch):
+    """Sprachdiktat ist kein separates Markieren, sondern der Analysemodus für
+    genau diesen Text ohne Vorlage – der Klick allein stellt die Datenbank um,
+    ganz ohne eigenen Knopf oder Vorentscheidung beim Erfassen."""
     monkeypatch.setenv("RSTRAINER_DATEN", str(tmp_path))
-    pfad = tmp_path / "nachtraeglich.sqlite3"
+    pfad = tmp_path / "umstellen.sqlite3"
     con = db.verbinden(pfad)
     sid = db.schueler_anlegen(con, "Kind", "8a")
     db.diktat_anlegen(con, sid, "Aufsatz", "", art="freitext",
@@ -141,23 +141,46 @@ seite_fehler.zeichnen(con, db.schueler_liste(con)[0])
     assert not lauf.exception
 
     modus = next(r for r in lauf.radio if r.label == "Modus der Fehleranalyse")
-    assert modus.value == "freitext" and len(modus.options) == 1  # keine Vorlage → nur Freitextmodus
+    assert modus.value == "freitext" and len(modus.options) == 2
 
-    knopf = next(b for b in lauf.button
-                if "nachträglich als diktiert" in (b.label or ""))
-    knopf.click().run()
+    modus.set_value("sprachdiktat").run()
     assert not lauf.exception
-
     con2 = db.verbinden(pfad)
     assert db.diktat_liste(con2, sid, textart="diktiert")[0]["titel"] == "Aufsatz"
     con2.close()
-
     modus2 = next(r for r in lauf.radio if r.label == "Modus der Fehleranalyse")
-    assert modus2.value == "sprachdiktat" and len(modus2.options) == 1
+    assert modus2.value == "sprachdiktat"
 
-    rueck = next(b for b in lauf.button if "Markierung aufheben" in (b.label or ""))
-    rueck.click().run()
+    modus2.set_value("freitext").run()
     assert not lauf.exception
     con3 = db.verbinden(pfad)
     assert db.diktat_liste(con3, sid, textart="diktiert") == []
     con3.close()
+
+
+def test_diktat_mit_vorlage_kennt_nur_diktatmodus(tmp_path, monkeypatch):
+    """Ein ausgewählter, bestehender Text mit Vorlage läuft ausschliesslich
+    im Diktatmodus – Freitextmodus und Sprachdiktat sind dafür sinnlos."""
+    monkeypatch.setenv("RSTRAINER_DATEN", str(tmp_path))
+    pfad = tmp_path / "vorlage.sqlite3"
+    con = db.verbinden(pfad)
+    sid = db.schueler_anlegen(con, "Kind", "8a")
+    db.diktat_anlegen(con, sid, "Diktat", "Der Hund bellt laut.",
+                      schuelertext="Der Hunt belt laut.")
+    con.close()
+
+    SEITE = '''
+import streamlit as st
+from rstrainer import db
+from rstrainer.ui import seite_fehler
+con = db.verbinden(st.session_state["_pfad"])
+seite_fehler.zeichnen(con, db.schueler_liste(con)[0])
+'''
+    datei = Path(tempfile.mkdtemp()) / "seite.py"
+    datei.write_text(SEITE, encoding="utf-8")
+    lauf = AppTest.from_file(str(datei), default_timeout=90)
+    lauf.session_state["_pfad"] = pfad
+    lauf.run()
+    assert not lauf.exception
+    modus = next(r for r in lauf.radio if r.label == "Modus der Fehleranalyse")
+    assert modus.value == "diktat" and len(modus.options) == 1
