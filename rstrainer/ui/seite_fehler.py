@@ -42,35 +42,57 @@ from ..kategorien import foerderbereich_von, schwerpunkte
 from . import gemeinsam as g
 
 
+#: Platzhalter-Option der Textwahl: ein neuer freier Text, noch nicht gespeichert.
+NEU = "__neu__"
+
+
 def zeichnen(con, schueler) -> None:
     st.header("Fehlererfassung")
+    # Ein eben gespeicherter Text soll ausgewählt sein. Der Widget-Schlüssel
+    # darf erst vor dem Aufbau der Auswahl gesetzt werden – deshalb der Umweg.
+    if "fehler_diktat_naechster" in st.session_state:
+        st.session_state["fehler_diktat"] = st.session_state.pop("fehler_diktat_naechster")
 
+    # Die Textwahl kennt zwei Wege: ein bestehender Text (ein Diktat mit
+    # Vorlage – die Lehrperson liest vor, das Kind schreibt von Hand; nur
+    # Diktatmodus) oder «Freier Text» (neu, ohne Vorlage: Freitextmodus, wenn
+    # das Kind selbst von Hand geschrieben hat, Sprachdiktat, wenn es mit
+    # Spracheingabe diktiert hat). Schon gespeicherte freie Texte stehen
+    # ebenfalls in der Liste und lassen sich weiter bearbeiten.
     diktate = db.diktat_liste(con, schueler["id"])
     if not diktate:
         st.info(
-            "Für dieses Profil ist noch kein Text erfasst. Einen frei geschriebenen "
-            "Schülertext können Sie gleich hier eingeben – er wird sofort zur Analyse "
-            "ausgewählt. Ein Diktat mit Vorlage entsteht unter **Texte**."
+            "Für dieses Profil ist noch kein Text erfasst. Einen freien Text – von Hand "
+            "geschrieben oder mit Spracheingabe diktiert – geben Sie gleich hier ein. "
+            "Ein Diktat mit Vorlage entsteht unter **Texte**."
         )
-        _freitext_erfassen(con, schueler, aufklappbar=False)
-        return
 
     # Streamlit kopiert Widget-Werte tief; sqlite3.Row lässt sich nicht picklen.
     # Deshalb immer nur die ID als Option übergeben und den Text nachschlagen.
-    beschriftung = {
-        d["id"]: f"{g.textart_symbol(d['art'])} {d['datum']} · {d['titel']}"
-                 + (" · diktiert" if d["art"] == "diktiert" else "")
-        for d in diktate
-    }
+    beschriftung = {NEU: "✍️ Freier Text – neu eingeben (Aufsatz von Hand oder Sprachdiktat)"}
+    for d in diktate:
+        if d["art"] == "diktiert":
+            zusatz = " · Sprachdiktat"
+        elif d["art"] == "freitext":
+            zusatz = " · freier Text (von Hand)"
+        else:
+            zusatz = " · Diktat mit Vorlage"
+        beschriftung[d["id"]] = f"{g.textart_symbol(d['art'])} {d['datum']} · {d['titel']}{zusatz}"
+    optionen = [NEU] + [d["id"] for d in reversed(diktate)]
     diktat_id = st.selectbox(
-        "Text", [d["id"] for d in reversed(diktate)],
+        "Text", optionen, index=1 if diktate else 0,
         format_func=lambda i: beschriftung.get(i, str(i)),
         key="fehler_diktat",
+        help=("Ein bestehender Text mit Vorlage läuft im Diktatmodus. «Freier Text» ist ein neuer "
+              "Text ohne Vorlage – dort wählen Sie Freitextmodus (von Hand geschrieben) oder "
+              "Sprachdiktat (mit Spracheingabe diktiert)."),
     )
+    if diktat_id == NEU:
+        _neuer_freier_text(con, schueler)
+        return
     diktat = db.diktat_holen(con, diktat_id) if diktat_id else None
     if diktat is None:
         return
-    _freitext_erfassen(con, schueler, aufklappbar=True)
     if diktat["art"] == "diktiert":
         st.info(
             "🎙️ **Diktierter Text (Sprachsoftware).** Die Rechtschreibung stammt vom Programm, "
@@ -98,50 +120,55 @@ def zeichnen(con, schueler) -> None:
 # Freien Text gleich hier erfassen
 # ---------------------------------------------------------------------------
 
-def _freitext_erfassen(con, schueler, aufklappbar: bool) -> None:
-    """Wer einen Schülertext auswerten will, soll ihn dort eingeben können, wo
-    er ihn auswertet – nicht erst auf einer anderen Seite. Dieselbe Erfassung
-    steht weiterhin unter «Texte»; sie legt denselben Datensatz an."""
-    behaelter = (st.expander("📝 Weiteren freien Text erfassen")
-                 if aufklappbar else st.container())
-    with behaelter:
-        if aufklappbar:
-            st.caption(
-                "Noch ein Schülertext ohne Vorlage? Hier eingeben, statt dafür auf "
-                "die Seite «Texte» zu wechseln. Nach dem Speichern ist er oben "
-                "ausgewählt."
-            )
-        else:
-            st.caption(
-                "Abtippen oder einfügen, speichern – danach steht der Text oben in "
-                "der Auswahl und lässt sich im Freitextmodus auswerten."
-            )
-        with st.form(f"freitext_hier_{schueler['id']}", clear_on_submit=True):
-            spalte_a, spalte_b = st.columns(2)
-            with spalte_a:
-                titel = st.text_input("Titel *", placeholder="z. B. «Aufsatz Herbstferien»")
-            with spalte_b:
-                datum = st.date_input("Datum", value=date.today())
-            text = st.text_area("Text des Kindes *", height=200,
-                                placeholder="Abgetippt oder eingefügt.")
-            notiz = st.text_input("Notiz", placeholder="Auftrag, Umstände, Besonderes …")
-            st.caption(
-                "Ob von Hand geschrieben oder mit einer Sprachsoftware diktiert, wählen Sie "
-                "gleich unten beim Analysemodus – Freitextmodus oder Sprachdiktat."
-            )
-            if st.form_submit_button("Text speichern und auswerten", type="primary"):
-                if not titel.strip() or not text.strip():
-                    st.error("Titel und Text sind Pflichtfelder.")
-                else:
-                    neue_id = db.diktat_anlegen(
-                        con, schueler["id"], titel, "", datum=datum.isoformat(),
-                        notiz=notiz, quelle="freitext", freigegeben=True,
-                        art="freitext", schuelertext=text,
-                    )
-                    # Der neue Text ist der, den man gerade auswerten will.
-                    st.session_state["fehler_diktat"] = neue_id
-                    g.merken(f"Freier Text «{titel}» gespeichert und ausgewählt.")
-                    st.rerun()
+MODUS_FREI = {
+    "freitext": "📝 Freitextmodus – das Kind hat selbst von Hand geschrieben (Rechtschreibung zählt)",
+    "sprachdiktat": "🎙️ Sprachdiktat – das Kind hat mit Spracheingabe diktiert (nur Satzbau und Grammatik)",
+}
+
+
+def _neuer_freier_text(con, schueler) -> None:
+    """«Freier Text» in der Textwahl: ein neuer Text ohne Vorlage. Der
+    Diktatmodus entfällt hier – gewählt wird nur, wie der Text entstanden ist:
+    von Hand (Freitextmodus) oder mit Spracheingabe (Sprachdiktat). Genau diese
+    Wahl bestimmt die Art des gespeicherten Textes und damit, ob er in die
+    Rechtschreibauswertung eingeht oder in das eigene Profil «Diktieren»."""
+    st.caption(
+        "Ein freier Text hat keine Vorlage – der **Diktatmodus entfällt**. Wählen Sie, wie der "
+        "Text entstanden ist. Gespeichert wird er mit dem Klick unten; danach ist er oben "
+        "ausgewählt und die Analyse läuft im gewählten Modus."
+    )
+    with st.form(f"freitext_neu_{schueler['id']}", clear_on_submit=True):
+        spalte_a, spalte_b = st.columns(2)
+        with spalte_a:
+            titel = st.text_input("Titel *", placeholder="z. B. «Aufsatz Herbstferien»")
+        with spalte_b:
+            datum = st.date_input("Datum", value=date.today())
+        modus = st.radio(
+            "Modus der Fehleranalyse", list(MODUS_FREI), format_func=MODUS_FREI.get,
+            key=f"neu_modus_{schueler['id']}",
+            help=("Sprachdiktat: Die Rechtschreibung stammt vom Programm, nicht vom Kind – "
+                  "bewertet werden Satzbau, Grammatik, Zeichensetzung und Textebene, in einem "
+                  "eigenen Fehlerprofil (Auswertung → Reiter «Diktieren»)."),
+        )
+        text = st.text_area("Text des Kindes *", height=200,
+                            placeholder="Abgetippt, eingefügt – oder das Ergebnis der Spracheingabe.")
+        notiz = st.text_input("Notiz", placeholder="Auftrag, Umstände, Besonderes …")
+        if st.form_submit_button("Text speichern und auswerten", type="primary"):
+            if not titel.strip() or not text.strip():
+                st.error("Titel und Text sind Pflichtfelder.")
+            else:
+                art = "diktiert" if modus == "sprachdiktat" else "freitext"
+                neue_id = db.diktat_anlegen(
+                    con, schueler["id"], titel, "", datum=datum.isoformat(),
+                    notiz=notiz, quelle=art, freigegeben=True,
+                    art=art, schuelertext=text,
+                )
+                # Der neue Text ist der, den man gerade auswerten will.
+                st.session_state["fehler_diktat_naechster"] = neue_id
+                st.session_state[f"olfa_modus_{neue_id}"] = modus
+                g.merken(f"{'Sprachdiktat' if art == 'diktiert' else 'Freier Text'} «{titel}» "
+                         "gespeichert und ausgewählt.")
+                st.rerun()
 
 
 # ---------------------------------------------------------------------------

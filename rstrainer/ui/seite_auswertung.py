@@ -21,14 +21,25 @@ def zeichnen(con, schueler) -> None:
     diktierte = db.diktat_liste(con, schueler["id"], textart="diktiert")
     fehler_diktiert = [dict(f) for f in db.fehler_liste(con, schueler["id"], textart="diktiert")]
     reg = g.register()
+    reiter = st.tabs([
+        f"✍️ Geschrieben – Rechtschreibung ({len(diktate)})",
+        f"🎙️ Diktieren – Sprachdiktat ({len(diktierte)})",
+    ])
+    with reiter[1]:
+        _diktierte_texte(con, schueler, diktierte, fehler_diktiert, reg)
+    with reiter[0]:
+        _geschrieben(con, schueler, diktate, fehler, diktierte, fehler_diktiert, reg)
+
+
+def _geschrieben(con, schueler, diktate, fehler, diktierte, fehler_diktiert, reg) -> None:
+    """Reiter «Geschrieben»: Diktat von Hand und freier Text von Hand – die
+    Rechtschreibauswertung nach OLFA. Sprachdiktate kommen hier nicht vor."""
     if not diktate or not fehler:
         st.info(
             "Für die Rechtschreibauswertung braucht es mindestens einen geschriebenen "
-            "Text mit erfassten Fehlern."
+            "Text mit erfassten Fehlern. Sprachdiktate zählen hier nicht – sie haben ihr "
+            "eigenes Profil im Reiter «Diktieren»."
         )
-        if diktierte:
-            st.divider()
-            _diktierte_texte(con, schueler, diktierte, fehler_diktiert, reg)
         return
 
     punkte = [
@@ -43,7 +54,7 @@ def zeichnen(con, schueler) -> None:
     spalten[0].metric("Geschriebene Texte", len(punkte))
     spalten[1].metric("Erfasste Fehler", len(fehler))
     spalten[2].metric("Betroffene Fehlerarten", len(reihen))
-    spalten[3].metric("Diktierte Texte", len(diktierte), help="Sprachsoftware – nur Satzbau und Grammatik, getrennt unten.")
+    spalten[3].metric("Diktierte Texte", len(diktierte), help="Sprachdiktate – eigenes Profil im Reiter «Diktieren».")
 
     if len(punkte) < config.TREND_FENSTER + 1:
         st.info(
@@ -57,10 +68,6 @@ def zeichnen(con, schueler) -> None:
 
     st.divider()
     _bereichsuebersicht(con, schueler, fehler, reg, fehler_diktiert)
-
-    if diktierte:
-        st.divider()
-        _diktierte_texte(con, schueler, diktierte, fehler_diktiert, reg)
 
     st.divider()
     _foerderbereiche(punkte, fehler, reg)
@@ -152,19 +159,55 @@ def _diktierte_texte(con, schueler, diktierte, fehler_diktiert, reg) -> None:
     from .. import grammatik
     import pandas as pd
 
-    st.subheader("🎙️ Diktierte Texte (Sprachsoftware): Satzbau und Grammatik")
+    st.subheader("🎙️ Diktieren – Sprachdiktat: eigenes Fehlerprofil")
     st.caption(
-        "Hier schreibt das Programm, nicht das Kind. Rechtschreibung wird deshalb nicht gezählt; "
-        "diese Befunde fliessen weder in die OLFA-Kennwerte noch in Förderplan und Übungsblätter ein."
+        "Beim Diktieren mit Spracheingabe schreibt das Programm, nicht das Kind – der Fokus liegt "
+        "ganz woanders: auf Satzstruktur und Logik. Rechtschreibung wird deshalb nicht gezählt; "
+        "diese Befunde fliessen weder in die OLFA-Kennwerte noch in Förderplan und Übungsblätter "
+        "des Reiters «Geschrieben» ein."
     )
-    k = st.columns(3)
-    k[0].metric("Diktierte Texte", len(diktierte))
-    k[1].metric("Wörter", sum(int(d["wortzahl"] or 0) for d in diktierte))
-    k[2].metric("Befunde B–E", len(fehler_diktiert))
-    if not fehler_diktiert:
-        st.info("Noch keine Befunde zu diktierten Texten – Analyse unter «Fehleranalyse» im Reiter "
-                "«Freie Analyse durch das Sprachmodell».")
+    if not diktierte:
+        st.info(
+            "Noch kein Sprachdiktat erfasst. Unter **Fehleranalyse** oben «Freier Text – neu "
+            "eingeben» wählen, dann den Modus **Sprachdiktat**."
+        )
         return
+    fehler_diktiert = [f for f in fehler_diktiert if reg.bereich(f["kategorie_nr"]) != "A"]
+    woerter = sum(int(d["wortzahl"] or 0) for d in diktierte)
+    k = st.columns(4)
+    k[0].metric("Sprachdiktate", len(diktierte))
+    k[1].metric("Wörter", woerter)
+    k[2].metric("Befunde B–E", len(fehler_diktiert))
+    k[3].metric("Befunde je 100 Wörter", round(100 * len(fehler_diktiert) / woerter, 1) if woerter else "–")
+
+    st.markdown("**Wo liegt der Schwerpunkt?**")
+    je_bereich = {b: sum(1 for f in fehler_diktiert if reg.bereich(f["kategorie_nr"]) == b)
+                  for b in ("B", "C", "D", "E")}
+    b_spalten = st.columns(4)
+    for spalte, (b, n) in zip(b_spalten, je_bereich.items()):
+        spalte.metric(f"{b} · {grammatik.bereich_name(b)}", n)
+
+    st.markdown("**Je Text**")
+    zeilen = []
+    for d in diktierte:
+        ft = [f for f in fehler_diktiert if f["diktat_id"] == d["id"]]
+        zaehl: dict[str, int] = {}
+        for f in ft:
+            zaehl[f["kategorie_nr"]] = zaehl.get(f["kategorie_nr"], 0) + 1
+        schwer = max(zaehl.items(), key=lambda kv: kv[1]) if zaehl else None
+        zeilen.append({
+            "Datum": d["datum"], "Text": d["titel"], "Wörter": int(d["wortzahl"] or 0),
+            "Befunde": len(ft),
+            "je 100 Wörter": round(100 * len(ft) / d["wortzahl"], 1) if d["wortzahl"] else None,
+            "Schwerpunkt": f"{reg.label(schwer[0])} ({schwer[1]}×)" if schwer else "–",
+        })
+    st.dataframe(pd.DataFrame(zeilen), hide_index=True, width="stretch")
+
+    if not fehler_diktiert:
+        st.info("Noch keine Befunde – unter «Fehleranalyse» das Sprachdiktat im Reiter «Freie Analyse "
+                "durch das Sprachmodell» analysieren lassen oder Fehler von Hand erfassen.")
+        return
+    st.markdown("**Nach Kategorie**")
     titel = {d["id"]: d["titel"] for d in diktierte}
     zaehler: dict[str, int] = {}
     for f in fehler_diktiert:

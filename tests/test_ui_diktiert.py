@@ -31,9 +31,9 @@ def _daten(pfad):
                            schuelertext="Ich habe gegangen zum Zoo weil es hat geregnet.", freigegeben=True)
     db.fehler_anlegen(con, sid, "08", d1, "Hund", "Hunt", kontext="Der Hunt belt")
     db.fehler_anlegen(con, sid, "10", d1, "bellt", "belt", kontext="Der Hunt belt")
-    db.fehler_anlegen(con, sid, "B_ZEITFORM", d2, "bin gegangen", "habe gegangen",
+    db.fehler_anlegen(con, sid, "B:Zeitform", d2, "bin gegangen", "habe gegangen",
                       kontext="Ich habe gegangen zum Zoo")
-    db.fehler_anlegen(con, sid, "B_SATZBAU", d2, "weil es geregnet hat", "weil es hat geregnet",
+    db.fehler_anlegen(con, sid, "B:Satzbau", d2, "weil es geregnet hat", "weil es hat geregnet",
                       kontext="weil es hat geregnet")
     con.close()
     return sid, d1, d2
@@ -61,7 +61,8 @@ def test_auswertung_trennt_diktierte_texte(seite):
     assert metriken["Diktierte Texte"] == "1"
     assert metriken["Befunde B–E"] == "2"
     ueberschriften = " ".join(s.value for s in seite.subheader)
-    assert "Diktierte Texte (Sprachsoftware)" in ueberschriften
+    assert "Diktieren – Sprachdiktat" in ueberschriften
+    assert metriken["Sprachdiktate"] == "1"
     # Kennwerte nur aus dem geschriebenen Text: 4 Wörter, 2 Fehler → F/100 = 50
     text = " ".join(m.value for m in seite.markdown)
     assert "50" in text
@@ -75,7 +76,7 @@ def test_auswertung_nur_mit_diktierten_texten(tmp_path, monkeypatch):
     con = db.verbinden(pfad)
     sid = db.schueler_anlegen(con, "Kind", "7b")
     d = db.diktat_anlegen(con, sid, "Diktiert", "", art="diktiert", schuelertext="Er gehen heim.")
-    db.fehler_anlegen(con, sid, "B_KONGRUENZ", d, "geht", "gehen")
+    db.fehler_anlegen(con, sid, "B:Kongruenz", d, "geht", "gehen")
     con.close()
     datei = Path(tempfile.mkdtemp()) / "seite.py"
     datei.write_text(SEITE, encoding="utf-8")
@@ -84,7 +85,8 @@ def test_auswertung_nur_mit_diktierten_texten(tmp_path, monkeypatch):
     lauf.run()
     assert not lauf.exception
     assert "geschriebenen" in " ".join(i.value for i in lauf.info)
-    assert "Diktierte Texte (Sprachsoftware)" in " ".join(s.value for s in lauf.subheader)
+    assert "Diktieren – Sprachdiktat" in " ".join(s.value for s in lauf.subheader)
+    assert "Reiter «Diktieren»" in " ".join(i.value for i in lauf.info)
 
 
 def test_prompt_fuer_diktierte_texte_verbietet_rechtschreibkategorien():
@@ -101,7 +103,7 @@ def test_prompt_fuer_diktierte_texte_verbietet_rechtschreibkategorien():
 
 @pytest.mark.parametrize("modul, endung", [(docx_export, "docx"), (pdf_export, "pdf")])
 def test_infoblatt_bezeichnet_diktierte_texte(tmp_path, modul, endung):
-    fehler = [{"kategorie_nr": "B_KONGRUENZ", "wort_original": "geht", "wort_schueler": "gehen",
+    fehler = [{"kategorie_nr": "B:Kongruenz", "wort_original": "geht", "wort_schueler": "gehen",
                "kontext": "Er gehen heim.", "datum": "2026-02-10", "notiz": ""}]
     pfad = modul.informationsblatt_schreiben(
         tmp_path / f"ib.{endung}", "Kind", "Diktiert", "2026-02-10", fehler, g.register(),
