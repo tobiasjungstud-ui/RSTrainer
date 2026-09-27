@@ -35,6 +35,9 @@ def _daten(pfad):
                       kontext="Ich habe gegangen zum Zoo")
     db.fehler_anlegen(con, sid, "B:Satzbau", d2, "weil es geregnet hat", "weil es hat geregnet",
                       kontext="weil es hat geregnet")
+    # Rechtschreibung wird bei Sprachdiktaten nicht abgeschaltet – klassisches
+    # Beispiel: die Grossschreibung von Nomen bleibt Sache des Kindes.
+    db.fehler_anlegen(con, sid, "01", d2, "Zoo", "zoo", kontext="Ich habe gegangen zum zoo")
     con.close()
     return sid, d1, d2
 
@@ -59,11 +62,15 @@ def test_auswertung_trennt_diktierte_texte(seite):
     assert metriken["Geschriebene Texte"] == "1"
     assert metriken["Erfasste Fehler"] == "2"            # nur 08 und 10
     assert metriken["Diktierte Texte"] == "1"
-    assert metriken["Befunde B–E"] == "2"
     ueberschriften = " ".join(s.value for s in seite.subheader)
     assert "Diktieren – Sprachdiktat" in ueberschriften
     assert metriken["Sprachdiktate"] == "1"
-    # Kennwerte nur aus dem geschriebenen Text: 4 Wörter, 2 Fehler → F/100 = 50
+    # Drei Befunde beim Sprachdiktat: zwei Grammatik (B) und ein Bereich-A-Fund
+    # (Grossschreibung) – Rechtschreibung wird hier also mitgezählt, aber
+    # ausschliesslich in diesem eigenen Profil.
+    assert metriken["Befunde gesamt"] == "3"
+    # Kennwerte nur aus dem geschriebenen Text: 4 Wörter, 2 Fehler → F/100 = 50 –
+    # der Bereich-A-Fund des Sprachdiktats zählt hier nicht mit.
     text = " ".join(m.value for m in seite.markdown)
     assert "50" in text
     quelle = next(r for r in seite.radio if r.label == "Textquelle")

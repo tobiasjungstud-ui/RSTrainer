@@ -450,27 +450,31 @@ Diese beiden sind **geschriebene Texte**: Sie landen in derselben
 Rechtschreibauswertung und im selben Lernverlauf.
 
 **Diktiert mit Sprachsoftware** – das Kind hat den Text einem
-Diktierprogramm gesprochen. Die Rechtschreibung stammt vom Programm, nicht
-vom Kind: Klassische Rechtschreibfehler entstehen hier nicht oder kaum, und
-ein vom Programm falsch erkanntes Wort ist kein Fehler des Kindes. Solche
-Texte würden das Bild der OLFA-Auswertung verfälschen. Sie sind deshalb
-nicht separat zu markieren, sondern werden es durch den Analysemodus: Wer
-bei der Fehleranalyse für einen freien Text **Sprachdiktat** statt
-Freitextmodus wählt, stellt damit genau diesen Text auf `diktate.art =
-'diktiert'` um (`rstrainer.db.diktat_art_setzen`) – der Klick ist selbst die
-Entscheidung. Ab dann ist der Text **durchgehend getrennt geführt**:
+Diktierprogramm gesprochen. Die Software transkribiert lautgetreu, darum
+entstehen klassische Verschreibungen darüber kaum. **Rechtschreibfehler
+passieren trotzdem** – Gross-/Kleinschreibung, Wortgrenzen und
+Zusammenschreibung bleiben Sache des Kindes (Autokorrektur, manuelle
+Korrektur) – und werden deshalb **weiterhin geprüft, mit demselben
+Regelwerk wie im Freitextmodus**. Der einzige Unterschied ist, wohin die
+Ergebnisse zählen: Solche Texte sind nicht separat zu markieren, sondern
+werden es durch den Analysemodus. Wer bei der Fehleranalyse für einen
+freien Text **Sprachdiktat** statt Freitextmodus wählt, stellt damit genau
+diesen Text auf `diktate.art = 'diktiert'` um
+(`rstrainer.db.diktat_art_setzen`) – der Klick ist selbst die Entscheidung.
+Ab dann ist der Text **durchgehend getrennt geführt**, damit die
+allgemeine Rechtschreibauswertung unverfälscht bleibt:
 
 | Ebene | geschriebene Texte (Diktat, freier Text) | diktierte Texte |
 |---|---|---|
 | Eingabe | Vorlage (Texte) oder «Freier Text – neu» mit Freitextmodus | «Freier Text – neu» mit Modus Sprachdiktat, mit 🎙️ markiert |
-| OLFA-Analyse (Bereich A) | ja, Regelwerk | **abgeschaltet** – Bereich A ist gesperrt |
-| Satzbau, Grammatik, Zeichensetzung, Textebene (B–E) | ja | ja, mit eigenem Prompt-Hinweis («Rechtschreibung nicht bewerten») |
-| Fehler von Hand | alle Bereiche | nur B–E |
+| OLFA-Analyse (Bereich A) | ja, Regelwerk | ja, dasselbe Regelwerk – zählt aber zum eigenen Profil, nicht zur allgemeinen Auswertung |
+| Satzbau, Grammatik, Zeichensetzung, Textebene (B–E) | ja | ja |
+| Fehler von Hand | alle Bereiche | alle Bereiche |
 | OLFA-Kennwerte, Förderbereiche, Verlauf, Trends | nur aus geschriebenen Texten | nie |
 | Lernwörter, Förderplan, Übungsblätter, Empfehlungen, Mischung | nur aus geschriebenen Texten | nie |
-| Auswertung | Reiter «Geschrieben»: Förderprofil wie bisher | Reiter «Diktieren»: eigenes Fehlerprofil – je Bereich B–E, je Text, nach Kategorie mit Fördern-Hinweisen und jedem Befund im Satz |
-| Übersicht je Bereich | Quelle «geschriebene Texte» (Vorgabe) | Quelle «diktierte Texte» oder «beide» – A stammt in jedem Fall nur aus geschriebenen |
-| Informationsblatt | «Diktat» / «Freier Text» | «Diktierter Text (Sprachsoftware) – nur Satzbau und Grammatik» |
+| Auswertung | Reiter «Geschrieben»: Förderprofil wie bisher | Reiter «Diktieren»: eigenes Fehlerprofil – je Bereich A–E, je Text, nach Kategorie mit Fördern-Hinweisen und jedem Befund im Satz |
+| Übersicht je Bereich | Quelle «geschriebene Texte» (Vorgabe) | Quelle «Sprachdiktate» oder «beide» – jede Quelle trägt ihre eigenen Bereich-A-Befunde |
+| Informationsblatt | «Diktat» / «Freier Text» | «Diktierter Text (Sprachsoftware)» |
 
 Die Trennung liegt in der Datenschicht: `db.diktat_liste(...,
 textart="geschrieben" | "diktiert")` und `db.fehler_liste(..., textart=...)`
@@ -502,18 +506,20 @@ Wege:
 |---|---|---|---|---|
 | 📄 **Diktatmodus** | bestehender Text mit Vorlage, von Hand geschrieben | der Referenztext, per Alignment | Rechtschreibung (Bereich A) | Reiter «Geschrieben» |
 | 📝 **Freitextmodus** | freier Text, vom Kind selbst von Hand geschrieben | Regelprüfungen und das Sprachmodell | Rechtschreibung (Bereich A) | Reiter «Geschrieben» |
-| 🎙️ **Sprachdiktat** | freier Text, mit Spracheingabe diktiert | – (Bereich A entfällt) | Satzbau, Grammatik, Zeichensetzung, Textebene (B–E) | Reiter «Diktieren» |
+| 🎙️ **Sprachdiktat** | freier Text, mit Spracheingabe diktiert | Regelprüfungen und das Sprachmodell (dieselbe Zielwort-Bestimmung wie im Freitextmodus) | Rechtschreibung (Bereich A) **und** Satzbau, Grammatik, Zeichensetzung, Textebene (B–E) | Reiter «Diktieren» |
 
-**Warum das Sprachdiktat ein eigenes Fehlerprofil hat.** Beim Diktieren mit
-Spracheingabe schreibt das Programm, nicht das Kind. Rechtschreibfehler
-entstehen dort kaum (höchstens bei manueller Korrektur); der Fokus liegt auf
-Satzstruktur und Logik. Sprachdiktate zählen deshalb nie zu den
-Rechtschreibfehlern, Kennwerten, Förderbereichen oder Übungsblättern – sie
-haben unter *Auswertung* den eigenen Reiter **Diktieren** (Befunde je
-Bereich B–E, je Text, nach Kategorie, mit Beispielen). Technisch trägt der
-gespeicherte Text `diktate.art = 'diktiert'`; die Wahl des Modus setzt das
-Feld (`rstrainer.db.diktat_art_setzen`), eine separate Markierung gibt es
-nicht.
+**Warum das Sprachdiktat ein eigenes Fehlerprofil hat, aber nicht weniger
+geprüft wird.** Beim Diktieren mit Spracheingabe schreibt das Programm
+lautgetreu – klassische Verschreibungen entstehen darüber kaum. Aber
+Gross-/Kleinschreibung, Wortgrenzen und Zusammenschreibung bleiben Sache des
+Kindes (Autokorrektur, manuelle Korrektur), und die kommen dort genauso vor
+wie in einem von Hand geschriebenen Text. Die **Rechtschreibprüfung bleibt
+deshalb eingeschaltet** – nur ihre Ergebnisse zählen nie zu den Kennwerten,
+Förderbereichen oder Übungsblättern des Reiters «Geschrieben», sondern zum
+eigenen Reiter **Diktieren** (Befunde je Bereich A–E, je Text, nach
+Kategorie, mit Beispielen). Technisch trägt der gespeicherte Text
+`diktate.art = 'diktiert'`; die Wahl des Modus setzt das Feld
+(`rstrainer.db.diktat_art_setzen`), eine separate Markierung gibt es nicht.
 
 ### Rückmeldung zu jedem Durchgang
 

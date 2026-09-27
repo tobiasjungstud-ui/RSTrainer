@@ -143,7 +143,7 @@ def informationsblatt_schreiben(pfad: Path | str, schuelername: str,
     """Fehlerliste, Schwerpunkte und Kurzkommentar zu einem Text."""
     pfad = Path(pfad)
     pfad.parent.mkdir(parents=True, exist_ok=True)
-    bezeichnung = {"freitext": "Freier Text", "diktiert": "Diktierter Text (Sprachsoftware) – nur Satzbau und Grammatik"}.get(art, "Diktat")
+    bezeichnung = {"freitext": "Freier Text", "diktiert": "Diktierter Text (Sprachsoftware)"}.get(art, "Diktat")
 
     dokument = Document()
     _seite_einrichten(dokument)

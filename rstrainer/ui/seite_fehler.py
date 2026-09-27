@@ -14,14 +14,16 @@ drei wählbare Modi:
   widersprechen, wird nicht als sicher ausgegeben, sondern zur Kontrolle
   vorgelegt.
 * *Sprachdiktat* – der Text ist mit einer Diktier-Software gesprochen worden.
-  Die Rechtschreibung stammt vom Programm, nicht vom Kind: Eine OLFA-Analyse
-  würde das Bild verfälschen und ist deshalb abgeschaltet. Massgeblich sind
-  Satzbau, Grammatik, Zeichensetzung und Textebene – dafür siehe unten.
+  Klassische Verschreibungen entstehen darüber kaum, weil die Software
+  lautgetreu transkribiert. Aber Gross-/Kleinschreibung, Wortgrenzen und
+  Zusammenschreibung bleiben Sache des Kindes und werden wie im
+  Freitextmodus geprüft (dieselbe Zielwort-Bestimmung, dasselbe Regelwerk).
+  Die Ergebnisse – Bereich A wie B–E – zählen aber nie zur allgemeinen
+  Rechtschreibauswertung, sondern zu einem eigenen Fehlerprofil
+  (Auswertung → Reiter «Diktieren»).
 
 **Freie Analyse durch das Sprachmodell** benennt zusätzlich, was die OLFA-Liste
 nicht abdeckt – vor allem Grammatik – und legt dafür eigene Fehlerarten an.
-Für einen Sprachdiktat-Text ist dies der einzige Weg zu einer Klassifikation
-(Bereiche B–E; Bereich A bleibt gesperrt).
 
 **Von Hand** – für alles, was keiner dieser Wege sieht.
 
@@ -95,10 +97,11 @@ def zeichnen(con, schueler) -> None:
         return
     if diktat["art"] == "diktiert":
         st.info(
-            "🎙️ **Diktierter Text (Sprachsoftware).** Die Rechtschreibung stammt vom Programm, "
-            "nicht vom Kind – eine OLFA-Analyse würde das Bild verfälschen und ist hier abgeschaltet. "
-            "Analysiert werden Satzbau, Grammatik, Zeichensetzung und Textebene (B–E), getrennt "
-            "von den geschriebenen Texten."
+            "🎙️ **Sprachdiktat (Sprachsoftware).** Klassische Verschreibungen entstehen darüber "
+            "kaum – aber Gross-/Kleinschreibung, Wortgrenzen und Zusammenschreibung bleiben Sache "
+            "des Kindes und werden wie gewohnt geprüft. Alle Befunde – Rechtschreibung wie Satzbau, "
+            "Grammatik, Zeichensetzung und Textebene – zählen zu einem eigenen Fehlerprofil "
+            "(Auswertung → Reiter «Diktieren»), getrennt von den geschriebenen Texten."
         )
     reiter = st.tabs([
         "🔬 OLFA-Analyse",
@@ -122,7 +125,7 @@ def zeichnen(con, schueler) -> None:
 
 MODUS_FREI = {
     "freitext": "📝 Freitextmodus – das Kind hat selbst von Hand geschrieben (Rechtschreibung zählt)",
-    "sprachdiktat": "🎙️ Sprachdiktat – das Kind hat mit Spracheingabe diktiert (nur Satzbau und Grammatik)",
+    "sprachdiktat": "🎙️ Sprachdiktat – das Kind hat mit Spracheingabe diktiert (eigenes Fehlerprofil)",
 }
 
 
@@ -194,7 +197,7 @@ def _olfa_ablauf(con, schueler, diktat) -> None:
     beschriftung = {
         "diktat": "📄 Diktatmodus – gegen die Vorlage",
         "freitext": "📝 Freitextmodus (handschriftlich) – ohne Vorlage",
-        "sprachdiktat": "🎙️ Sprachdiktat – nur Satzbau und Grammatik",
+        "sprachdiktat": "🎙️ Sprachdiktat – eigenes Fehlerprofil",
     }
     if mit_vorlage:
         modi = ["diktat"]
@@ -208,7 +211,7 @@ def _olfa_ablauf(con, schueler, diktat) -> None:
         help=("Ein Text mit Vorlage läuft immer im Diktatmodus: Was falsch ist, steht objektiv "
               "fest. Ein Text ohne Vorlage lässt sich frei zwischen Freitextmodus (von Hand "
               "geschrieben, Rechtschreibung zählt) und Sprachdiktat (mit Sprachsoftware "
-              "diktiert, nur Satzbau und Grammatik zählen) wählen."),
+              "diktiert, in einem eigenen Fehlerprofil) wählen."),
     )
     neue_art = "diktiert" if modus == "sprachdiktat" else "freitext"
     if not mit_vorlage and neue_art != diktat["art"]:
@@ -220,12 +223,13 @@ def _olfa_ablauf(con, schueler, diktat) -> None:
         return
     if modus == "sprachdiktat":
         st.info(
-            "🎙️ **Sprachdiktat.** Die Rechtschreibung stammt von der Sprachsoftware, nicht vom "
-            "Kind – eine OLFA-Analyse würde das Bild verfälschen und ist deshalb abgeschaltet. "
-            "Satzbau, Grammatik, Zeichensetzung und Textebene werden im Reiter «Freie Analyse "
-            "durch das Sprachmodell» geprüft, getrennt von den geschriebenen Texten."
+            "🎙️ **Sprachdiktat.** Die Sprachsoftware transkribiert lautgetreu – klassische "
+            "Verschreibungen entstehen darüber kaum. Aber Gross-/Kleinschreibung, Getrennt- und "
+            "Zusammenschreibung oder Wortgrenzen bleiben Sache des Kindes (Autokorrektur, manuelle "
+            "Korrektur) und werden hier wie gewohnt geprüft. Die Ergebnisse fliessen **nicht** in "
+            "die allgemeine Rechtschreibauswertung ein, sondern in ein eigenes Fehlerprofil "
+            "(Auswertung → Reiter «Diktieren»)."
         )
-        return
     _freitext_ablauf(con, schueler, diktat)
 
 
@@ -279,9 +283,10 @@ def _analyse_ablauf(con, schueler, diktat) -> None:
     ist_diktiert = diktat["art"] == "diktiert"
     if ist_diktiert:
         st.caption(
-            "🎙️ **Modus: Sprachdiktat.** Rechtschreibbefunde werden im Prompt ausdrücklich "
-            "ausgeschlossen und – falls das Modell trotzdem welche liefert – aus der Antwort "
-            "verworfen. Massgeblich sind Satzbau, Grammatik, Zeichensetzung und Textebene."
+            "🎙️ **Modus: Sprachdiktat.** Rechtschreibung wird hier wie gewohnt mitbewertet – "
+            "Gross-/Kleinschreibung, Wortgrenzen und Zusammenschreibung bleiben Sache des Kindes. "
+            "Die Ergebnisse zählen zum eigenen Fehlerprofil (Auswertung → Reiter «Diktieren»), "
+            "nicht zur allgemeinen Rechtschreibauswertung."
         )
     else:
         st.caption(
@@ -305,7 +310,7 @@ def _analyse_ablauf(con, schueler, diktat) -> None:
         st.session_state[f"analyse_prompt_text_{diktat['id']}"] = \
             auftraege.analyse_prompt_bauen(
                 text, "" if ist_frei else diktat["text_original"],
-                reg.liste, reg.sammlung, ohne_rechtschreibung=ist_diktiert,
+                reg.liste, reg.sammlung,
             )
         st.rerun()
 
@@ -328,12 +333,6 @@ def _analyse_ablauf(con, schueler, diktat) -> None:
                        "und einmal neben das Feld klicken.")
         else:
             ergebnis = auftraege.analyse_lesen(roh, reg.liste, reg.sammlung)
-            if ist_diktiert and not ergebnis.fehler:
-                weg = [z for z in ergebnis.zeilen if reg.bereich(z.kategorie_nr) == "A"]
-                ergebnis.zeilen = [z for z in ergebnis.zeilen if reg.bereich(z.kategorie_nr) != "A"]
-                if weg:
-                    st.info(f"{len(weg)} Rechtschreibbefund(e) verworfen – bei einem diktierten Text "
-                            "zählt nur Satzbau, Grammatik, Zeichensetzung und Textebene.")
             if ergebnis.fehler:
                 st.error(
                     f"{ergebnis.fehler} Bitte erneut versuchen – oder den "
@@ -765,10 +764,10 @@ def _von_hand(con, schueler, diktat) -> None:
         "Für Fehler, die keiner der beiden Wege findet – zum Beispiel Satzzeichen, "
         "Silbentrennung am Zeilenende oder unleserliche Stellen."
     )
-    optionen = [nr for nr, _ in reg.waehlbar()
-                if diktat["art"] != "diktiert" or reg.bereich(nr) != "A"]
+    optionen = [nr for nr, _ in reg.waehlbar()]
     if diktat["art"] == "diktiert":
-        st.caption("Diktierter Text: nur Kategorien der Bereiche B–E wählbar.")
+        st.caption("Sprachdiktat: alle Bereiche wählbar – A (Gross-/Kleinschreibung, Wortgrenzen "
+                   "u. Ä.) zählt zum eigenen Fehlerprofil im Reiter «Diktieren».")
     with st.form(f"fehler_hand_{diktat['id']}", clear_on_submit=True):
         spalte_a, spalte_b = st.columns(2)
         with spalte_a:

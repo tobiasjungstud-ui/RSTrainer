@@ -96,8 +96,10 @@ def test_weitere_texte_lassen_sich_ohne_seitenwechsel_nachtragen(seite):
 
 def test_diktierter_text_wird_getrennt_gefuehrt(seite):
     """Sprachdiktat: «Freier Text – neu» wählen, Modus Sprachdiktat, speichern.
-    Kein Vorab-Markieren, keine OLFA-Analyse, nur B–E – und jederzeit wieder
-    auf Freitextmodus umstellbar."""
+    Kein Vorab-Markieren, Rechtschreibung bleibt eingeschaltet (Gross-/
+    Kleinschreibung bleibt Sache des Kindes) – die Befunde zählen aber zu
+    einem eigenen Profil, getrennt von der allgemeinen Rechtschreibauswertung.
+    Jederzeit wieder auf Freitextmodus umstellbar."""
     seite.run()
     seite.text_input[0].set_value("Erzählung diktiert")
     modus_neu = next(r for r in seite.radio if r.label == "Modus der Fehleranalyse")
@@ -116,7 +118,9 @@ def test_diktierter_text_wird_getrennt_gefuehrt(seite):
     verbindung.close()
 
     text = " ".join(i.value for i in seite.info)
-    assert "Sprachdiktat" in text and "OLFA-Analyse würde das Bild verfälschen" in text
+    assert "Sprachdiktat" in text
+    assert "wie gewohnt geprüft" in text or "eigenes Fehlerprofil" in text
+    assert "abgeschaltet" not in text  # Rechtschreibung läuft weiter, nur getrennt geführt
     modus2 = next(r for r in seite.radio if r.label == "Modus der Fehleranalyse")
     assert modus2.value == "sprachdiktat"
     assert " · Sprachdiktat" in seite.selectbox[0].format_func(texte[0]["id"])

@@ -161,10 +161,11 @@ def _diktierte_texte(con, schueler, diktierte, fehler_diktiert, reg) -> None:
 
     st.subheader("🎙️ Diktieren – Sprachdiktat: eigenes Fehlerprofil")
     st.caption(
-        "Beim Diktieren mit Spracheingabe schreibt das Programm, nicht das Kind – der Fokus liegt "
-        "ganz woanders: auf Satzstruktur und Logik. Rechtschreibung wird deshalb nicht gezählt; "
-        "diese Befunde fliessen weder in die OLFA-Kennwerte noch in Förderplan und Übungsblätter "
-        "des Reiters «Geschrieben» ein."
+        "Beim Diktieren mit Spracheingabe schreibt das Programm lautgetreu – klassische "
+        "Verschreibungen entstehen darüber kaum. Gross-/Kleinschreibung, Wortgrenzen und "
+        "Zusammenschreibung bleiben aber Sache des Kindes und werden hier mitgezählt (Bereich A). "
+        "Alle Befunde – A wie B–E – bleiben getrennt vom Reiter «Geschrieben»: Sie fliessen nie in "
+        "die dortigen OLFA-Kennwerte, Förderbereiche oder Übungsblätter ein."
     )
     if not diktierte:
         st.info(
@@ -172,18 +173,19 @@ def _diktierte_texte(con, schueler, diktierte, fehler_diktiert, reg) -> None:
             "eingeben» wählen, dann den Modus **Sprachdiktat**."
         )
         return
-    fehler_diktiert = [f for f in fehler_diktiert if reg.bereich(f["kategorie_nr"]) != "A"]
     woerter = sum(int(d["wortzahl"] or 0) for d in diktierte)
     k = st.columns(4)
     k[0].metric("Sprachdiktate", len(diktierte))
     k[1].metric("Wörter", woerter)
-    k[2].metric("Befunde B–E", len(fehler_diktiert))
+    k[2].metric("Befunde gesamt", len(fehler_diktiert),
+               help="Bereich A (Rechtschreibung: Gross-/Kleinschreibung, Wortgrenzen u. Ä.) zählt "
+                    "hier mit – aber nur hier, nicht in der allgemeinen Rechtschreibauswertung.")
     k[3].metric("Befunde je 100 Wörter", round(100 * len(fehler_diktiert) / woerter, 1) if woerter else "–")
 
     st.markdown("**Wo liegt der Schwerpunkt?**")
     je_bereich = {b: sum(1 for f in fehler_diktiert if reg.bereich(f["kategorie_nr"]) == b)
-                  for b in ("B", "C", "D", "E")}
-    b_spalten = st.columns(4)
+                  for b in ("A", "B", "C", "D", "E")}
+    b_spalten = st.columns(5)
     for spalte, (b, n) in zip(b_spalten, je_bereich.items()):
         spalte.metric(f"{b} · {grammatik.bereich_name(b)}", n)
 
@@ -243,8 +245,8 @@ def _bereichsuebersicht(con, schueler, fehler, reg, fehler_diktiert=None) -> Non
     quelle = "geschrieben"
     if fehler_diktiert:
         quelle = st.radio("Textquelle", ["geschrieben", "diktiert", "alle"], horizontal=True,
-                          format_func={"geschrieben": "geschriebene Texte", "diktiert": "diktierte Texte (B–E)",
-                                       "alle": "beide (Rechtschreibung nur aus geschriebenen)"}.get,
+                          format_func={"geschrieben": "geschriebene Texte", "diktiert": "Sprachdiktate",
+                                       "alle": "beide"}.get,
                           key="uebersicht_quelle")
     grundlage = {"geschrieben": fehler, "diktiert": fehler_diktiert or [],
                  "alle": list(fehler) + list(fehler_diktiert or [])}[quelle]

@@ -279,12 +279,14 @@ def diktat_anlegen(con, schueler_id: int, titel: str, text_original: str,
     return int(cur.lastrowid)
 
 
-#: Textarten. «diktiert» = mit Sprachsoftware diktiert: Die Rechtschreibung
-#: stammt vom Programm, nicht vom Kind – solche Texte bleiben aus jeder
-#: OLFA-Auswertung (Kennwerte, Förderplan, Lernwörter) draussen und werden
-#: nur auf Satzbau, Grammatik, Zeichensetzung und Textebene (B–E) untersucht.
+#: Textarten. «diktiert» = mit Sprachsoftware diktiert: Klassische Verschreibungen
+#: entstehen darüber kaum, aber Gross-/Kleinschreibung, Wortgrenzen und
+#: Zusammenschreibung bleiben Sache des Kindes und werden weiterhin geprüft
+#: (Bereich A wie B–E). Solche Texte bleiben trotzdem aus jeder allgemeinen
+#: OLFA-Auswertung (Kennwerte, Förderplan, Lernwörter) draussen und haben ihr
+#: eigenes Fehlerprofil (Auswertung → Reiter «Diktieren»).
 TEXTARTEN = {"diktat": "Diktat mit Vorlage", "freitext": "Freier Text (von Hand geschrieben)",
-             "diktiert": "Diktiert mit Sprachsoftware (nur Satzbau und Grammatik)"}
+             "diktiert": "Diktiert mit Sprachsoftware"}
 OHNE_VORLAGE = ("freitext", "diktiert")
 
 
