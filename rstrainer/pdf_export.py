@@ -210,12 +210,19 @@ def informationsblatt_schreiben(pfad: Path | str, schuelername: str,
                                 kennzahlen: dict | None = None,
                                 kommentar: str = "",
                                 diktattext: str = "",
-                                art: str = "diktat") -> Path:
-    """Fehlerliste, Schwerpunkte und Kurzkommentar zu einem Text."""
+                                art: str = "diktat",
+                                mit_vorlage: bool | None = None) -> Path:
+    """Fehlerliste, Schwerpunkte und Kurzkommentar zu einem Text.
+
+    ``mit_vorlage``: Ist der angehängte Text die Vorlage (Diktat aus dem Tool)
+    oder der Text des Kindes? Ohne Angabe gilt: nur ein Diktat hat eine."""
     pfad = Path(pfad)
     pfad.parent.mkdir(parents=True, exist_ok=True)
-    bezeichnung = {"freitext": "Freier Text", "freies_diktat": "Freies Diktat",
-                  "diktiert": "Diktierter Text (Sprachsoftware)"}.get(art, "Diktat")
+    if mit_vorlage is None:
+        mit_vorlage = art == "diktat"
+    bezeichnung = {"freitext": "Freitextmodus",
+                   "diktiert": "Freies Diktat (Diktierfunktion)"}.get(
+                       art, "Diktat" if mit_vorlage else "Diktat (ohne Vorlage)")
 
     teile: list = _kopfzeile(
         schuelername, datum, f"Auswertung: {diktat_titel}",
@@ -258,7 +265,7 @@ def informationsblatt_schreiben(pfad: Path | str, schuelername: str,
     if diktattext.strip():
         teile.append(PageBreak())
         teile.append(Paragraph(
-            "Text des Kindes" if art in ("freitext", "freies_diktat", "diktiert") else "Diktattext (Original)", FETT))
+            "Diktattext (Original)" if mit_vorlage else "Text des Kindes", FETT))
         teile += _textblock(diktattext)
 
     _dokument(pfad, f"Auswertung: {diktat_titel}").build(teile)

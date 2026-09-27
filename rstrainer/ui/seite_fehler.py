@@ -1,36 +1,30 @@
 """Seite: Fehlererfassung – OLFA-Analyse, freie Analyse oder von Hand.
 
-**OLFA-Analyse** klassifiziert deterministisch (rstrainer.olfa_engine) und hat
-drei wählbare Modi:
+Es gibt genau drei Modi, und der Modus ist zugleich die Art des Textes:
 
-* *Diktatmodus* – der Schülertext wird gegen die Vorlage ausgerichtet. Was
-  falsch ist, steht objektiv fest; kein Sprachmodell ist beteiligt.
-* *Freitextmodus (handschriftlich)* – ohne Vorlage fehlt dieser Massstab. Das
-  Sprachmodell wird deshalb genau eine Frage gefragt: Welches Wort war
-  gemeint? Klassifiziert wird auch hier vom Regelwerk. Vorgeschaltet sind
-  Prüfungen, die ohne Modell auskommen (ß ist in de-CH immer falsch; frühere
-  Fehlschreibungen dieses Kindes), und ein optionaler blinder Zweitdurchgang.
-  Was nur ein Durchgang gesehen hat oder worin sich die Durchgänge
-  widersprechen, wird nicht als sicher ausgegeben, sondern zur Kontrolle
-  vorgelegt.
-* *Sprachdiktat* – der Text ist mit einer Diktier-Software gesprochen worden.
-  Klassische Verschreibungen entstehen darüber kaum, weil die Software
-  lautgetreu transkribiert. Aber Gross-/Kleinschreibung, Wortgrenzen und
-  Zusammenschreibung bleiben Sache des Kindes und werden wie im
-  Freitextmodus geprüft (dieselbe Zielwort-Bestimmung, dasselbe Regelwerk).
-  Die Ergebnisse – Bereich A wie B–E – zählen aber nie zur allgemeinen
-  Rechtschreibauswertung, sondern zu einem eigenen Fehlerprofil
-  (Auswertung → Reiter «Diktieren»).
+* **Diktat** – die Lehrperson diktiert, das Kind schreibt mit der Tastatur.
+  Ein Umschalter entscheidet, woher der Diktattext stammt:
+  *Vorlage aus dem Tool* (auswählbar; exakter Abgleich gegen den
+  Referenztext, kein Sprachmodell) oder *ohne Vorlage* (anderes Lehrmittel;
+  die Zielwörter bestimmt dann wie im Freitextmodus das Sprachmodell).
+* **Freitextmodus** – das Kind schreibt selbst einen Text mit der Tastatur.
+  Ohne Vorlage fragt das Werkzeug das Sprachmodell genau eine Frage: Welches
+  Wort war gemeint? Klassifiziert wird vom Regelwerk. Vorgeschaltet sind
+  Prüfungen ohne Modell (ß ist in de-CH immer falsch; frühere
+  Fehlschreibungen dieses Kindes) und ein optionaler blinder Zweitdurchgang.
+* **Freies Diktat** – das Kind diktiert einen eigenen Text mit der
+  Diktierfunktion. Geprüft wird wie im Freitextmodus – auch die
+  Rechtschreibung, denn Gross-/Kleinschreibung, Wortgrenzen und
+  Zusammenschreibung bleiben Sache des Kindes. Alle Befunde zählen aber zu
+  einem eigenen Profil (Auswertung → Reiter «Diktieren»), nie zur allgemeinen
+  Rechtschreibauswertung.
 
-**Freie Analyse durch das Sprachmodell** benennt zusätzlich, was die OLFA-Liste
-nicht abdeckt – vor allem Grammatik – und legt dafür eigene Fehlerarten an.
-
-**Von Hand** – für alles, was keiner dieser Wege sieht.
-
-Was aus diesen Wegen kommt, ist immer nur ein Vorschlag. Bestätigt und
-zugeordnet wird von der Lehrperson; nichts wird ungeprüft übernommen. Zu jedem
-Durchgang gibt es eine kurze **Rückmeldung** – was gut ist, was als Nächstes zu
-üben ist –, deterministisch aus den Funden dieses Durchgangs abgeleitet.
+Diktat und Freitextmodus zählen zur Rechtschreibauswertung, das Freie Diktat
+nicht. **Freie Analyse durch das Sprachmodell** benennt zusätzlich, was die
+OLFA-Liste nicht abdeckt – vor allem Grammatik. **Von Hand** – für alles,
+was keiner dieser Wege sieht. Was aus diesen Wegen kommt, ist immer nur ein
+Vorschlag; bestätigt wird von der Lehrperson. Zu jedem Durchgang gibt es eine
+kurze **Rückmeldung** – was gut ist, was als Nächstes zu üben ist.
 """
 
 from __future__ import annotations
@@ -43,62 +37,89 @@ from .. import auftraege, config, db, diffing, feedback, olfa_engine, taxonomie
 from ..kategorien import foerderbereich_von, schwerpunkte
 from . import gemeinsam as g
 
-
-#: Platzhalter-Option der Textwahl: ein neuer freier Text, noch nicht gespeichert.
+#: Platzhalter-Option der Textwahl: ein neuer Text, noch nicht gespeichert.
 NEU = "__neu__"
+
+MODI = {
+    "diktat": "📄 Diktat – LP diktiert, Kind schreibt",
+    "freitext": "📝 Freitextmodus – Kind schreibt selbst",
+    "diktiert": "🎙️ Freies Diktat – Kind diktiert mit Diktierfunktion",
+}
+QUELLEN = {
+    "tool": "Vorlage aus dem Tool",
+    "frei": "Ohne Vorlage (anderes Lehrmittel)",
+}
+
+#: Nur hier re-exportiert, damit ältere Aufrufer weiter funktionieren.
+hat_vorlage = db.hat_vorlage
+
+
+def _passt(d, modus: str, quelle: str) -> bool:
+    """Gehört dieser Text in die Liste des gewählten Modus?"""
+    if d["art"] != modus:
+        return False
+    if modus == "diktat":
+        return db.hat_vorlage(d) == (quelle == "tool")
+    return True
 
 
 def zeichnen(con, schueler) -> None:
     st.header("Fehlererfassung")
-    # Ein eben gespeicherter Text soll ausgewählt sein. Der Widget-Schlüssel
-    # darf erst vor dem Aufbau der Auswahl gesetzt werden – deshalb der Umweg.
-    if "fehler_diktat_naechster" in st.session_state:
-        st.session_state["fehler_diktat"] = st.session_state.pop("fehler_diktat_naechster")
-
-    # Die Textwahl kennt zwei Wege: ein bestehender Text (ein Diktat mit
-    # Vorlage – die Lehrperson liest vor, das Kind schreibt von Hand; nur
-    # Diktatmodus) oder «Freier Text» (neu, ohne Vorlage: Freitextmodus, wenn
-    # das Kind selbst von Hand geschrieben hat, Sprachdiktat, wenn es mit
-    # Spracheingabe diktiert hat). Schon gespeicherte freie Texte stehen
-    # ebenfalls in der Liste und lassen sich weiter bearbeiten.
     diktate = db.diktat_liste(con, schueler["id"])
-    if not diktate:
-        st.info(
-            "Für dieses Profil ist noch kein Text erfasst. Einen freien Text – von Hand "
-            "geschrieben oder mit Spracheingabe diktiert – geben Sie gleich hier ein. "
-            "Ein Diktat mit Vorlage entsteht unter **Texte**."
-        )
+    vorlagen = [d for d in diktate if db.hat_vorlage(d)]
+
+    # Ein eben gespeicherter oder umgestellter Text soll gleich ausgewählt
+    # sein. Widget-Schlüssel dürfen nur vor dem Aufbau des Widgets gesetzt
+    # werden – deshalb der Umweg über «…_naechster».
+    for schluessel in ("fehler_modus", "fehler_quelle"):
+        if f"{schluessel}_naechster" in st.session_state:
+            st.session_state[schluessel] = st.session_state.pop(f"{schluessel}_naechster")
+
+    modus = st.radio("Modus", list(MODI), format_func=MODI.get, horizontal=True,
+                     key="fehler_modus")
+    quelle = "frei"
+    if modus == "diktat":
+        quelle = st.radio("Woher stammt der Diktattext?", list(QUELLEN), format_func=QUELLEN.get,
+                          horizontal=True, index=0 if vorlagen else 1, key="fehler_quelle")
+
+    passende = [d for d in reversed(diktate) if _passt(d, modus, quelle)]
+    textschluessel = f"fehler_diktat_{modus}_{quelle}"
+    if f"{textschluessel}_naechster" in st.session_state:
+        st.session_state[textschluessel] = st.session_state.pop(f"{textschluessel}_naechster")
+
+    if modus == "diktat" and quelle == "tool":
+        if not passende:
+            st.info("Noch keine Vorlage für dieses Profil. Eine Vorlage entsteht unter **Texte** – "
+                    "oder oben «Ohne Vorlage» wählen, wenn der Text aus einem anderen Lehrmittel stammt.")
+            return
+        optionen = [d["id"] for d in passende]
+    else:
+        optionen = [NEU] + [d["id"] for d in passende]
 
     # Streamlit kopiert Widget-Werte tief; sqlite3.Row lässt sich nicht picklen.
     # Deshalb immer nur die ID als Option übergeben und den Text nachschlagen.
-    beschriftung = {NEU: "✍️ Freier Text – neu eingeben (Aufsatz, Freies Diktat oder Sprachdiktat)"}
-    zusatz_je_art = {"diktiert": " · Sprachdiktat", "freitext": " · freier Text (von Hand)",
-                     "freies_diktat": " · Freies Diktat (Vorlage nicht erfasst)"}
-    for d in diktate:
-        zusatz = zusatz_je_art.get(d["art"], " · Diktat mit Vorlage")
-        beschriftung[d["id"]] = f"{g.textart_symbol(d['art'])} {d['datum']} · {d['titel']}{zusatz}"
-    optionen = [NEU] + [d["id"] for d in reversed(diktate)]
+    beschriftung = {NEU: "✍️ Neuen Text eingeben"}
+    for d in passende:
+        beschriftung[d["id"]] = f"{g.textart_symbol(d['art'])} {d['datum']} · {d['titel']}"
     diktat_id = st.selectbox(
-        "Text", optionen, index=1 if diktate else 0,
-        format_func=lambda i: beschriftung.get(i, str(i)),
-        key="fehler_diktat",
-        help=("Ein bestehender Text mit Vorlage läuft im Diktatmodus. «Freier Text» ist ein neuer "
-              "Text ohne Vorlage – dort wählen Sie Freitextmodus (von Hand geschrieben) oder "
-              "Sprachdiktat (mit Spracheingabe diktiert)."),
+        "Vorlage" if quelle == "tool" and modus == "diktat" else "Text", optionen,
+        format_func=lambda i: beschriftung.get(i, str(i)), key=textschluessel,
     )
     if diktat_id == NEU:
-        _neuer_freier_text(con, schueler)
+        _neuer_text(con, schueler, modus, quelle)
         return
-    diktat = db.diktat_holen(con, diktat_id) if diktat_id else None
+    diktat = db.diktat_holen(con, diktat_id)
     if diktat is None:
         return
-    if diktat["art"] == "diktiert":
+    if not db.hat_vorlage(diktat):
+        _zuordnung_korrigieren(con, diktat)
+    if modus == "diktiert":
         st.info(
-            "🎙️ **Sprachdiktat (Sprachsoftware).** Klassische Verschreibungen entstehen darüber "
+            "🎙️ **Freies Diktat.** Mit der Diktierfunktion entstehen klassische Verschreibungen "
             "kaum – aber Gross-/Kleinschreibung, Wortgrenzen und Zusammenschreibung bleiben Sache "
-            "des Kindes und werden wie gewohnt geprüft. Alle Befunde – Rechtschreibung wie Satzbau, "
-            "Grammatik, Zeichensetzung und Textebene – zählen zu einem eigenen Fehlerprofil "
-            "(Auswertung → Reiter «Diktieren»), getrennt von den geschriebenen Texten."
+            "des Kindes und werden wie gewohnt geprüft. Alle Befunde zählen zu einem eigenen "
+            "Fehlerprofil (Auswertung → Reiter «Diktieren»), getrennt von der allgemeinen "
+            "Rechtschreibauswertung."
         )
     reiter = st.tabs([
         "🔬 OLFA-Analyse",
@@ -117,138 +138,73 @@ def zeichnen(con, schueler) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Freien Text gleich hier erfassen
+# Neuen Text erfassen, falsche Zuordnung korrigieren
 # ---------------------------------------------------------------------------
 
-MODUS_FREI = {
-    "freitext": "📝 Freitextmodus – das Kind hat selbst von Hand geschrieben (Rechtschreibung zählt)",
-    "freies_diktat": "📖 Freies Diktat – nach einer Vorlage diktiert, die nicht erfasst ist (z. B. aus einem Buch)",
-    "sprachdiktat": "🎙️ Sprachdiktat – das Kind hat mit Spracheingabe diktiert (eigenes Fehlerprofil)",
-}
-MODUS_NAME = {"freitext": "Freier Text", "freies_diktat": "Freies Diktat", "sprachdiktat": "Sprachdiktat"}
-
-
-def _neuer_freier_text(con, schueler) -> None:
-    """«Freier Text» in der Textwahl: ein neuer Text ohne erfasste Vorlage.
-    Der Diktatmodus entfällt hier – gewählt wird nur, wie der Text entstanden
-    ist: von Hand frei geschrieben (Freitextmodus), nach einer Vorlage
-    diktiert, die nicht im System steht, etwa aus einem Buch vorgelesen
-    (Freies Diktat), oder mit Spracheingabe diktiert (Sprachdiktat). Freies
-    Diktat läuft technisch wie der Freitextmodus (Zielwörter über das
-    Sprachmodell, danach dasselbe Regelwerk) und zählt genauso zur
-    Rechtschreibauswertung – der Unterschied ist rein die Herkunft des Textes.
-    Genau diese Wahl bestimmt die Art des gespeicherten Textes."""
-    st.caption(
-        "Ein freier Text hat keine erfasste Vorlage – der **Diktatmodus entfällt**. Wählen Sie, "
-        "wie der Text entstanden ist. Gespeichert wird er mit dem Klick unten; danach ist er oben "
-        "ausgewählt und die Analyse läuft im gewählten Modus."
-    )
-    with st.form(f"freitext_neu_{schueler['id']}", clear_on_submit=True):
+def _neuer_text(con, schueler, modus: str, quelle: str) -> None:
+    """Ein neuer Text im gewählten Modus – ohne Vorlage aus dem Tool (die
+    entsteht unter «Texte»). Gespeichert wird er mit genau diesem Modus als
+    Textart; danach ist er ausgewählt."""
+    with st.form(f"text_neu_{schueler['id']}_{modus}", clear_on_submit=True):
         spalte_a, spalte_b = st.columns(2)
         with spalte_a:
-            titel = st.text_input("Titel *", placeholder="z. B. «Aufsatz Herbstferien»")
+            titel = st.text_input("Titel *", placeholder={
+                "diktat": "z. B. «Diktat Lesebuch S. 42»",
+                "freitext": "z. B. «Aufsatz Herbstferien»",
+                "diktiert": "z. B. «Erzählung, diktiert»"}[modus])
         with spalte_b:
             datum = st.date_input("Datum", value=date.today())
-        modus = st.radio(
-            "Modus der Fehleranalyse", list(MODUS_FREI), format_func=MODUS_FREI.get,
-            key=f"neu_modus_{schueler['id']}",
-            help=("Sprachdiktat: Die Rechtschreibung stammt vom Programm, nicht vom Kind – "
-                  "bewertet werden Satzbau, Grammatik, Zeichensetzung und Textebene, in einem "
-                  "eigenen Fehlerprofil (Auswertung → Reiter «Diktieren»). Freies Diktat: ein "
-                  "echtes Diktat, dessen Vorlage nur nicht eingegeben ist – zählt normal zur "
-                  "Rechtschreibauswertung."),
-        )
         text = st.text_area("Text des Kindes *", height=200,
-                            placeholder="Abgetippt, eingefügt – oder das Ergebnis der Spracheingabe.")
-        notiz = st.text_input("Notiz", placeholder="Auftrag, Umstände, Besonderes …")
+                            placeholder="Abgetippt oder eingefügt.")
+        notiz = st.text_input("Notiz", placeholder="Auftrag, Lehrmittel, Umstände …")
         if st.form_submit_button("Text speichern und auswerten", type="primary"):
             if not titel.strip() or not text.strip():
                 st.error("Titel und Text sind Pflichtfelder.")
             else:
-                art = db.MODUS_ZU_ART[modus]
                 neue_id = db.diktat_anlegen(
                     con, schueler["id"], titel, "", datum=datum.isoformat(),
-                    notiz=notiz, quelle=art, freigegeben=True,
-                    art=art, schuelertext=text,
+                    notiz=notiz, quelle=modus, freigegeben=True,
+                    art=modus, schuelertext=text,
                 )
-                # Der neue Text ist der, den man gerade auswerten will.
-                st.session_state["fehler_diktat_naechster"] = neue_id
-                st.session_state[f"olfa_modus_{neue_id}"] = modus
-                g.merken(f"{MODUS_NAME[modus]} «{titel}» gespeichert und ausgewählt.")
+                st.session_state[f"fehler_diktat_{modus}_{quelle}_naechster"] = neue_id
+                g.merken(f"{db.TEXTARTEN[modus]} «{titel}» gespeichert und ausgewählt.")
                 st.rerun()
 
 
-# ---------------------------------------------------------------------------
-# OLFA-Analyse: Modus wählen
-# ---------------------------------------------------------------------------
+def _zuordnung_korrigieren(con, diktat) -> None:
+    """Falls ein Text ohne Vorlage im falschen Modus erfasst wurde."""
+    with st.expander("Falsch eingeordnet? Modus dieses Textes ändern"):
+        andere = [m for m in MODI if m != diktat["art"]]
+        ziel = st.radio("Richtiger Modus", andere, format_func=MODI.get, horizontal=True,
+                        key=f"umordnen_{diktat['id']}")
+        if st.button("Umstellen", key=f"umordnen_ok_{diktat['id']}"):
+            db.diktat_art_setzen(con, diktat["id"], ziel)
+            st.session_state["fehler_modus_naechster"] = ziel
+            st.session_state["fehler_quelle_naechster"] = "frei"
+            st.session_state[f"fehler_diktat_{ziel}_frei_naechster"] = diktat["id"]
+            g.merken(f"«{diktat['titel']}» ist jetzt als {db.TEXTARTEN[ziel]} geführt.")
+            st.rerun()
 
-def hat_vorlage(diktat) -> bool:
-    """Nur ein Text mit Vorlage kann im Diktatmodus ausgewertet werden."""
-    return diktat["art"] not in db.OHNE_VORLAGE and bool((diktat["text_original"] or "").strip())
 
+# ---------------------------------------------------------------------------
+# OLFA-Analyse
+# ---------------------------------------------------------------------------
 
 def _olfa_ablauf(con, schueler, diktat) -> None:
-    """Der Modus ist die einzige Entscheidung – keine separate, vorab zu
-    treffende «Art des Textes». Ein Text mit Vorlage läuft ausschliesslich im
-    Diktatmodus. Ein Text ohne Vorlage («freier Text», ob gerade eben getippt
-    oder schon einmal gespeichert) lässt zwischen Freitextmodus
-    (handschriftlich), Freies Diktat (Vorlage nicht erfasst, z. B. aus einem
-    Buch) und Sprachdiktat frei wählen – wer eine der drei Karten anklickt,
-    meint damit diesen Text, nicht eine separate Markierung. Die Wahl trägt
-    sich sofort in die Datenbank ein (``db.diktat_art_setzen``); Freitextmodus
-    und Freies Diktat zählen beide zur Rechtschreibauswertung, nur
-    Sprachdiktat zum eigenen Profil."""
-    mit_vorlage = hat_vorlage(diktat)
-    beschriftung = {
-        "diktat": "📄 Diktatmodus – gegen die Vorlage",
-        "freitext": "📝 Freitextmodus (handschriftlich) – ohne Vorlage",
-        "freies_diktat": "📖 Freies Diktat – Vorlage nicht erfasst",
-        "sprachdiktat": "🎙️ Sprachdiktat – eigenes Fehlerprofil",
-    }
-    if mit_vorlage:
-        modi = ["diktat"]
-    else:
-        modi = ["freitext", "freies_diktat", "sprachdiktat"]
-    vorgabe = db.ART_ZU_MODUS.get(diktat["art"], modi[0])
-    modus = st.radio(
-        "Modus der Fehleranalyse", modi, format_func=beschriftung.get,
-        index=modi.index(vorgabe) if vorgabe in modi else 0,
-        horizontal=True, key=f"olfa_modus_{diktat['id']}",
-        help=("Ein Text mit Vorlage läuft immer im Diktatmodus: Was falsch ist, steht objektiv "
-              "fest. Ein Text ohne Vorlage lässt sich frei zwischen Freitextmodus (von Hand "
-              "geschrieben, Rechtschreibung zählt), Freies Diktat (nach einer nicht erfassten "
-              "Vorlage diktiert, z. B. aus einem Buch – zählt ebenfalls zur Rechtschreibung) "
-              "und Sprachdiktat (mit Sprachsoftware diktiert, in einem eigenen Fehlerprofil) "
-              "wählen."),
-    )
-    neue_art = db.MODUS_ZU_ART.get(modus, "freitext")
-    if not mit_vorlage and neue_art != diktat["art"]:
-        db.diktat_art_setzen(con, diktat["id"], neue_art)
-        st.rerun()
-
-    if mit_vorlage:
+    """Mit Vorlage aus dem Tool: exakter Abgleich. Sonst – Diktat ohne
+    Vorlage, Freitextmodus, Freies Diktat – bestimmt das Sprachmodell die
+    Zielwörter, klassifiziert wird vom selben Regelwerk."""
+    if db.hat_vorlage(diktat):
+        st.caption("📄 Diktat mit Vorlage aus dem Tool – exakter Abgleich gegen den Referenztext.")
         _diff_ablauf(con, schueler, diktat)
         return
-    if modus == "freies_diktat":
-        st.caption(
-            "📖 **Freies Diktat.** Die Vorlage ist nicht erfasst – die Zielwörter werden deshalb "
-            "wie im Freitextmodus über das Sprachmodell bestimmt, danach klassifiziert dasselbe "
-            "Regelwerk. Das Ergebnis zählt ganz normal zur Rechtschreibauswertung."
-        )
-    if modus == "sprachdiktat":
-        st.info(
-            "🎙️ **Sprachdiktat.** Die Sprachsoftware transkribiert lautgetreu – klassische "
-            "Verschreibungen entstehen darüber kaum. Aber Gross-/Kleinschreibung, Getrennt- und "
-            "Zusammenschreibung oder Wortgrenzen bleiben Sache des Kindes (Autokorrektur, manuelle "
-            "Korrektur) und werden hier wie gewohnt geprüft. Die Ergebnisse fliessen **nicht** in "
-            "die allgemeine Rechtschreibauswertung ein, sondern in ein eigenes Fehlerprofil "
-            "(Auswertung → Reiter «Diktieren»)."
-        )
+    if diktat["art"] == "diktat":
+        st.caption("📄 Diktat ohne Vorlage aus dem Tool – die Zielwörter bestimmt das Sprachmodell "
+                   "aus dem Zusammenhang, danach klassifiziert dasselbe Regelwerk. Zählt normal zur "
+                   "Rechtschreibauswertung.")
     _freitext_ablauf(con, schueler, diktat)
 
 
-# ---------------------------------------------------------------------------
-# Schülertext – Grundlage aller drei Wege
 # ---------------------------------------------------------------------------
 
 def _feedback_anzeigen(bereiche_geprueft: list[str], funde: list[feedback.Fund]) -> None:
@@ -273,7 +229,7 @@ def _feedback_anzeigen(bereiche_geprueft: list[str], funde: list[feedback.Fund])
 
 
 def _schuelertext_feld(con, diktat, schluessel: str) -> str:
-    ist_frei = diktat["art"] in db.OHNE_VORLAGE
+    ist_frei = not db.hat_vorlage(diktat)
     text = st.text_area(
         "Text des Kindes" if ist_frei else "Abgetippter Schülertext",
         value=diktat["schuelertext"] or "", height=200,
@@ -293,11 +249,11 @@ def _schuelertext_feld(con, diktat, schluessel: str) -> str:
 
 def _analyse_ablauf(con, schueler, diktat) -> None:
     reg = g.register()
-    ist_frei = diktat["art"] in db.OHNE_VORLAGE
+    ist_frei = not db.hat_vorlage(diktat)
     ist_diktiert = diktat["art"] == "diktiert"
     if ist_diktiert:
         st.caption(
-            "🎙️ **Modus: Sprachdiktat.** Rechtschreibung wird hier wie gewohnt mitbewertet – "
+            "🎙️ **Freies Diktat.** Rechtschreibung wird hier wie gewohnt mitbewertet – "
             "Gross-/Kleinschreibung, Wortgrenzen und Zusammenschreibung bleiben Sache des Kindes. "
             "Die Ergebnisse zählen zum eigenen Fehlerprofil (Auswertung → Reiter «Diktieren»), "
             "nicht zur allgemeinen Rechtschreibauswertung."
@@ -780,7 +736,7 @@ def _von_hand(con, schueler, diktat) -> None:
     )
     optionen = [nr for nr, _ in reg.waehlbar()]
     if diktat["art"] == "diktiert":
-        st.caption("Sprachdiktat: alle Bereiche wählbar – A (Gross-/Kleinschreibung, Wortgrenzen "
+        st.caption("Freies Diktat: alle Bereiche wählbar – A (Gross-/Kleinschreibung, Wortgrenzen "
                    "u. Ä.) zählt zum eigenen Fehlerprofil im Reiter «Diktieren».")
     with st.form(f"fehler_hand_{diktat['id']}", clear_on_submit=True):
         spalte_a, spalte_b = st.columns(2)
@@ -811,7 +767,7 @@ def _fehlerliste(con, schueler, diktat) -> None:
     import pandas as pd
 
     reg = g.register()
-    ist_frei = diktat["art"] in db.OHNE_VORLAGE
+    ist_frei = not db.hat_vorlage(diktat)
     fehler = db.fehler_liste(con, schueler["id"], diktat["id"])
     if not fehler:
         st.info("Zu diesem Text sind noch keine Fehler erfasst.")
@@ -880,7 +836,7 @@ def _fehlerliste(con, schueler, diktat) -> None:
         g.export_modul(format_).informationsblatt_schreiben(
             pfad, g.anzeigename(con, schueler), diktat["titel"], diktat["datum"],
             [dict(f) for f in fehler], reg, kennzahlen, kommentar,
-            anhang if mit_text else "", art=diktat["art"],
+            anhang if mit_text else "", art=diktat["art"], mit_vorlage=not ist_frei,
         )
         with open(pfad, "rb") as datei:
             st.download_button(

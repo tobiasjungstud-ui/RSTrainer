@@ -38,16 +38,16 @@ SCHWIERIGKEITEN = {
 
 def zeichnen(con, schueler) -> None:
     st.header("Texte")
-    reiter_neu, reiter_manuell, reiter_frei, reiter_archiv = st.tabs(
-        ["🪄 Diktat über Chat-Prompt", "✍️ Diktat von Hand",
-         "📝 Freier Text", "📚 Archiv"]
+    st.caption("Hier entstehen **Diktatvorlagen**. Schülertexte ohne Vorlage – Diktat aus einem "
+               "anderen Lehrmittel, Freitext, Freies Diktat – erfassen Sie direkt unter "
+               "**Fehleranalyse**, dort mit dem passenden Modus.")
+    reiter_neu, reiter_manuell, reiter_archiv = st.tabs(
+        ["🪄 Diktatvorlage über Chat-Prompt", "✍️ Diktatvorlage von Hand", "📚 Archiv"]
     )
     with reiter_neu:
         _prompt_ablauf(con, schueler)
     with reiter_manuell:
         _manuell(con, schueler)
-    with reiter_frei:
-        _freier_text(con, schueler)
     with reiter_archiv:
         _archiv(con, schueler)
 
@@ -296,48 +296,6 @@ def _manuell(con, schueler) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Freier Text
-# ---------------------------------------------------------------------------
-
-def _freier_text(con, schueler) -> None:
-    st.subheader("Freien Text erfassen")
-    st.caption(
-        "Für alles, was im Unterricht sonst entsteht – Aufsatz, Bericht, Antwort "
-        "auf eine Frage. Hier gibt es keine Vorlage: Das Sprachmodell beurteilt "
-        "selbst, was falsch ist. Der mechanische Abgleich entfällt, die Fehler "
-        "landen aber in derselben Auswertung wie die aus Diktaten."
-    )
-    with st.form("freitext", clear_on_submit=True):
-        spalte_a, spalte_b = st.columns(2)
-        with spalte_a:
-            titel = st.text_input("Titel *", placeholder="z. B. «Aufsatz Herbstferien»")
-        with spalte_b:
-            datum = st.date_input("Datum", value=date.today())
-        text = st.text_area("Text des Kindes *", height=240,
-                            placeholder="Abgetippt oder eingefügt.")
-        notiz = st.text_input("Notiz", placeholder="Auftrag, Umstände, Besonderes …")
-        st.caption(
-            "Ob dieser Text von Hand geschrieben oder mit einer Sprachsoftware diktiert wurde, "
-            "wählen Sie beim Analysieren unter **Fehleranalyse** – dort steht der Analysemodus "
-            "(Freitextmodus oder Sprachdiktat) direkt zur Wahl."
-        )
-        if st.form_submit_button("Text speichern", type="primary"):
-            if not titel.strip() or not text.strip():
-                st.error("Titel und Text sind Pflichtfelder.")
-            else:
-                neue_id = db.diktat_anlegen(
-                    con, schueler["id"], titel, "", datum=datum.isoformat(),
-                    notiz=notiz, quelle="freitext", freigegeben=True,
-                    art="freitext", schuelertext=text,
-                )
-                g.merken(
-                    f"Freier Text «{titel}» gespeichert (Nr. {neue_id}). "
-                    "Unter «Fehlererfassung» kann er jetzt ausgewertet werden."
-                )
-                st.rerun()
-
-
-# ---------------------------------------------------------------------------
 # Archiv
 # ---------------------------------------------------------------------------
 
@@ -367,13 +325,14 @@ def _archiv(con, schueler) -> None:
 
     reg = g.register()
     for diktat in reversed(diktate):
-        ist_frei = diktat["art"] in db.OHNE_VORLAGE
+        ist_frei = not db.hat_vorlage(diktat)
         kategorien = g.json_liste(diktat["ziel_kategorien"])
         fehler = [dict(f) for f in db.fehler_liste(con, schueler["id"], diktat["id"])]
+        art_text = (db.TEXTARTEN.get(diktat["art"], "Diktat")
+                    + (" ohne Vorlage" if diktat["art"] == "diktat" and ist_frei else ""))
         with st.expander(
             f"{g.textart_symbol(diktat['art'])} {diktat['datum']} · {diktat['titel']} "
-            f"({diktat['wortzahl']} Wörter)"
-            + (" · diktiert (Sprachsoftware)" if diktat["art"] == "diktiert" else " · freier Text" if ist_frei else "")
+            f"({diktat['wortzahl']} Wörter) · {art_text}"
         ):
             st.caption(_schwerpunkt_zeile(fehler))
             if kategorien:

@@ -324,7 +324,8 @@ def test_diktierte_texte_bleiben_aus_der_rechtschreibsicht_draussen(con, schuele
 
 def test_diktat_art_setzen_stellt_zwischen_freitext_und_diktiert_um(con, schueler_id):
     """Ein bestehender, bereits erfasster Text lässt sich nachträglich als
-    diktiert markieren – sonst bleibt Sprachdiktat für ihn für immer gesperrt."""
+    diktiert markieren (oder als Diktat ohne Vorlage) – ein falscher Modus
+    ist sonst für immer festgeschrieben."""
     frei = db.diktat_anlegen(con, schueler_id, "Aufsatz", "", art="freitext",
                              schuelertext="Der Hund bellt laut im Garten.")
     db.diktat_art_setzen(con, frei, "diktiert")
@@ -337,6 +338,11 @@ def test_diktat_art_setzen_stellt_zwischen_freitext_und_diktiert_um(con, schuele
     assert db.diktat_holen(con, frei)["art"] == "freitext"
     assert db.diktat_liste(con, schueler_id, textart="diktiert") == []
 
+    # Auch als Diktat ohne Vorlage (Text aus einem anderen Lehrmittel).
+    db.diktat_art_setzen(con, frei, "diktat")
+    assert db.diktat_holen(con, frei)["art"] == "diktat"
+    assert not db.hat_vorlage(db.diktat_holen(con, frei))
+
 
 def test_diktat_art_setzen_verweigert_diktat_mit_vorlage(con, schueler_id):
     mit_vorlage = db.diktat_anlegen(con, schueler_id, "Diktat", "Der Hund bellt.")
@@ -344,3 +350,19 @@ def test_diktat_art_setzen_verweigert_diktat_mit_vorlage(con, schueler_id):
         db.diktat_art_setzen(con, mit_vorlage, "diktiert")
     with pytest.raises(ValueError):
         db.diktat_art_setzen(con, mit_vorlage, "diktat")
+
+
+def test_alte_textart_freies_diktat_wird_zum_diktat_ohne_vorlage(tmp_path):
+    """Ein Zwischenstand kannte «freies_diktat» als eigene Textart. Solche
+    Texte sind Diktate ohne Vorlage und werden beim Öffnen umgeschrieben."""
+    pfad = tmp_path / "alt.sqlite3"
+    con = db.verbinden(pfad)
+    sid = db.schueler_anlegen(con, "Kind", "8a")
+    did = db.diktat_anlegen(con, sid, "Lesebuch", "", art="freitext", schuelertext="Der Hund.")
+    con.execute("UPDATE diktate SET art = 'freies_diktat' WHERE id = ?", (did,))
+    con.commit()
+    con.close()
+    con = db.verbinden(pfad)
+    d = db.diktat_holen(con, did)
+    assert d["art"] == "diktat" and not db.hat_vorlage(d)
+    con.close()

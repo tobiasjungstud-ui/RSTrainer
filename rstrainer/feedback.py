@@ -2,9 +2,9 @@
 Nächstes zu üben. Rein deterministisch aus den bereits klassifizierten Funden
 dieses Durchgangs abgeleitet – kein zusätzlicher Aufruf des Sprachmodells.
 
-Gilt für alle drei Analysemodi (Diktatmodus, Freitextmodus, Sprachdiktat):
+Gilt für alle drei Modi (Diktat, Freitextmodus, Freies Diktat):
 Jeder Durchgang deckt einen bekannten Satz von Bereichen ab (Diktat- und
-Freitextmodus nur A, Sprachdiktat nur B–E), und nur dafür lässt sich «keine
+Freitextmodus A, freie Analyse B–E), und nur dafür lässt sich «keine
 Auffälligkeiten» ehrlich behaupten.
 """
 

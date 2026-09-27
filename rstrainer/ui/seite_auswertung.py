@@ -13,9 +13,9 @@ from . import gemeinsam as g
 def zeichnen(con, schueler) -> None:
     st.header("Förderprofil und Verlauf")
 
-    # Zwei getrennte Welten: geschriebene Texte (Diktat, freier Text) tragen die
-    # Rechtschreibauswertung; diktierte Texte (Sprachsoftware) nur Satzbau und
-    # Grammatik. Sie werden nie vermischt.
+    # Zwei getrennte Welten: Diktat und Freitextmodus tragen die allgemeine
+    # Rechtschreibauswertung; das Freie Diktat (Diktierfunktion) hat sein eigenes
+    # Profil – Rechtschreibung wie Satzbau. Sie werden nie vermischt.
     diktate = db.diktat_liste(con, schueler["id"], textart="geschrieben")
     fehler = [dict(f) for f in db.fehler_liste(con, schueler["id"], textart="geschrieben")]
     diktierte = db.diktat_liste(con, schueler["id"], textart="diktiert")
@@ -23,7 +23,7 @@ def zeichnen(con, schueler) -> None:
     reg = g.register()
     reiter = st.tabs([
         f"✍️ Geschrieben – Rechtschreibung ({len(diktate)})",
-        f"🎙️ Diktieren – Sprachdiktat ({len(diktierte)})",
+        f"🎙️ Diktieren – Freies Diktat ({len(diktierte)})",
     ])
     with reiter[1]:
         _diktierte_texte(con, schueler, diktierte, fehler_diktiert, reg)
@@ -33,11 +33,11 @@ def zeichnen(con, schueler) -> None:
 
 def _geschrieben(con, schueler, diktate, fehler, diktierte, fehler_diktiert, reg) -> None:
     """Reiter «Geschrieben»: Diktat von Hand und freier Text von Hand – die
-    Rechtschreibauswertung nach OLFA. Sprachdiktate kommen hier nicht vor."""
+    Rechtschreibauswertung nach OLFA. Freie Diktate kommen hier nicht vor."""
     if not diktate or not fehler:
         st.info(
             "Für die Rechtschreibauswertung braucht es mindestens einen geschriebenen "
-            "Text mit erfassten Fehlern. Sprachdiktate zählen hier nicht – sie haben ihr "
+            "Text mit erfassten Fehlern. Freie Diktate zählen hier nicht – sie haben ihr "
             "eigenes Profil im Reiter «Diktieren»."
         )
         return
@@ -54,7 +54,7 @@ def _geschrieben(con, schueler, diktate, fehler, diktierte, fehler_diktiert, reg
     spalten[0].metric("Geschriebene Texte", len(punkte))
     spalten[1].metric("Erfasste Fehler", len(fehler))
     spalten[2].metric("Betroffene Fehlerarten", len(reihen))
-    spalten[3].metric("Diktierte Texte", len(diktierte), help="Sprachdiktate – eigenes Profil im Reiter «Diktieren».")
+    spalten[3].metric("Diktierte Texte", len(diktierte), help="Freie Diktate (Diktierfunktion) – eigenes Profil im Reiter «Diktieren».")
 
     if len(punkte) < config.TREND_FENSTER + 1:
         st.info(
@@ -159,7 +159,7 @@ def _diktierte_texte(con, schueler, diktierte, fehler_diktiert, reg) -> None:
     from .. import grammatik
     import pandas as pd
 
-    st.subheader("🎙️ Diktieren – Sprachdiktat: eigenes Fehlerprofil")
+    st.subheader("🎙️ Diktieren – Freies Diktat: eigenes Fehlerprofil")
     st.caption(
         "Beim Diktieren mit Spracheingabe schreibt das Programm lautgetreu – klassische "
         "Verschreibungen entstehen darüber kaum. Gross-/Kleinschreibung, Wortgrenzen und "
@@ -169,13 +169,13 @@ def _diktierte_texte(con, schueler, diktierte, fehler_diktiert, reg) -> None:
     )
     if not diktierte:
         st.info(
-            "Noch kein Sprachdiktat erfasst. Unter **Fehleranalyse** oben «Freier Text – neu "
-            "eingeben» wählen, dann den Modus **Sprachdiktat**."
+            "Noch kein Freies Diktat erfasst. Unter **Fehleranalyse** den Modus **Freies Diktat** "
+            "wählen und den Text eingeben."
         )
         return
     woerter = sum(int(d["wortzahl"] or 0) for d in diktierte)
     k = st.columns(4)
-    k[0].metric("Sprachdiktate", len(diktierte))
+    k[0].metric("Freie Diktate", len(diktierte))
     k[1].metric("Wörter", woerter)
     k[2].metric("Befunde gesamt", len(fehler_diktiert),
                help="Bereich A (Rechtschreibung: Gross-/Kleinschreibung, Wortgrenzen u. Ä.) zählt "
@@ -206,7 +206,7 @@ def _diktierte_texte(con, schueler, diktierte, fehler_diktiert, reg) -> None:
     st.dataframe(pd.DataFrame(zeilen), hide_index=True, width="stretch")
 
     if not fehler_diktiert:
-        st.info("Noch keine Befunde – unter «Fehleranalyse» das Sprachdiktat im Reiter «Freie Analyse "
+        st.info("Noch keine Befunde – unter «Fehleranalyse» das Freie Diktat im Reiter «Freie Analyse "
                 "durch das Sprachmodell» analysieren lassen oder Fehler von Hand erfassen.")
         return
     st.markdown("**Nach Kategorie**")
@@ -245,7 +245,7 @@ def _bereichsuebersicht(con, schueler, fehler, reg, fehler_diktiert=None) -> Non
     quelle = "geschrieben"
     if fehler_diktiert:
         quelle = st.radio("Textquelle", ["geschrieben", "diktiert", "alle"], horizontal=True,
-                          format_func={"geschrieben": "geschriebene Texte", "diktiert": "Sprachdiktate",
+                          format_func={"geschrieben": "geschriebene Texte", "diktiert": "Freie Diktate",
                                        "alle": "beide"}.get,
                           key="uebersicht_quelle")
     grundlage = {"geschrieben": fehler, "diktiert": fehler_diktiert or [],

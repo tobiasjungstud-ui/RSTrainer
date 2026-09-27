@@ -35,7 +35,7 @@ def _daten(pfad):
                       kontext="Ich habe gegangen zum Zoo")
     db.fehler_anlegen(con, sid, "B:Satzbau", d2, "weil es geregnet hat", "weil es hat geregnet",
                       kontext="weil es hat geregnet")
-    # Rechtschreibung wird bei Sprachdiktaten nicht abgeschaltet – klassisches
+    # Rechtschreibung wird beim Freien Diktat nicht abgeschaltet – klassisches
     # Beispiel: die Grossschreibung von Nomen bleibt Sache des Kindes.
     db.fehler_anlegen(con, sid, "01", d2, "Zoo", "zoo", kontext="Ich habe gegangen zum zoo")
     con.close()
@@ -63,14 +63,14 @@ def test_auswertung_trennt_diktierte_texte(seite):
     assert metriken["Erfasste Fehler"] == "2"            # nur 08 und 10
     assert metriken["Diktierte Texte"] == "1"
     ueberschriften = " ".join(s.value for s in seite.subheader)
-    assert "Diktieren – Sprachdiktat" in ueberschriften
-    assert metriken["Sprachdiktate"] == "1"
-    # Drei Befunde beim Sprachdiktat: zwei Grammatik (B) und ein Bereich-A-Fund
+    assert "Diktieren – Freies Diktat" in ueberschriften
+    assert metriken["Freie Diktate"] == "1"
+    # Drei Befunde beim Freien Diktat: zwei Grammatik (B) und ein Bereich-A-Fund
     # (Grossschreibung) – Rechtschreibung wird hier also mitgezählt, aber
     # ausschliesslich in diesem eigenen Profil.
     assert metriken["Befunde gesamt"] == "3"
     # Kennwerte nur aus dem geschriebenen Text: 4 Wörter, 2 Fehler → F/100 = 50 –
-    # der Bereich-A-Fund des Sprachdiktats zählt hier nicht mit.
+    # der Bereich-A-Fund des Freien Diktats zählt hier nicht mit.
     text = " ".join(m.value for m in seite.markdown)
     assert "50" in text
     quelle = next(r for r in seite.radio if r.label == "Textquelle")
@@ -92,7 +92,7 @@ def test_auswertung_nur_mit_diktierten_texten(tmp_path, monkeypatch):
     lauf.run()
     assert not lauf.exception
     assert "geschriebenen" in " ".join(i.value for i in lauf.info)
-    assert "Diktieren – Sprachdiktat" in " ".join(s.value for s in lauf.subheader)
+    assert "Diktieren – Freies Diktat" in " ".join(s.value for s in lauf.subheader)
     assert "Reiter «Diktieren»" in " ".join(i.value for i in lauf.info)
 
 
@@ -119,143 +119,5 @@ def test_infoblatt_bezeichnet_diktierte_texte(tmp_path, modul, endung):
     if endung == "docx":
         from docx import Document
         text = "\n".join(a.text for a in Document(pfad).paragraphs)
-        assert "Diktierter Text (Sprachsoftware)" in text
+        assert "Freies Diktat (Diktierfunktion)" in text
         assert "Text des Kindes" in text
-
-
-def test_modus_stellt_einen_bestehenden_freien_text_automatisch_um(tmp_path, monkeypatch):
-    """Sprachdiktat ist kein separates Markieren, sondern der Analysemodus für
-    genau diesen Text ohne Vorlage – der Klick allein stellt die Datenbank um,
-    ganz ohne eigenen Knopf oder Vorentscheidung beim Erfassen."""
-    monkeypatch.setenv("RSTRAINER_DATEN", str(tmp_path))
-    pfad = tmp_path / "umstellen.sqlite3"
-    con = db.verbinden(pfad)
-    sid = db.schueler_anlegen(con, "Kind", "8a")
-    db.diktat_anlegen(con, sid, "Aufsatz", "", art="freitext",
-                      schuelertext="Er gehen heim und hat Hunger.")
-    con.close()
-
-    SEITE = '''
-import streamlit as st
-from rstrainer import db
-from rstrainer.ui import seite_fehler
-con = db.verbinden(st.session_state["_pfad"])
-seite_fehler.zeichnen(con, db.schueler_liste(con)[0])
-'''
-    datei = Path(tempfile.mkdtemp()) / "seite.py"
-    datei.write_text(SEITE, encoding="utf-8")
-    lauf = AppTest.from_file(str(datei), default_timeout=90)
-    lauf.session_state["_pfad"] = pfad
-    lauf.run()
-    assert not lauf.exception
-
-    modus = next(r for r in lauf.radio if r.label == "Modus der Fehleranalyse")
-    assert modus.value == "freitext" and len(modus.options) == 3
-
-    modus.set_value("sprachdiktat").run()
-    assert not lauf.exception
-    con2 = db.verbinden(pfad)
-    assert db.diktat_liste(con2, sid, textart="diktiert")[0]["titel"] == "Aufsatz"
-    con2.close()
-    modus2 = next(r for r in lauf.radio if r.label == "Modus der Fehleranalyse")
-    assert modus2.value == "sprachdiktat"
-
-    modus2.set_value("freitext").run()
-    assert not lauf.exception
-    con3 = db.verbinden(pfad)
-    assert db.diktat_liste(con3, sid, textart="diktiert") == []
-    con3.close()
-
-
-def test_diktat_mit_vorlage_kennt_nur_diktatmodus(tmp_path, monkeypatch):
-    """Ein ausgewählter, bestehender Text mit Vorlage läuft ausschliesslich
-    im Diktatmodus – Freitextmodus und Sprachdiktat sind dafür sinnlos."""
-    monkeypatch.setenv("RSTRAINER_DATEN", str(tmp_path))
-    pfad = tmp_path / "vorlage.sqlite3"
-    con = db.verbinden(pfad)
-    sid = db.schueler_anlegen(con, "Kind", "8a")
-    db.diktat_anlegen(con, sid, "Diktat", "Der Hund bellt laut.",
-                      schuelertext="Der Hunt belt laut.")
-    con.close()
-
-    SEITE = '''
-import streamlit as st
-from rstrainer import db
-from rstrainer.ui import seite_fehler
-con = db.verbinden(st.session_state["_pfad"])
-seite_fehler.zeichnen(con, db.schueler_liste(con)[0])
-'''
-    datei = Path(tempfile.mkdtemp()) / "seite.py"
-    datei.write_text(SEITE, encoding="utf-8")
-    lauf = AppTest.from_file(str(datei), default_timeout=90)
-    lauf.session_state["_pfad"] = pfad
-    lauf.run()
-    assert not lauf.exception
-    modus = next(r for r in lauf.radio if r.label == "Modus der Fehleranalyse")
-    assert modus.value == "diktat" and len(modus.options) == 1
-
-
-def test_freies_diktat_zaehlt_zur_rechtschreibauswertung(tmp_path, monkeypatch):
-    """Ein echtes Diktat, dessen Vorlage nicht erfasst ist (z. B. aus einem
-    Buch vorgelesen), bekommt einen eigenen Modus. Technisch läuft es wie der
-    Freitextmodus, zählt aber ganz normal zur Rechtschreibauswertung – anders
-    als Sprachdiktat."""
-    monkeypatch.setenv("RSTRAINER_DATEN", str(tmp_path))
-    pfad = tmp_path / "freies_diktat.sqlite3"
-    con = db.verbinden(pfad)
-    sid = db.schueler_anlegen(con, "Kind", "8a")
-    con.close()
-
-    SEITE = '''
-import streamlit as st
-from rstrainer import db
-from rstrainer.ui import seite_fehler
-con = db.verbinden(st.session_state["_pfad"])
-seite_fehler.zeichnen(con, db.schueler_liste(con)[0])
-'''
-    datei = Path(tempfile.mkdtemp()) / "seite.py"
-    datei.write_text(SEITE, encoding="utf-8")
-    lauf = AppTest.from_file(str(datei), default_timeout=90)
-    lauf.session_state["_pfad"] = pfad
-    lauf.run()
-    assert not lauf.exception
-
-    lauf.text_input[0].set_value("Diktat aus dem Lesebuch")
-    modus = next(r for r in lauf.radio if r.label == "Modus der Fehleranalyse")
-    assert len(modus.options) == 3
-    modus.set_value("freies_diktat")
-    lauf.text_area[0].set_value("Der Fuchs und die Trauben.")
-    lauf.button[0].click().run()
-    assert not lauf.exception
-
-    con2 = db.verbinden(pfad)
-    text = db.diktat_liste(con2, sid)[0]
-    assert text["art"] == "freies_diktat"
-    assert text["titel"] == "Diktat aus dem Lesebuch"
-    # Zählt zu "geschrieben", nicht zu "diktiert":
-    assert len(db.diktat_liste(con2, sid, textart="geschrieben")) == 1
-    assert db.diktat_liste(con2, sid, textart="diktiert") == []
-    con2.close()
-
-    modus2 = next(r for r in lauf.radio if r.label == "Modus der Fehleranalyse")
-    assert modus2.value == "freies_diktat"
-    assert " · Freies Diktat" in lauf.selectbox[0].format_func(text["id"])
-    caption_texte = " ".join(c.value for c in lauf.caption)
-    assert "Freies Diktat" in caption_texte and "wie im Freitextmodus" in caption_texte
-
-    # Zurück zu Freitextmodus funktioniert wie bei Sprachdiktat auch.
-    modus2.set_value("freitext").run()
-    assert not lauf.exception
-    con3 = db.verbinden(pfad)
-    assert db.diktat_holen(con3, text["id"])["art"] == "freitext"
-    con3.close()
-
-
-def test_diktat_art_setzen_erlaubt_freies_diktat(con, schueler_id):
-    frei = db.diktat_anlegen(con, schueler_id, "Buchdiktat", "", art="freitext",
-                             schuelertext="Der Fuchs und die Trauben.")
-    db.diktat_art_setzen(con, frei, "freies_diktat")
-    assert db.diktat_holen(con, frei)["art"] == "freies_diktat"
-    assert [d["titel"] for d in db.diktat_liste(con, schueler_id, textart="geschrieben")] == ["Buchdiktat"]
-    db.diktat_art_setzen(con, frei, "freitext")
-    assert db.diktat_holen(con, frei)["art"] == "freitext"

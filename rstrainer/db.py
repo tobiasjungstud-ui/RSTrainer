@@ -153,6 +153,10 @@ def verbinden(pfad: Path | str | None = None) -> sqlite3.Connection:
     # Blätter als Aufgabenliste (JSON) neben dem Text – ältere Blätter haben nur Text.
     if "aufgaben" not in {r["name"] for r in con.execute("PRAGMA table_info(blaetter)")}:
         con.execute("ALTER TABLE blaetter ADD COLUMN aufgaben TEXT")
+    # Zwischenstand aufräumen: «freies_diktat» war kurzzeitig eine eigene Textart
+    # für ein Diktat ohne erfasste Vorlage. Das ist heute schlicht ein Diktat,
+    # dessen Vorlage fehlt.
+    con.execute("UPDATE diktate SET art = 'diktat' WHERE art = 'freies_diktat'")
     con.commit()
     return con
 
@@ -254,14 +258,15 @@ def diktat_anlegen(con, schueler_id: int, titel: str, text_original: str,
                    schuelertext: str = "") -> int:
     """Legt einen Text an – standardmäßig OHNE Freigabe.
 
-    ``art='diktat'``: ``text_original`` ist die fehlerfreie Vorlage, die
-    Wortzahl richtet sich nach ihr.
-    ``art='freitext'``: es gibt keine Vorlage; der Text des Kindes steht in
-    ``schuelertext`` und bestimmt die Wortzahl.
+    ``art`` ist einer der drei Modi (``TEXTARTEN``). Mit Vorlage
+    (``text_original`` nicht leer) richtet sich die Wortzahl nach der Vorlage,
+    sonst nach dem Text des Kindes – etwas anderes gibt es dann nicht zu zählen.
     """
     from .textwerkzeuge import woerter_zaehlen
 
-    bezug = schuelertext if art in OHNE_VORLAGE else text_original
+    if art not in TEXTARTEN:
+        raise ValueError(f"Unbekannte Textart {art!r}; erlaubt: {list(TEXTARTEN)}.")
+    bezug = text_original if (text_original or "").strip() else schuelertext
     with transaktion(con):
         cur = con.execute(
             "INSERT INTO diktate (schueler_id, titel, text_original, wortzahl, datum,"
@@ -279,26 +284,24 @@ def diktat_anlegen(con, schueler_id: int, titel: str, text_original: str,
     return int(cur.lastrowid)
 
 
-#: Textarten. «diktiert» = mit Sprachsoftware diktiert: Klassische Verschreibungen
-#: entstehen darüber kaum, aber Gross-/Kleinschreibung, Wortgrenzen und
-#: Zusammenschreibung bleiben Sache des Kindes und werden weiterhin geprüft
-#: (Bereich A wie B–E). Solche Texte bleiben trotzdem aus jeder allgemeinen
-#: OLFA-Auswertung (Kennwerte, Förderplan, Lernwörter) draussen und haben ihr
-#: eigenes Fehlerprofil (Auswertung → Reiter «Diktieren»).
-#: «freies_diktat» = ein echtes Diktat (z. B. aus einem Buch vorgelesen), dessen
-#: Vorlage aber nicht ins System eingegeben wurde – die Zielwörter werden wie im
-#: Freitextmodus bestimmt, das Ergebnis zählt aber ganz normal zur
-#: Rechtschreibauswertung («geschrieben»), nicht zu «diktiert».
-TEXTARTEN = {"diktat": "Diktat mit Vorlage", "freitext": "Freier Text (von Hand geschrieben)",
-             "freies_diktat": "Freies Diktat (Vorlage nicht erfasst)",
-             "diktiert": "Diktiert mit Sprachsoftware"}
-OHNE_VORLAGE = ("freitext", "freies_diktat", "diktiert")
+#: Die drei Modi – zugleich die gespeicherte Textart (``diktate.art``):
+#:
+#: * «diktat»   – Diktat: Die Lehrperson diktiert, das Kind schreibt (Tastatur).
+#:   Die Vorlage KANN aus dem Tool stammen (``text_original`` gefüllt, dann
+#:   exakter Abgleich), muss aber nicht (anderes Lehrmittel, dann leer).
+#: * «freitext» – Freitextmodus: Das Kind schreibt selbst einen Text (Tastatur).
+#: * «diktiert» – Freies Diktat: Das Kind diktiert einen eigenen Text mit der
+#:   Diktierfunktion. Rechtschreibung wird geprüft, zählt aber nur zum eigenen
+#:   Profil (Auswertung → Reiter «Diktieren»), nie zur allgemeinen OLFA-Auswertung.
+#:   Der Schlüssel heisst aus Kompatibilität mit bestehenden Daten «diktiert».
+TEXTARTEN = {"diktat": "Diktat", "freitext": "Freitextmodus",
+             "diktiert": "Freies Diktat (Diktierfunktion)"}
 
-#: Analysemodus (UI) ↔ gespeicherte Textart. Ein Text ohne Vorlage lässt sich
-#: frei zwischen diesen drei Modi umschalten; die Wahl trägt sich sofort in
-#: die Textart ein (siehe ``diktat_art_setzen``).
-MODUS_ZU_ART = {"freitext": "freitext", "freies_diktat": "freies_diktat", "sprachdiktat": "diktiert"}
-ART_ZU_MODUS = {art: modus for modus, art in MODUS_ZU_ART.items()}
+
+def hat_vorlage(diktat) -> bool:
+    """Ein Diktat mit Vorlage aus dem Tool – nur dann ist der exakte Abgleich
+    (Diktatmodus mit Referenztext) möglich."""
+    return diktat["art"] == "diktat" and bool((diktat["text_original"] or "").strip())
 
 
 def _textart_bedingung(textart: str | None, spalte: str = "art") -> str:
@@ -335,8 +338,9 @@ def diktat_aktualisieren(con, diktat_id: int, **felder) -> None:
         felder["ziel_kategorien"] = json.dumps(felder["ziel_kategorien"], ensure_ascii=False)
     if "text_original" in felder:
         felder.setdefault("wortzahl", woerter_zaehlen(felder["text_original"]))
-    if "schuelertext" in felder and diktat_holen(con, diktat_id) is not None \
-            and diktat_holen(con, diktat_id)["art"] in OHNE_VORLAGE:
+    bisher = diktat_holen(con, diktat_id)
+    if "schuelertext" in felder and bisher is not None and not hat_vorlage(bisher) \
+            and "text_original" not in felder:
         felder["wortzahl"] = woerter_zaehlen(felder["schuelertext"])
     if not felder:
         return
@@ -347,24 +351,20 @@ def diktat_aktualisieren(con, diktat_id: int, **felder) -> None:
 
 
 def diktat_art_setzen(con, diktat_id: int, art: str) -> None:
-    """Ordnet einen Text ohne Vorlage der Analyse-Modus-Wahl nach zwischen
-    «freitext» (Freitextmodus, handschriftlich), «freies_diktat» (echtes
-    Diktat ohne erfasste Vorlage) und «diktiert» (Sprachdiktat) um. Das ist
-    keine separate, vorab zu treffende Entscheidung, sondern folgt unmittelbar
-    dem in der Fehleranalyse gewählten Modus – die Umstellung geschieht
-    automatisch, nicht über eine eigene Markierung.
+    """Korrigiert die Zuordnung eines Textes ohne Vorlage zwischen den drei
+    Modi (Diktat ohne Vorlage, Freitextmodus, Freies Diktat) – für den Fall,
+    dass er beim Erfassen falsch eingeordnet wurde.
 
     Ein Text MIT Vorlage (eine echte, fehlerfreie Referenz) lässt sich nicht
     umstellen, weil er strukturell ein anderer Text ist."""
-    if art not in OHNE_VORLAGE:
-        raise ValueError(f"Nur {OHNE_VORLAGE} sind hier zulässig, nicht {art!r}.")
+    if art not in TEXTARTEN:
+        raise ValueError(f"Nur {list(TEXTARTEN)} sind zulässig, nicht {art!r}.")
     bisher = diktat_holen(con, diktat_id)
     if bisher is None:
         return
-    if (bisher["text_original"] or "").strip():
+    if hat_vorlage(bisher):
         raise ValueError(
-            "Ein Text mit Vorlage lässt sich nicht als freier oder "
-            "diktierter Text umstellen."
+            "Ein Diktat mit Vorlage aus dem Tool lässt sich nicht umstellen."
         )
     with transaktion(con):
         con.execute("UPDATE diktate SET art = ?, quelle = ? WHERE id = ?",

@@ -159,7 +159,7 @@ def test_freier_text_wird_als_solcher_bezeichnet(tmp_path, register):
         tmp_path / "frei.pdf", "Testkind", "Aufsatz", "15.09.2026", [], register,
         diktattext="Ich ging zum Zahnarzt.", art="freitext")
     text = extract_text(str(pfad))
-    assert "Freier Text" in text and "Text des Kindes" in text
+    assert "Freitextmodus" in text and "Text des Kindes" in text
 
 
 def test_verlaufsbericht_enthaelt_die_trendtabelle(tmp_path, register):

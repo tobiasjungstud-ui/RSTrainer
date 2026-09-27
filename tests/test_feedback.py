@@ -1,6 +1,6 @@
 """Rückmeldung «was ist gut, was üben wir als Nächstes» – deterministisch aus
 den Funden eines Analyse-Durchgangs, für alle drei Modi (Diktatmodus,
-Freitextmodus, Sprachdiktat)."""
+Freitextmodus, Freies Diktat)."""
 from __future__ import annotations
 
 from rstrainer import feedback
