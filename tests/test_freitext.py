@@ -244,3 +244,97 @@ def test_freitext_ablauf_von_der_antwort_bis_zum_foerderbereich():
     assert ("Zahn arzt", "Zahnarzt", "04") in gefunden
     assert r["verworfen"] == []
     assert {e["foerderbereich"] for e in r["ereignisse"]} >= {"F10", "F3", "F7"}
+
+
+# --- Kontextprüfung um das Wort --------------------------------------------
+# Ein Modell meldet bei «Freitag Morgen» gern nur «Freitag» → «Freitagmorgen».
+# Wortweise verglichen wäre das «ein anderes Wort»; der Satz zeigt aber, dass
+# die Nachbarwörter zusammen genau das Zielwort ergeben.
+
+SATZ_FREITAG = ("Am Freitag Morgen war das wichtigste bereits gepackt, so dass beim "
+                "Aufbruch nichts unvorhergesehnes gescha.")
+
+
+def test_teilwort_mit_kompositum_als_ziel_wird_zur_wortgrenze():
+    r = E.analysiere_liste([{"tokenIndex": 1, "student": "Freitag", "target": "Freitagmorgen",
+                             "sicherheit": 0.95}], SATZ_FREITAG, E.VORGABE_LEXIKON)
+    assert [(e["studentForm"], e["kategorie"], e["status"]) for e in r["ereignisse"]] == [
+        ("Freitag Morgen", "04", "resolved")]
+    assert "Wortgrenze aus dem Satz" in r["ereignisse"][0]["reason"]
+    assert [a["status"] for a in r["abdeckung"][1:3]] == ["fehler", "fehler"]
+
+
+def test_auch_das_zweite_teilwort_wird_erkannt_und_nicht_doppelt_gezaehlt():
+    liste = [{"tokenIndex": 1, "student": "Freitag", "target": "Freitagmorgen", "sicherheit": 0.95},
+             {"tokenIndex": 2, "student": "Morgen", "target": "Freitagmorgen", "sicherheit": 0.9},
+             {"tokenIndex": 2, "student": "Morgen", "target": "morgen", "sicherheit": 0.9}]
+    repariert = E.wortgrenzen_reparieren(liste, SATZ_FREITAG)
+    assert [(z["nummern"], z["sicherheit"]) for z in repariert] == [([1, 2], 0.95)]
+
+
+def test_wortgrenze_mit_innerem_fehler():
+    r = E.analysiere_liste([{"tokenIndex": 1, "student": "Zahn", "target": "Zahnarzt"}],
+                           "Der Zahn artzt kam.", E.VORGABE_LEXIKON)
+    kategorien = [e["kategorie"] for e in r["ereignisse"]]
+    assert kategorien[:2] == ["04", "01"] and len(kategorien) == 3
+
+
+def test_keine_wortgrenze_wo_das_einzelwort_schon_passt():
+    liste = [{"tokenIndex": 2, "student": "das", "target": "dass"}]
+    assert E.wortgrenzen_reparieren(liste, "Ich weiss, das Sie kommen.") == liste
+    liste = [{"tokenIndex": 1, "student": "Hunt", "target": "Hund"}]
+    assert E.wortgrenzen_reparieren(liste, "Der Hunt bellt.") == liste
+
+
+def test_keine_wortgrenze_ueber_das_satzende():
+    liste = [{"tokenIndex": 1, "student": "Haus", "target": "Haustür"}]
+    assert E.wortgrenzen_reparieren(liste, "Das Haus. Tür zu.")[0].get("nummern") is None
+
+
+def test_beide_durchgaenge_meinen_dieselbe_stelle_auch_bei_verschiedener_meldung():
+    d1 = auftraege.zielwoerter_lesen([{"nummer": 1, "wort": "Freitag", "ziel": "Freitagmorgen",
+                                       "sicherheit": 0.95}])
+    d2 = auftraege.zielwoerter_lesen([{"nummer": 1, "wort": "Freitag Morgen", "ziel": "Freitagmorgen",
+                                       "sicherheit": 0.9, "nummern": [1, 2]}])
+    liste = auftraege.zielwoerter_vereinen([], d1, d2, SATZ_FREITAG)
+    assert [(z["nummern"], z["zweitdurchgang"], z["sicherheit"]) for z in liste] == [
+        ([1, 2], "beide Durchgänge einig", 0.9)]
+
+
+def test_formgleiches_zielwort_braucht_keinen_zweitdurchgang():
+    """Der Deckel von 0.8 gilt der Zielwort-Bestimmung. Bei «Freitag Morgen» →
+    «Freitagmorgen» oder «wichtigste» → «Wichtigste» legt der Text selbst fest,
+    welches Wort gemeint ist; bei «gescha» → «geschah» nicht."""
+    d1 = auftraege.zielwoerter_lesen([
+        {"nummer": 1, "wort": "Freitag", "ziel": "Freitagmorgen", "sicherheit": 0.95},
+        {"nummer": 5, "wort": "wichtigste", "ziel": "Wichtigste", "sicherheit": 0.95},
+        {"nummer": 14, "wort": "gescha", "ziel": "geschah", "sicherheit": 0.95}])
+    liste = auftraege.zielwoerter_vereinen([], d1, None, SATZ_FREITAG)
+    assert [(z["student"], z["sicherheit"]) for z in liste] == [
+        ("Freitag Morgen", 0.95), ("wichtigste", 0.95), ("gescha", 0.8)]
+    r = E.analysiere_liste(liste, SATZ_FREITAG, E.VORGABE_LEXIKON)
+    assert [(e["kategorie"], e["status"]) for e in r["ereignisse"]] == [
+        ("04", "resolved"), ("01", "resolved"), ("09", "manual_review")]
+
+
+def test_der_ganze_satz_mit_zwei_durchgaengen():
+    antwort = [{"nummer": 1, "wort": "Freitag Morgen", "ziel": "Freitagmorgen", "sicherheit": 0.95,
+                "nummern": [1, 2]},
+               {"nummer": 5, "wort": "wichtigste", "ziel": "Wichtigste", "sicherheit": 0.95},
+               {"nummer": 13, "wort": "unvorhergesehnes", "ziel": "Unvorhergesehenes", "sicherheit": 0.95},
+               {"nummer": 14, "wort": "gescha", "ziel": "geschah", "sicherheit": 0.95}]
+    d = auftraege.zielwoerter_lesen(antwort)
+    liste = auftraege.zielwoerter_vereinen([], d, d, SATZ_FREITAG)
+    r = E.analysiere_liste(liste, SATZ_FREITAG, E.VORGABE_LEXIKON)
+    assert [(e["studentForm"], e["kategorie"], e["status"]) for e in r["ereignisse"]] == [
+        ("Freitag Morgen", "04", "resolved"), ("wichtigste", "01", "resolved"),
+        ("unvorhergesehnes", "01", "resolved"), ("unvorhergesehnes", "31", "resolved"),
+        ("gescha", "09", "resolved")]
+
+
+def test_zielwort_prompt_verlangt_erst_den_satzsinn():
+    p = auftraege.zielwort_prompt_bauen(SATZ_FREITAG)
+    assert "erst der Satz, dann das Wort" in p
+    assert "am Freitagmorgen" in p and "nichts Unvorhergesehenes" in p
+    assert "sodass/so dass" in p
+    assert "«Freitag» «Morgen» → «Freitagmorgen»" in p

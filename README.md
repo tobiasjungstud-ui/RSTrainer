@@ -546,7 +546,7 @@ ausgelassen, zusätzlich); kein Sprachmodell ist beteiligt.
 
 Ohne Vorlage muss zuerst feststehen, welches Wort gemeint war. Das ist die
 einzige Frage, die das Modell beantwortet – die Kategorie bestimmt es nie.
-Vier Vorkehrungen tragen die Zuverlässigkeit:
+Fünf Vorkehrungen tragen die Zuverlässigkeit:
 
 **1. Was ohne Modell feststeht, wird ohne Modell gefunden.** In der Schweizer
 Zielnorm gibt es kein ß: Jedes ß ist objektiv falsch, die Zielform ergibt sich
@@ -557,14 +557,31 @@ ein Modell gern, weil sie im Satz unauffällig sind. Diese Funde gelten auch
 dann, wenn das Modell gar nicht oder falsch antwortet; ein Regelfund schlägt
 jede Modellaussage.
 
-**2. Der Prompt fragt nur nach dem Zielwort.** Er nennt jedes Wort mit einer
-Nummer, verbietet Grammatik-, Stil- und Zeichensetzungskritik ausdrücklich
-(ohne Vorlage ist die Versuchung gross, zu viel anzustreichen), erklärt die
-Homophone aus dem Satzzusammenhang und regelt die Wortgrenzen in beide
+**2. Der Prompt fragt nur nach dem Zielwort – aber erst nach dem Satzsinn.**
+Er nennt jedes Wort mit einer Nummer, verbietet Grammatik-, Stil- und
+Zeichensetzungskritik ausdrücklich (ohne Vorlage ist die Versuchung gross, zu
+viel anzustreichen) und gibt ein festes Vorgehen vor: erst jeden Satz ganz
+lesen und seinen Sinn klären, dann Wort für Wort mit Blick auf die
+Nachbarwörter prüfen. Er erklärt die Homophone aus dem Satzzusammenhang,
+nennt die Stolperstellen, die nur der Satz entscheidet (Nominalisierungen wie
+*das Wichtigste*, *nichts Unvorhergesehenes*; Tageszeiten wie *am
+Freitagmorgen*, *heute Morgen*, *morgens*; zulässige Doppelschreibungen wie
+*sodass/so dass*, die kein Fehler sind) und regelt die Wortgrenzen in beide
 Richtungen: `Zahn` + `arzt` → `Zahnarzt` über die Nummernliste, `zumbeispiel`
 → `zum Beispiel` über die Zielform mit Leerzeichen.
 
-**3. Ein blinder Zweitdurchgang ist möglich und empfohlen.** Derselbe Text in
+**3. Eine Kontextprüfung um das Wort fängt halbe Wortgrenzen ab.** Ein Modell
+meldet bei «Am Freitag Morgen» gern nur `Freitag` → `Freitagmorgen`.
+Wortweise verglichen sähe das nach einem ganz anderen Wort aus. Ohne Modell
+prüft die Engine deshalb, ob benachbarte Wörter desselben Satzes (bis zu drei)
+zusammen das Zielwort ergeben – exakt oder mit inneren Fehlern wie `Zahn
+artzt` → `Zahnarzt`. Dann wird daraus ein Wortgrenzen-Eintrag über alle
+beteiligten Wörter (hier: Getrenntschreibung 04), Teilmeldungen zum selben
+Wort fallen weg, und beide Durchgänge meinen dieselbe Stelle
+(`olfa_engine.wortgrenzen_reparieren`, im Artefakt `wortgrenzenReparieren`).
+Über ein Satzende hinweg wird nie verbunden.
+
+**4. Ein blinder Zweitdurchgang ist möglich und empfohlen.** Derselbe Text in
 einem neuen, leeren Chat, anders formuliert, damit die zweite Antwort nicht
 die erste abschreibt. Die Sicherheit einer Zielform wird nicht vom Modell
 übernommen, sondern berechnet:
@@ -574,13 +591,20 @@ die erste abschreibt. Die Sicherheit einer Zielform wird nicht vom Modell
 | Regelfund | 1,00 |
 | beide Durchgänge einig | die niedrigere der beiden |
 | nur ein Durchgang hat es gesehen | höchstens 0,70 |
-| gar kein Zweitdurchgang | höchstens 0,80 |
+| gar kein Zweitdurchgang | höchstens 0,80 – ausser das Zielwort ist formgleich |
 | Durchgänge uneinig | höchstens 0,60 – unter der Schwelle |
 
 Liegt sie unter 0,85, wird keine präzise Kategorie ausgegeben, sondern der
 Fall zur Kontrolle vorgelegt – mit beiden Zielformen.
 
-**4. Vollständigkeit wird nicht behauptet.** Kein Wort gilt als geprüft, nur
+Der Deckel von 0,80 gilt der *Bestimmung* des Zielworts. Ist das Zielwort
+**formgleich** – dieselben Buchstaben, nur Gross-/Kleinschreibung oder
+Leerzeichen anders (`wichtigste` → `Wichtigste`, `Freitag Morgen` →
+`Freitagmorgen`) –, legt der Text selbst fest, welches Wort gemeint ist. Dann
+zählt die Sicherheit, die das Modell selbst angibt. Bei `gescha` → `geschah`
+bleibt der Deckel: Da musste ein Wort erst erschlossen werden.
+
+**5. Vollständigkeit wird nicht behauptet.** Kein Wort gilt als geprüft, nur
 weil eine Liste vorliegt. Im Freitextmodus steht jedes nicht gemeldete Wort
 auf `offen`, und die App schreibt hin, wie viele das sind. Das Diktat mit Vorlage
 kennt dagegen den Status jedes Wortes. Dazu kommt der Halluzinationsfilter:
@@ -902,7 +926,7 @@ python3 -m pytest tests/ -q
 | `test_analyse.py` | Analyse-Prompts, JSON zurücklesen, neue Fehlerarten, Aufräumplan, Regler Klassiker/Sondierung |
 | `test_feedback.py` | Rückmeldung «Das ist gut / Das üben wir als Nächstes»: fehlerfreier Durchgang, Bereiche ohne Treffer, Begrenzung der Liste |
 | `test_ui_diktiert.py` | Freies Diktat (Diktierfunktion): eigenes Fehlerprofil im Reiter «Diktieren» inkl. Bereich A, Kennwerte nur aus geschriebenen Texten, Infoblatt-Bezeichnung |
-| `test_freitext.py` | Freitextmodus: Regelprüfungen ohne Modell, Zielwort-Prompt, blinder Zweitdurchgang und Sicherheitsdeckel, Wortgrenzen, ehrliche Vollständigkeit, Modusauswahl |
+| `test_freitext.py` | Freitextmodus: Regelprüfungen ohne Modell, Zielwort-Prompt (erst der Satzsinn, Stolperstellen), blinder Zweitdurchgang und Sicherheitsdeckel, formgleiche Zielwörter, Wortgrenzen samt Kontextprüfung um das Wort («Freitag Morgen»), ehrliche Vollständigkeit, Modusauswahl |
 | `test_ui_fehlerseite.py` | Genau drei Modi, Vorlage-Umschalter nur beim Diktat, gefilterte Textwahl, Erfassung direkt auf der Seite, Diktat ohne Vorlage zählt normal, Freies Diktat getrennt, Umordnen |
 
 Zusätzlich wurde die Oberfläche durchgespielt – von Hand im Browser und

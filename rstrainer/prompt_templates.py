@@ -609,6 +609,13 @@ Nur Orthografie: Buchstaben, Gross-/Kleinschreibung, Getrennt- und Zusammenschre
 - Eigennamen und erfundene Namen sind nicht falsch.
 - Im Zweifel NICHT als Fehler werten.
 
+## Vorgehen: erst der Satz, dann das Wort
+1. Lies jeden Satz ganz und kläre seinen Sinn: Wer tut was, wann, wie?
+2. Prüfe erst dann Wort für Wort, ob es in DIESEM Satz richtig geschrieben ist – immer \
+mit Blick auf die Nachbarwörter.
+3. Gehören zwei oder mehr Wörter der Liste zu EINEM Wort, melde sie gemeinsam \
+(siehe Wortgrenzen) – nie nur einen Teil.
+
 ## Vollständigkeit
 Geh die Wortliste von oben nach unten durch. Jedes falsch geschriebene Wort gehört in \
 die Antwort, auch wenn derselbe Fehler mehrfach vorkommt – dann einmal pro Vorkommen \
@@ -616,16 +623,19 @@ mit der jeweiligen Nummer. Ein korrekt geschriebenes Wort kommt NICHT in die Lis
 
 ## Zielwort aus dem Zusammenhang
 Bei gleich klingenden Wörtern entscheidet der Satz, nicht die Häufigkeit: wider/wieder, \
-das/dass, seid/seit, man/mann, wahr/war, mehr/Meer, Lied/Lid, Stadt/statt.
+das/dass, seid/seit, man/Mann, wahr/war, mehr/Meer, Lied/Lid, Stadt/statt, Leere/Lehre, \
+malen/mahlen, Waise/Weise, Saite/Seite, viel/fiel, Mine/Miene, Lärche/Lerche, Rad/Rat, Tod/tot.
 Bist du dir bei der gemeinten Zielform nicht sicher, nenne die wahrscheinlichere, setze \
 «sicherheit» unter {schwelle} und trage die Alternative ein. Eine unsichere \
 Zielwortentscheidung wird der Lehrperson vorgelegt – rate nicht.
+{stolperstellen}
 
 ## Wortgrenzen
 - Zwei oder mehr Wörter zu einem verklebt: EIN Eintrag, «ziel» mit Leerzeichen \
 («zumbeispiel» → «zum Beispiel»).
 - Ein Wort auf mehrere aufgeteilt: EIN Eintrag, alle beteiligten Nummern in «nummern», \
-«ziel» zusammengeschrieben («Zahn» «arzt» → «Zahnarzt»).
+«ziel» zusammengeschrieben («Zahn» «arzt» → «Zahnarzt»; «Freitag» «Morgen» → \
+«Freitagmorgen»). «wort» enthält dann alle Teile mit Leerzeichen.
 
 ## Textausschnitt
 {text}
@@ -658,6 +668,19 @@ Antworte nur mit einem JSON-Array, ein Objekt je Fall in derselben Reihenfolge:
 "begruendung": "höchstens 15 Wörter"}}]
 """
 
+#: Allgemeine Regeln der amtlichen Rechtschreibung, an denen Schülertexte
+#: typischerweise scheitern und die nur der Satz entscheidet. Wortgleich im
+#: Artefakt (pipeline.js, STOLPERSTELLEN).
+STOLPERSTELLEN = """
+## Stolperstellen, die nur der Satz entscheidet
+- Nominalisierungen werden grossgeschrieben: das Wichtigste, nichts Unvorhergesehenes, \
+etwas Neues, alles Gute, beim Packen, zum Lesen.
+- Tageszeiten: am Freitagmorgen, am Sonntagabend (zusammen); heute Morgen, gestern Abend \
+(getrennt, Tageszeit gross); morgens, abends, montags (klein); morgen = am nächsten Tag (klein).
+- Beide Schreibungen sind zulässig, also KEIN Fehler: sodass/so dass, aufgrund/auf Grund, \
+mithilfe/mit Hilfe, infrage/in Frage.
+- Höflichkeitsanrede gross (Sie, Ihnen, Ihr); du/dein im Brief klein oder gross."""
+
 VORLAGEN["zielwoerter"] = ZIELWOERTER
 VORLAGEN["merkmale"] = MERKMALE
 VORLAGEN["analyse_diktat"] = ANALYSE_DIKTAT
@@ -665,7 +688,7 @@ VORLAGEN["analyse_freitext"] = ANALYSE_FREITEXT
 VORLAGEN["aufraeumen"] = AUFRAEUMEN
 
 PFLICHTPLATZHALTER.update({
-    "zielwoerter": {"schweiz_regel", "text", "woerter", "schwelle"},
+    "zielwoerter": {"schweiz_regel", "text", "woerter", "schwelle", "stolperstellen"},
     "merkmale": {"schweiz_regel", "faelle"},
     "analyse_diktat": {"analyse_kopf", "analyse_format", "originaltext", "schuelertext"},
     "analyse_freitext": {"analyse_kopf", "analyse_format", "schuelertext"},

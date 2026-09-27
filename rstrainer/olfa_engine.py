@@ -1745,6 +1745,124 @@ def zusammenschreibung_ergebnis(schuelerwort: str, ziel: str, lexikon: dict | No
     return aus
 
 
+# ------------------------------------------ Kontextprüfung um das Wort -----
+# Ein Modell nennt bei einem getrennt geschriebenen Kompositum gern nur den
+# ersten Teil: «Freitag» → «Freitagmorgen», obwohl im Satz «Freitag Morgen»
+# steht. Wortweise verglichen sieht das nach einem ganz anderen Wort aus. Der
+# Satz selbst beantwortet die Frage aber: Die Nachbarwörter ergeben zusammen
+# genau das Zielwort. Das wird hier ohne Modell geprüft und in einen
+# Wortgrenzen-Eintrag («nummern») umgeschrieben.
+
+def formgleich(schueler: str, ziel: str) -> bool:
+    """Dieselbe Buchstabenfolge – verschieden nur in Gross-/Kleinschreibung
+    und Leerzeichen. Dann legt der Text selbst fest, welches Wort gemeint ist."""
+    def kern(s: str) -> str:
+        return "".join(normalisieren(t) for t in re.split(r"\s+", str(s or "")))
+    return bool(kern(schueler)) and kern(schueler) == kern(ziel)
+
+
+def _aehnlichkeit(a: str, b: str) -> float:
+    from difflib import SequenceMatcher
+    return SequenceMatcher(a=a, b=b, autojunk=False).ratio()
+
+
+def wortteile_passen(verbunden: str, ziel: str) -> bool:
+    """Ergeben die Teile zusammen das Zielwort – exakt oder mit inneren
+    Fehlern («Zahn artzt» → «Zahnarzt»), die das Regelwerk danach mitzählt?"""
+    a, b = normalisieren(verbunden), normalisieren(ziel)
+    return a == b or _aehnlichkeit(a, b) >= 0.85
+
+
+def _token_von(z: dict, tokens: list[dict]) -> int | None:
+    gesucht = normalisieren(z.get("student", ""))
+    ti = z.get("tokenIndex")
+    if isinstance(ti, int) and 0 <= ti < len(tokens) and normalisieren(tokens[ti]["wort"]) == gesucht:
+        return ti
+    treffer = [t["index"] for t in tokens if normalisieren(t["wort"]) == gesucht]
+    if not treffer:
+        return None
+    return min(treffer, key=lambda i: abs(i - ti)) if isinstance(ti, int) else treffer[0]
+
+
+def wortgrenze_im_satz(z: dict, tokens: list[dict]) -> list[int] | None:
+    """Ergeben benachbarte Wörter desselben Satzes zusammen das Zielwort?
+
+    Gesucht wird in einem Fenster von bis zu drei Wörtern um das gemeldete
+    Wort. Genommen wird ein Fenster, wenn es das Zielwort exakt ergibt, oder
+    wenn es ihm sehr nahe kommt (innere Fehler wie «Zahn artzt») und deutlich
+    näher als das Einzelwort."""
+    ziel = str(z.get("target") or "").strip()
+    if z.get("nummern") or not ziel or re.search(r"\s", ziel):
+        return None
+    i = _token_von(z, tokens)
+    if i is None:
+        return None
+    ziel_n, einzel = normalisieren(ziel), normalisieren(tokens[i]["wort"])
+    if len(ziel_n) < len(einzel) + 2:
+        return None
+    bestes = None
+    for von in range(max(0, i - 2), i + 1):
+        for bis in range(max(i, von + 1), min(len(tokens), von + 3)):
+            fenster = tokens[von:bis + 1]
+            if any(t["satz"] != tokens[i]["satz"] for t in fenster):
+                continue
+            verbunden = "".join(normalisieren(t["wort"]) for t in fenster)
+            wert = 1.0 if verbunden == ziel_n else _aehnlichkeit(verbunden, ziel_n)
+            if bestes is None or wert > bestes[0]:
+                bestes = (wert, list(range(von, bis + 1)))
+    if bestes and (bestes[0] == 1.0
+                   or (bestes[0] >= 0.85 and bestes[0] >= _aehnlichkeit(einzel, ziel_n) + 0.15)):
+        return bestes[1]
+    return None
+
+
+def wortgrenzen_reparieren(liste: Iterable[dict], schuelertext: str) -> list[dict]:
+    """Kontextprüfung um jedes gemeldete Wort (idempotent).
+
+    1. Ein Eintrag, dessen Zielwort sich aus Nachbarwörtern zusammensetzt,
+       wird zum Wortgrenzen-Eintrag über alle beteiligten Wortnummern.
+    2. Teilwörter, die ein solcher Eintrag schon abdeckt («Morgen» →
+       «morgen» neben «Freitag Morgen» → «Freitagmorgen»), fallen weg – der
+       Wortgrenzen-Eintrag rechnet ihre Schreibung mit (Manual §5.1).
+    3. Mehrfach genannte Wortgrenzen werden zu einem Eintrag, mit der
+       höheren Sicherheit."""
+    tokens = tokenisiere(schuelertext)
+    zwischen = []
+    for z in liste:
+        z = dict(z)
+        nummern = wortgrenze_im_satz(z, tokens)
+        if nummern:
+            teile = [tokens[n]["wort"] for n in nummern]
+            z.update(nummern=nummern, tokenIndex=nummern[0], student=" ".join(teile),
+                     kontext=f"Wortgrenze aus dem Satz: «{' '.join(teile)}» ergibt zusammen «{z['target']}».")
+        zwischen.append(z)
+
+    gruppen: dict[tuple, dict] = {}
+    for z in zwischen:
+        if isinstance(z.get("nummern"), list) and len(z["nummern"]) > 1:
+            k = tuple(z["nummern"])
+            if k in gruppen:
+                gruppen[k]["sicherheit"] = max(gruppen[k].get("sicherheit", 0), z.get("sicherheit", 0))
+            else:
+                gruppen[k] = z
+    abgedeckt = {n: g for k, g in gruppen.items() for n in k}
+
+    aus, gesehen = [], set()
+    for z in zwischen:
+        if isinstance(z.get("nummern"), list) and len(z["nummern"]) > 1:
+            k = tuple(z["nummern"])
+            if k not in gesehen:
+                gesehen.add(k)
+                aus.append(gruppen[k])
+            continue
+        i = _token_von(z, tokens)
+        g = abgedeckt.get(i) if i is not None else None
+        if g is not None and normalisieren(z.get("target", "")) in normalisieren(g["target"]):
+            continue
+        aus.append(z)
+    return aus
+
+
 # ------------------------------------- Deterministische Vorprüfungen -------
 # Zwei Dinge lassen sich im Freitext ohne Modell sicher sagen. Sie laufen VOR
 # dem Modell und gehen in dieselbe Liste – ein Modell, das sie übersieht, kann
@@ -1894,6 +2012,7 @@ def analysiere_liste(liste: Iterable[dict], schuelertext: str, lexikon: dict | N
     """
     muster = muster or {}
     tok_s = tokenisiere(schuelertext)
+    liste = wortgrenzen_reparieren(liste, schuelertext)
     ereignisse: list[dict] = []
     verworfen: list[dict] = []
     abdeckung = [{"index": t["index"], "wort": t["wort"], "satz": t["satz"], "status": "offen"}
@@ -1959,11 +2078,13 @@ def analysiere_liste(liste: Iterable[dict], schuelertext: str, lexikon: dict | N
         if isinstance(nummern, list) and len(nummern) > 1:
             toks = [tok_s[n] for n in nummern if isinstance(n, int) and 0 <= n < len(tok_s)]
             if (len(toks) != len(nummern)
-                    or normalisieren("".join(t["wort"] for t in toks)) != normalisieren(ziel)):
+                    or not wortteile_passen("".join(t["wort"] for t in toks), ziel)):
                 verworfen.append({**z, "grund": "Die genannten Wortnummern ergeben zusammen nicht die Zielform"})
                 continue
             teile = [t["wort"] for t in toks]
             for e in wortgrenzen_ergebnis(teile, ziel, lexikon):
+                if z.get("kontext"):
+                    e["reason"] = f"{z['kontext']} {e['reason']}"
                 festhalten(e, toks[0], " ".join(teile), ziel, sicherheit)
             for t in toks:
                 abdeckung[t["index"]]["status"] = "fehler"

@@ -596,6 +596,7 @@ def zielwort_prompt_bauen(schuelertext: str, fassung: int = 1) -> str:
     text = pt.ZIELWOERTER.format(
         schweiz_regel=pt.SCHWEIZ_REGEL, text=(schuelertext or "").strip(),
         woerter=liste, schwelle=olfa_engine.ZIELWORT_SCHWELLE,
+        stolperstellen=pt.STOLPERSTELLEN,
     )
     if fassung == 2:
         text = text.replace(
@@ -658,14 +659,27 @@ def _stelle(z: dict) -> str:
 
 
 def zielwoerter_vereinen(regeln: list[dict], durchgang1: list[dict],
-                         durchgang2: list[dict] | None = None) -> list[dict]:
+                         durchgang2: list[dict] | None = None,
+                         schuelertext: str | None = None) -> list[dict]:
     """Führt Regelfunde und ein bis zwei Modelldurchgänge zusammen.
 
     Die Sicherheit wird nicht vom Modell übernommen, sondern gedeckelt: was nur
     ein Durchgang gesehen hat, ist weniger sicher; wo sich die Durchgänge
     widersprechen, sinkt sie unter die Schwelle und der Fall geht zur
     Kontrolle. Ein Regelfund schlägt jede Modellaussage – er ist nicht geraten.
+
+    Mit ``schuelertext`` läuft vorher je Durchgang die Kontextprüfung um das
+    Wort (:func:`olfa_engine.wortgrenzen_reparieren`), damit «Freitag» →
+    «Freitagmorgen» und «Freitag Morgen» → «Freitagmorgen» als dieselbe Stelle
+    erkannt werden. Und: Der Deckel gilt der *Bestimmung* des Zielworts. Ist
+    das Zielwort formgleich (dieselben Buchstaben, nur Gross-/Kleinschreibung
+    oder Leerzeichen anders), gibt es nichts zu bestimmen – dann zählt die
+    Sicherheit des Modells selbst, solange kein Durchgang widerspricht.
     """
+    if schuelertext is not None:
+        durchgang1 = olfa_engine.wortgrenzen_reparieren(durchgang1, schuelertext)
+        if durchgang2 is not None:
+            durchgang2 = olfa_engine.wortgrenzen_reparieren(durchgang2, schuelertext)
     nach_stelle: dict[str, dict] = {}
     for z in regeln:
         nach_stelle[_stelle(z)] = {
@@ -680,9 +694,11 @@ def zielwoerter_vereinen(regeln: list[dict], durchgang1: list[dict],
         if nach_stelle.get(k, {}).get("herkunft") in ("regel", "wiederholung"):
             continue
         zb = b.get(k)
+        formgleich = olfa_engine.formgleich(za.get("student", ""), za["target"])
         if not zwei:
-            eintrag = {**za, "sicherheit": min(za["sicherheit"], 0.8),
-                       "zweitdurchgang": "kein Zweitdurchgang"}
+            eintrag = {**za, "sicherheit": za["sicherheit"] if formgleich else min(za["sicherheit"], 0.8),
+                       "zweitdurchgang": "kein Zweitdurchgang"
+                       + (" · Zielwort formgleich, nichts zu bestimmen" if formgleich else "")}
         elif zb is None:
             eintrag = {**za, "sicherheit": min(za["sicherheit"], 0.7),
                        "zweitdurchgang": "nur Durchgang 1"}

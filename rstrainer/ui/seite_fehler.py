@@ -534,7 +534,7 @@ def _freitext_ablauf(con, schueler, diktat) -> None:
             except ValueError as fehler:
                 st.error(f"{fehler} Bitte nur das JSON-Array einfügen.")
             else:
-                liste = auftraege.zielwoerter_vereinen(regeln, d1, d2)
+                liste = auftraege.zielwoerter_vereinen(regeln, d1, d2, schuelertext)
                 lexikon = dict(olfa_engine.VORGABE_LEXIKON)
                 lexikon.update(g.lexikon())
                 ergebnis = olfa_engine.analysiere_liste(
@@ -573,6 +573,9 @@ def _freitext_ablauf(con, schueler, diktat) -> None:
             "kommt, ist deshalb auf 0.80 gedeckelt und liegt damit unter der "
             "Schwelle {schwelle} – diese Zeilen kommen zur Kontrolle, statt eine "
             "Genauigkeit zu behaupten, die ein einzelner Durchgang nicht hergibt. "
+            "Ausgenommen sind formgleiche Zielwörter (nur Gross-/Kleinschreibung "
+            "oder Leerzeichen anders, z. B. «Freitag Morgen» → «Freitagmorgen»): "
+            "Dort legt der Text selbst fest, welches Wort gemeint ist. "
             "Ein zweiter, blinder Durchgang hebt den Deckel.".format(
                 schwelle=olfa_engine.ZIELWORT_SCHWELLE)
         )
