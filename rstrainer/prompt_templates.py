@@ -299,9 +299,11 @@ und prüfe am Schluss jede Aufgabe gegen sie.
 
 {foerderplan}
 
-### Förderschwerpunkte (OLFA-Kategorien)
+### Förderschwerpunkte
 Alle Aufgaben müssen erkennbar zu genau diesen Kategorien gehören; im Feld \
-«bereich» steht der Förderbereich (F1–F10), zu dem die Kategorie gehört.
+«bereich» steht bei Rechtschreibkategorien der Förderbereich (F1–F10), zu dem \
+die Kategorie gehört, bei Grammatik, Satzbau, Zeichensetzung und Textebene die \
+Kennung der Kategorie selbst (z. B. B:Kasus, D:Komma Nebensatz).
 
 {kategorienblock}
 

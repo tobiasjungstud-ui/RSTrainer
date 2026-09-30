@@ -63,6 +63,24 @@ damit zurückgenommen; die Unterscheidung Schärfung (F1) gegen Merkwortschatz
 (F3) lebt als Fördermerkmal weiter, nicht als Kategorie. 13, 14, 15, 16, 21,
 22 stehen auf `NEVER_ASSIGN`.
 
+### Was die Engine über das Original hinaus regelt
+
+Fälle, die im Original nicht ausbuchstabiert sind, sind so entschieden – und
+im Belastungskorpus (`tests/test_stress_sek1.py`) festgehalten:
+
+* **Umschriften** eines Graphems zählen als *ein* Fehler: `*Schueler → Schüler`
+  ist 36 (Umlautbezeichnung; Schweizer Tastatur), nicht 36 + 32; `*Kwelle →
+  Quelle` ist 37 (lautgetreu, wie `*Schtein` auf S. 25), nicht 33 + 30.
+* **ck für g** (`*Geburtstack → Geburtstag`) ist die Umkehrung von `*Sag für
+  Sack` (S. 21) und zählt wie diese zwei Fehler: 19 und 08/11.
+* Das **silbentrennende h** (`*seen → sehen`, `*ruig → ruhig`) bleibt 09 –
+  so das Original auf S. 21, obwohl man 29 erwarten könnte.
+* **Fremdwörter mit Merkstelle** stehen im Lexikon (`Restaurant`, `Computer`,
+  `Trottoir`, `Chauffeur`, `Portemonnaie` …): Die Abweichung an dieser
+  Stelle ist 37, nicht Vokal- oder Konsonantenersatz (S. 25–26).
+* `*Werrk → Werk` ist 08 wie `*kallt → kalt` (§19): Verdoppelung nach kurzem
+  Vokal, auch wenn ein Konsonant folgt.
+
 ### Eigene Änderungen
 
 Die Liste ist frei editierbar – Nummern, Namen und Anzahl. Ein technisches
@@ -208,6 +226,20 @@ mit i, ableitbares gegen nicht ableitbares ä), und die **Lernwörter des
 Kindes** – Wiederholungsfehler zuerst (S. 19, 27–28), richtig geschrieben,
 mit dem Hinweis, was das Kind geschrieben hat. Jedes Lernwort muss im
 Übungsteil vorkommen; der Mini-Test nimmt andere Wörter derselben Stelle.
+
+**Auch Grammatik, Satzbau, Zeichensetzung und Textebene.** Als
+Förderschwerpunkt lässt sich neben den OLFA-Kategorien jede Kategorie des
+festen Katalogs B–E wählen (`B:Kasus`, `D:Komma Nebensatz` …). Die Befunde
+dafür kommen aus **allen** Texten – auch aus dem Freien Diktat, dessen
+Rechtschreibung sonst getrennt bleibt. Für diese Bereiche gelten eigene
+Formate (Lückenwörter, Sortieren, **Sätze umformen**, Ankreuzen, Fehlersuche,
+Begründen, eigene Produktion); die Übungsebene nach Kompetenzwert betrifft
+nur die Rechtschreibung. Statt Lernwörtern gehen die **Lernstellen des
+Kindes** in den Prompt – seine eigenen Sätze, falsch → richtig –, und die
+richtige Form muss im Übungsteil vorkommen. Rechtschreibung und Grammatik
+lassen sich auf einem Blatt mischen; das Tool schlägt die häufigsten
+Katalogkategorien vor (`blatt.bereich_von`, `GRAMMATIK_FORMATE`, im Artefakt
+`Blatt.istGrammatik`).
 
 **Prüfung mit der Engine:** Jede Aufgabe wird geprüft – ß, Format auf der
 Ebene erlaubt, Lösung vorhanden, Lösungswort nicht schon im Material,
@@ -470,8 +502,10 @@ Kleinschreibung, Wortgrenzen und Zusammenschreibung bleiben Sache des Kindes
 (Autokorrektur, manuelle Korrektur). Die **Rechtschreibprüfung bleibt
 deshalb eingeschaltet**, mit demselben Regelwerk wie im Freitextmodus – nur
 zählen ihre Ergebnisse nie zu den Kennwerten, Förderbereichen oder
-Übungsblättern des Reiters «Geschrieben», sondern zum eigenen Reiter
-**Diktieren**. Die Trennung zieht sich durch:
+Rechtschreib-Übungsblättern des Reiters «Geschrieben», sondern zum eigenen
+Reiter **Diktieren**. Was dort an Grammatik, Satzbau, Zeichensetzung und
+Textebene anfällt, wird geübt: Diese Befunde stehen unter *Übungsblätter*
+zur Wahl. Die Trennung zieht sich durch:
 
 | Ebene | geschriebene Texte (Diktat, Freitextmodus) | Freies Diktat |
 |---|---|---|
@@ -480,7 +514,8 @@ zählen ihre Ergebnisse nie zu den Kennwerten, Förderbereichen oder
 | Satzbau, Grammatik, Zeichensetzung, Textebene (B–E) | ja | ja |
 | Fehler von Hand | alle Bereiche | alle Bereiche |
 | OLFA-Kennwerte, Förderbereiche, Verlauf, Trends | nur aus geschriebenen Texten | nie |
-| Lernwörter, Förderplan, Übungsblätter, Empfehlungen, Mischung | nur aus geschriebenen Texten | nie |
+| Lernwörter, Empfehlungen, Mischung, Übungsblätter für Rechtschreibung (F1–F10) | nur aus geschriebenen Texten | nie |
+| Übungsblätter für Grammatik, Satzbau, Zeichensetzung, Textebene (B–E) | aus allen Texten | ja – die Befunde des Reiters «Diktieren» werden zu Lernstellen |
 | Auswertung | Reiter «Geschrieben»: Förderprofil wie bisher | Reiter «Diktieren»: eigenes Fehlerprofil – je Bereich A–E, je Text, nach Kategorie mit Fördern-Hinweisen und jedem Befund im Satz |
 | Übersicht je Bereich | Quelle «geschriebene Texte» (Vorgabe) | Quelle «Freie Diktate» oder «beide» – jede Quelle trägt ihre eigenen Bereich-A-Befunde |
 | Informationsblatt | «Diktat», «Diktat (ohne Vorlage)» oder «Freitextmodus» | «Freies Diktat (Diktierfunktion)» |
@@ -524,7 +559,11 @@ Chat-Prompt oder von Hand) sowie für das Archiv aller Texte.
 Nach jedem Analyse-Durchgang – in allen drei Modi – steht eine kurze,
 deterministisch abgeleitete Rückmeldung: **Das ist gut** (Bereiche, die
 dieser Durchgang geprüft hat und in denen nichts auffiel) und **Das üben wir
-als Nächstes** (die häufigsten Funde dieses Durchgangs, mit Beispiel). Sie
+als Nächstes** (die häufigsten Funde dieses Durchgangs, mit Beispiel und der
+**Strategie**, mit der das Kind sich selbst kontrollieren kann – bei
+Rechtschreibung die des Förderbereichs F1–F10, etwa «Kurzvokal hören,
+Verdoppelungsregel anwenden, Verlängerungsprobe», bei B–E der
+Fördern-Hinweis des Katalogs, etwa die Frageprobe für den Kasus). Sie
 kommt ohne zusätzlichen Aufruf des Sprachmodells aus, weil sie ausschliesslich
 auf den bereits klassifizierten Funden dieses einen Durchgangs beruht
 (`rstrainer/feedback.py`, im Artefakt `feedbackErstellen`/`feedbackHtml`).
@@ -903,10 +942,11 @@ erst, wenn das Sprachmodell einen Text auswertet.
 python3 -m pytest tests/ -q
 ```
 
-**Stand: 1011 Tests, alle grün.** Abgedeckt sind:
+**Stand: 1255 Tests, alle grün.** Abgedeckt sind:
 
 | Datei | Prüft |
 |---|---|
+| `test_stress_sek1.py` | Belastungskorpus: 207 realistische Sek-I-Fehler (de-CH) ausserhalb des Goldstandards, mit den Original-Begründungen für die nicht naheliegenden Fälle; Umschriften (ue/ä, kw/qu), ck für g, Getrenntschreibung im Diktat |
 | `test_diffing.py` | Wort- und Buchstabenabgleich, Kategorie-Vorschläge, Kennzahlen |
 | `test_analysis.py` | Trendeinstufung, Schwellen, Normierung, Empfehlungsreihenfolge |
 | `test_docx_export.py` | Gültige .docx, Seitenumbruch Vorder-/Rückseite, keine Lösungen auf der Aufgabenseite |

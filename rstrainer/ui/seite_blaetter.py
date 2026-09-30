@@ -15,7 +15,6 @@ from datetime import date
 import streamlit as st
 
 from .. import analysis, auftraege, blatt, config, db, validation
-from ..olfa_engine import FOERDERBEREICHE
 from . import gemeinsam as g
 
 SCHWIERIGKEITEN = {
@@ -50,10 +49,25 @@ def _empfehlungen_holen(con, schueler) -> list[analysis.Empfehlung]:
 
 
 def _fehler_und_woerter(con, schueler) -> tuple[list[dict], int]:
-    # Nur geschriebene Texte: Diktierte Texte tragen keine Rechtschreibung des Kindes.
+    """Rechtschreibung (Bereich A) nur aus geschriebenen Texten – das Freie
+    Diktat trägt dort nichts bei. Grammatik, Satzbau, Zeichensetzung und
+    Textebene (B–E) dagegen aus allen Texten, auch aus dem Freien Diktat."""
+    reg = g.register()
     fehler = [dict(f) for f in db.fehler_liste(con, schueler["id"], textart="geschrieben")]
+    fehler += [dict(f) for f in db.fehler_liste(con, schueler["id"], textart="diktiert")
+               if reg.bereich(f["kategorie_nr"]) != "A"]
     woerter = sum(int(d["wortzahl"] or 0) for d in db.diktat_liste(con, schueler["id"], textart="geschrieben"))
     return fehler, woerter
+
+
+def _grammatik_vorschlaege(fehler: list[dict], reg, hoechstens: int = 2) -> list[tuple[str, int]]:
+    """Die häufigsten Katalogkategorien B–E aus allen Texten."""
+    zaehler: dict[str, int] = {}
+    for f in fehler:
+        nr = str(f["kategorie_nr"])
+        if reg.bereich(nr) != "A" and blatt.bereich_von(nr):
+            zaehler[nr] = zaehler.get(nr, 0) + 1
+    return sorted(zaehler.items(), key=lambda kv: (-kv[1], kv[0]))[:hoechstens]
 
 
 def _plan_aus_state(con, schueler) -> blatt.Foerderplan | None:
@@ -73,18 +87,28 @@ def _foerderplan_anzeigen(plan: blatt.Foerderplan, reg) -> None:
                + (" · nicht vorgesehen: " + ", ".join(blatt.FORMATE[f]["name"] for f in plan.verboten) if plan.verboten else ""))
     for bereich in plan.bereiche:
         ws = plan.lernwoerter.get(bereich, [])
-        fb = FOERDERBEREICHE.get(bereich, {})
-        text = ", ".join(f"{w.ziel} ({w.anzahl}×)" for w in ws) or "noch keine Fehlwörter erfasst"
-        st.markdown(f"- **{bereich} · {fb.get('name', '')}** – Strategie: {fb.get('foerdern', '')}. Lernwörter: {text}")
+        if blatt.ist_grammatik(bereich):
+            text = "; ".join(f"«{w.schueler}» → «{w.ziel}»" if w.schueler else w.ziel for w in ws) or "noch keine Lernstellen erfasst"
+            st.markdown(f"- **{bereich} · {blatt.bereich_name(bereich)}** – Fördern: {blatt.bereich_strategie(bereich)} Lernstellen: {text}")
+        else:
+            text = ", ".join(f"{w.ziel} ({w.anzahl}×)" for w in ws) or "noch keine Fehlwörter erfasst"
+            st.markdown(f"- **{bereich} · {blatt.bereich_name(bereich)}** – Strategie: {blatt.bereich_strategie(bereich)}. Lernwörter: {text}")
 
 
 def _neues_blatt(con, schueler) -> None:
     reg = g.register()
 
     st.subheader("Schritt 1 · Förderschwerpunkte und drei Regler")
+    st.caption(
+        "Rechtschreibung (F1–F10) aus den geschriebenen Texten – dazu Grammatik, Satzbau, "
+        "Zeichensetzung und Textebene aus allen Texten, auch aus dem Freien Diktat. "
+        "Beides lässt sich auf einem Blatt mischen."
+    )
+    fehler, woerter = _fehler_und_woerter(con, schueler)
     vorschlaege = _empfehlungen_holen(con, schueler)
+    grammatik_vorschlaege = _grammatik_vorschlaege(fehler, reg)
     if vorschlaege:
-        st.markdown("**Vorschlag des Tools**")
+        st.markdown("**Vorschlag des Tools – Rechtschreibung**")
         for e in vorschlaege:
             with st.container(border=True):
                 st.markdown(
@@ -95,12 +119,16 @@ def _neues_blatt(con, schueler) -> None:
         vorauswahl = [e.kategorie_nr for e in vorschlaege]
     else:
         st.info(
-            "Noch keine Empfehlung möglich – dafür braucht es erfasste Fehler. "
-            "Sie können die Themen unten trotzdem selbst wählen."
+            "Noch keine Rechtschreib-Empfehlung möglich – dafür braucht es erfasste Fehler in "
+            "geschriebenen Texten. Sie können die Themen unten trotzdem selbst wählen."
         )
         vorauswahl = []
-
-    fehler, woerter = _fehler_und_woerter(con, schueler)
+    if grammatik_vorschlaege:
+        st.markdown("**Vorschlag des Tools – Grammatik, Satzbau, Zeichensetzung, Text**")
+        for nr, n in grammatik_vorschlaege:
+            with st.container(border=True):
+                st.markdown(f"**{reg.label(nr)}** · {n}× in allen Texten")
+                st.caption(f"Fördern: {blatt.bereich_strategie(nr)}")
     with st.form("blatt_prompt"):
         kategorien = g.kategorien_auswahl(
             reg, "Förderschwerpunkte (1–3)", vorauswahl=vorauswahl,
@@ -128,7 +156,8 @@ def _neues_blatt(con, schueler) -> None:
                     if fb and fb not in bereiche:
                         bereiche.append(fb)
                 if not bereiche:
-                    st.error("Die gewählten Kategorien liegen ausserhalb der Rechtschreibung (Bereich A) – für sie gibt es kein OLFA-Übungsblatt.")
+                    st.error("Für die gewählten Kategorien gibt es keinen Förderbereich – bitte OLFA-Kategorien "
+                             "oder Katalogkategorien (Grammatik, Satzbau, Zeichensetzung, Text) wählen.")
                     return
                 plan = blatt.foerderplan(bereiche, fehler, woerter, anspruch=schwierigkeit, umfang=umfang,
                                          ebene=None if ebene == "auto" else ebene)

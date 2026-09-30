@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable
 
 from .olfa_engine import FOERDERBEREICHE, AREA_MAP, GRUPPEN, VORGABE_LEXIKON, klassifiziere_wort
-from . import olfa_werte
+from . import grammatik, olfa_werte
 
 MARKE_JSON = "---JSON---"
 
@@ -68,7 +68,20 @@ FORMATE: dict[str, dict[str, Any]] = {
                    "was": "Zu jeder Entscheidung das Ableitungswort oder die Strategie in Stichworten nennen."},
     "produktion": {"name": "Eigene Sätze unter Bedingung", "stufe": 4, "ebene": "regel",
                    "was": "Eigene Sätze schreiben, in denen die Regelstelle mehrfach vorkommt."},
+    "umformen": {"name": "Sätze umformen", "stufe": 2, "ebene": "regel",
+                 "was": "Sätze nach Vorgabe umbauen – Wortstellung, Zeitform, Fall, Satzverbindung, Kommas; "
+                        "das Kind schreibt den ganzen Satz neu."},
 }
+
+#: Formate für die Bereiche B–E (Grammatik, Satzbau, Zeichensetzung, Text).
+#: Die Übungsebene nach Kompetenzwert betrifft nur die Rechtschreibung; hier
+#: wird immer regelgeleitet gearbeitet, mit den eigenen Sätzen des Kindes.
+GRAMMATIK_FORMATE = ["luecke", "sortieren", "umformen", "ankreuzen", "fehlersuche", "begruenden", "produktion"]
+
+
+def ist_grammatik(bereich: str) -> bool:
+    """Bereichskennung eines Grammatik-/Satzbau-/Zeichensetzungs-/Textbereichs (``B:Kasus``)."""
+    return ":" in str(bereich or "")
 
 #: Übungsebene nach Kompetenzwert (S. 36) und Gruppe-I-Anteil (S. 24, 49).
 EBENEN: dict[str, dict[str, Any]] = {
@@ -151,12 +164,30 @@ class Foerderplan:
     umfang: str = "normal"
 
     @property
+    def hat_rechtschreibung(self) -> bool:
+        return any(not ist_grammatik(b) for b in self.bereiche)
+
+    @property
+    def hat_grammatik(self) -> bool:
+        return any(ist_grammatik(b) for b in self.bereiche)
+
+    @property
     def formate(self) -> list[str]:
-        return list(EBENEN[self.ebene]["formate"])
+        """Alle Formate des Blattes: die der Übungsebene (Rechtschreibung) und,
+        sobald ein Bereich B–E dabei ist, die Grammatikformate."""
+        aus = list(EBENEN[self.ebene]["formate"]) if self.hat_rechtschreibung else []
+        if self.hat_grammatik:
+            aus += [f for f in GRAMMATIK_FORMATE if f not in aus]
+        return aus
+
+    def formate_fuer(self, bereich: str) -> list[str]:
+        return list(GRAMMATIK_FORMATE) if ist_grammatik(bereich) else list(EBENEN[self.ebene]["formate"])
 
     @property
     def verboten(self) -> list[str]:
-        return list(EBENEN[self.ebene]["verboten"])
+        """Gilt nur für die Rechtschreibbereiche – dort entscheidet die Ebene,
+        ob dem Kind Fehlschreibungen gezeigt werden dürfen."""
+        return list(EBENEN[self.ebene]["verboten"]) if self.hat_rechtschreibung else []
 
     @property
     def aufgaben_je_bereich(self) -> int:
@@ -186,10 +217,30 @@ def ebene_bestimmen(kw: float | None, gruppe_i_anteil: float | None) -> str:
 
 
 def bereich_von(kategorie_nr: str) -> str | None:
+    """Förderbereich einer Kategorie: OLFA-Nummern → F1–F10; eine Kennung
+    des Grammatik-Katalogs (``B:Kasus``) ist selbst der Bereich."""
     nr = str(kategorie_nr)
     if nr in FOERDERBEREICHE:
         return nr
-    return AREA_MAP.get(nr)
+    if nr in AREA_MAP:
+        return AREA_MAP[nr]
+    if grammatik.ist_katalog(nr):
+        return nr
+    return None
+
+
+def bereich_name(bereich: str) -> str:
+    if bereich in FOERDERBEREICHE:
+        return FOERDERBEREICHE[bereich]["name"]
+    k = grammatik.get(bereich)
+    return f"{grammatik.bereich_name(k.bereich)} › {k.name}" if k else bereich
+
+
+def bereich_strategie(bereich: str) -> str:
+    if bereich in FOERDERBEREICHE:
+        return FOERDERBEREICHE[bereich]["foerdern"]
+    k = grammatik.get(bereich)
+    return k.foerdern if k else ""
 
 
 def lernwoerter_sammeln(fehler: Iterable[dict], bereiche: Iterable[str], hoechstens: int = 8) -> dict[str, list[Lernwort]]:
@@ -245,19 +296,37 @@ def foerderplan_block(plan: Foerderplan) -> str:
     if plan.verboten:
         z.append("- NICHT erlaubt auf dieser Ebene: " + ", ".join(FORMATE[f]["name"] for f in plan.verboten)
                  + ". Dem Kind werden keine Fehlschreibungen vorgelegt.")
+    if plan.hat_grammatik:
+        z.append("- Für Grammatik, Satzbau, Zeichensetzung und Textebene (Kennungen B:…, C:…, D:…, E:…) gelten immer diese "
+                 "Formate: " + ", ".join(f"«{FORMATE[f]['name']}» ({f})" for f in GRAMMATIK_FORMATE)
+                 + ". Die Übungsebene betrifft nur die Rechtschreibung; die eigenen Sätze des Kindes dürfen als "
+                   "Material dienen (berichtigt oder – bei Fehlersuche – so, wie das Kind sie schrieb).")
     z.append("- Strategie je Förderbereich (der Merksatz nennt das Verfahren, nicht die Regel) und der Kontrast, der geübt werden muss:")
     for b in plan.bereiche:
         fb = FOERDERBEREICHE.get(b)
         if fb:
             z.append(f"  - {b} – {fb['name']}: {fb['foerdern']}. Kontrast: {KONTRASTE.get(b, '')}")
-    lw = [(b, ws) for b, ws in plan.lernwoerter.items() if ws]
+            continue
+        k = grammatik.get(b)
+        if k:
+            z.append(f"  - {b} – {grammatik.bereich_name(k.bereich)} › {k.name}: {k.beschreibung} Fördern: {k.foerdern}"
+                     + (f" Typischer Fehler: {k.beispiel}" if k.beispiel else ""))
+    lw = [(b, ws) for b, ws in plan.lernwoerter.items() if ws and not ist_grammatik(b)]
     if lw:
         z.append("- Lernwörter des Kindes (richtig geschrieben; die Fehlschreibung dem Kind NICHT zeigen; jedes Lernwort muss "
                  "im Übungsteil in mindestens einer Aufgabe vorkommen; im Mini-Test andere Wörter derselben Regelstelle):")
         for b, ws in lw:
             z.append(f"  - {b}: " + ", ".join(f"{w.ziel} ({w.anzahl}×, schrieb «{w.schueler}»)" if w.schueler else f"{w.ziel} ({w.anzahl}×)" for w in ws))
-    else:
+    elif plan.hat_rechtschreibung:
         z.append("- Lernwörter des Kindes: noch keine erfasst – nimm typische Wörter der Regelstelle.")
+    ls = [(b, ws) for b, ws in plan.lernwoerter.items() if ws and ist_grammatik(b)]
+    if ls:
+        z.append("- Lernstellen des Kindes aus seinen eigenen Texten (falsch → richtig; die richtige Form muss im Übungsteil "
+                 "in mindestens einer Aufgabe vorkommen; im Mini-Test andere Sätze derselben Regel):")
+        for b, ws in ls:
+            z.append(f"  - {b}: " + "; ".join(f"«{w.schueler}» → «{w.ziel}» ({w.anzahl}×)" if w.schueler else f"«{w.ziel}» ({w.anzahl}×)" for w in ws))
+    elif plan.hat_grammatik:
+        z.append("- Lernstellen des Kindes (Grammatik/Satzbau): noch keine erfasst – nimm typische Sätze der Regel.")
     z.append(f"- Umfang: {plan.aufgaben_je_bereich} Aufgaben je Förderbereich im Übungsteil, {plan.test_aufgaben} Aufgaben im Mini-Test.")
     return "\n".join(z)
 
@@ -276,11 +345,22 @@ def _json_ausschneiden(roh: str) -> str | None:
     return text[a:b + 1]
 
 
+def _bereich_normalisieren(roh: Any) -> str:
+    """«f1» → «F1»; «b:kasus» → «B:Kasus» (Katalogkennung, Gross-/Kleinschreibung tolerant)."""
+    b = str(roh or "").strip()
+    if re.fullmatch(r"[fF]\d{1,2}", b):
+        return b.upper()
+    for kennung in grammatik.KATALOG:
+        if kennung.lower() == b.lower():
+            return kennung
+    return b.upper() if ":" not in b else b
+
+
 def _aufgabe_normalisieren(a: dict, nr: int) -> dict:
     d = {
         "nr": int(a.get("nr") or nr),
         "teil": "test" if str(a.get("teil", "uebung")).lower().startswith("t") else "uebung",
-        "bereich": str(a.get("bereich") or "").strip().upper(),
+        "bereich": _bereich_normalisieren(a.get("bereich")),
         "format": str(a.get("format") or "luecke").strip().lower(),
         "strategie": str(a.get("strategie") or "").strip(),
         "merksatz": str(a.get("merksatz") or "").strip(),
@@ -403,7 +483,6 @@ def aufgaben_pruefen(aufgaben: list[dict], plan: Foerderplan, lexikon: dict | No
     stufe: «warnung» (muss angeschaut werden), «hinweis», «ok»."""
     lexikon = lexikon if lexikon is not None else VORGABE_LEXIKON
     befunde: list[dict] = []
-    erlaubt = set(plan.formate)
     olfa_von = {b: set(FOERDERBEREICHE[b]["olfa"]) for b in FOERDERBEREICHE}
 
     def melde(a: dict, stufe: str, text: str) -> None:
@@ -416,8 +495,10 @@ def aufgaben_pruefen(aufgaben: list[dict], plan: Foerderplan, lexikon: dict | No
             melde(a, "warnung", "Enthält ein ß – in der Schweizer Rechtschreibung gibt es keines.")
         if a["bereich"] and a["bereich"] not in plan.bereiche:
             melde(a, "warnung", f"Bereich {a['bereich']} gehört nicht zu den gewählten Förderbereichen ({', '.join(plan.bereiche)}).")
-        if a["format"] not in erlaubt:
-            melde(a, "warnung", f"Format «{FORMATE[a['format']]['name']}» ist auf der Ebene «{EBENEN[plan.ebene]['name']}» nicht vorgesehen.")
+        if a["format"] not in plan.formate_fuer(a["bereich"]):
+            melde(a, "warnung", f"Format «{FORMATE[a['format']]['name']}» ist "
+                                + ("für Grammatik, Satzbau und Zeichensetzung nicht vorgesehen." if ist_grammatik(a["bereich"])
+                                   else f"auf der Ebene «{EBENEN[plan.ebene]['name']}» nicht vorgesehen."))
         if not a["loesung"] and a["format"] not in ("lernwoerter", "gliedern"):
             melde(a, "warnung", "Keine Lösung angegeben.")
         if not a["aufgabe"]:
@@ -434,8 +515,8 @@ def aufgaben_pruefen(aufgaben: list[dict], plan: Foerderplan, lexikon: dict | No
             if not a["fehler"]:
                 melde(a, "hinweis", "Fehlersuche ohne Liste der eingebauten Fehler (Feld «fehler») – die Zuordnung kann nicht geprüft werden.")
             for x in a["fehler"]:
-                if not x["falsch"] or not x["richtig"]:
-                    continue
+                if not x["falsch"] or not x["richtig"] or ist_grammatik(a["bereich"]):
+                    continue    # Grammatikfehler kennt das OLFA-Regelwerk nicht
                 r = klassifiziere_wort(x["falsch"], x["richtig"], lexikon, erzwingen=True)
                 kats = [e["kategorie"] for e in r["ereignisse"] if e.get("kategorie")]
                 gehoert = olfa_von.get(a["bereich"], set())
@@ -481,8 +562,11 @@ def teilprompt_bauen(aufgabe: dict, plan: Foerderplan, aktion: str, chip: str | 
                      hinweis: str = "", anforderung: str = "", code: str | None = None) -> tuple[str, str]:
     """Prompt für eine einzelne Aufgabe: «ueberarbeiten» oder «austauschen»."""
     code = code or f"RST-AUF-{secrets.token_hex(3).upper()}"
-    fb = FOERDERBEREICHE.get(aufgabe.get("bereich", ""), {})
-    lw = plan.lernwoerter.get(aufgabe.get("bereich", ""), [])
+    bereich = aufgabe.get("bereich", "")
+    fb = FOERDERBEREICHE.get(bereich) or {"name": bereich_name(bereich), "foerdern": bereich_strategie(bereich)}
+    k = grammatik.get(bereich)
+    kontrast = KONTRASTE.get(bereich) or (k.beschreibung if k else "")
+    lw = plan.lernwoerter.get(bereich, [])
     anweisung = []
     if aktion == "austauschen":
         anweisung.append("Ersetze die Aufgabe durch eine NEUE Aufgabe an derselben Stelle: gleicher Bereich, gleicher Teil, "
@@ -508,8 +592,8 @@ Auftragsnummer: {code}
 {chr(10).join('- ' + a for a in anweisung)}
 
 ### Rahmen, der weiter gilt
-- Förderbereich {aufgabe.get('bereich', '')}: {fb.get('name', '')} – Strategie: {fb.get('foerdern', '')}. Kontrast: {KONTRASTE.get(aufgabe.get('bereich', ''), '')}
-- Übungsebene «{EBENEN[plan.ebene]['name']}»: erlaubte Formate {', '.join(plan.formate)}{'; nicht erlaubt: ' + ', '.join(plan.verboten) if plan.verboten else ''}.
+- Förderbereich {bereich}: {fb.get('name', '')} – Strategie: {fb.get('foerdern', '')}. Kontrast: {kontrast}
+- {'Grammatik/Satzbau: erlaubte Formate ' + ', '.join(GRAMMATIK_FORMATE) if ist_grammatik(bereich) else 'Übungsebene «' + EBENEN[plan.ebene]['name'] + '»: erlaubte Formate ' + ', '.join(plan.formate_fuer(bereich)) + ('; nicht erlaubt: ' + ', '.join(plan.verboten) if plan.verboten else '')}.
 - Anforderungsniveau «{plan.anspruch}»: {anforderung.strip() or 'wie im ursprünglichen Auftrag'}
 - Lernwörter des Kindes für diesen Bereich: {', '.join(f'{w.ziel} (schrieb «{w.schueler}»)' if w.schueler else w.ziel for w in lw) or 'keine erfasst'}
 - Im Feld «teil» = «test»: keine Merksätze, keine Hilfen. Lösungen nur im Feld «loesung», nie in «material».

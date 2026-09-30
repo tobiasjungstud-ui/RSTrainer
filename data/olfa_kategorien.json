@@ -231,7 +231,7 @@
       "nr": "11",
       "name": "Konsonantenverdoppelung nach Langvokal, Konsonant oder am Morphemanfang",
       "kurzbeschreibung": "Verdoppelung an einer Stelle, an der sie nicht hingehört: nach langem Vokal, nach einem Konsonanten oder am Morphemanfang.",
-      "beispiel": "*Bahnn → Bahn, *Werrk → Werk",
+      "beispiel": "*Bahnn → Bahn, *Sportt → Sport, *Fahrrrad → Fahrrad; aber *kallt → kalt = 08 (§19)",
       "gruppe": "I",
       "bereich": "Konsonantenverdoppelung",
       "heuristik": [

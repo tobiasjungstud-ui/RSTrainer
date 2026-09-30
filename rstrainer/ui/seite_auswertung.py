@@ -209,6 +209,9 @@ def _diktierte_texte(con, schueler, diktierte, fehler_diktiert, reg) -> None:
         st.info("Noch keine Befunde – unter «Fehleranalyse» das Freie Diktat im Reiter «Freie Analyse "
                 "durch das Sprachmodell» analysieren lassen oder Fehler von Hand erfassen.")
         return
+    st.info("Aus diesen Befunden lassen sich unter **Übungsblätter** Aufgaben zu Grammatik, Satzbau, "
+            "Zeichensetzung und Textebene erzeugen – die Kategorien unten stehen dort zur Wahl, "
+            "mit den eigenen Sätzen des Kindes als Lernstellen.")
     st.markdown("**Nach Kategorie**")
     titel = {d["id"]: d["titel"] for d in diktierte}
     zaehler: dict[str, int] = {}

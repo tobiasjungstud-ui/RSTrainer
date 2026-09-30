@@ -12,6 +12,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from . import grammatik
+from .olfa_engine import AREA_MAP, FOERDERBEREICHE
+
 BEREICH_NAME = {
     "A": "Rechtschreibung",
     "B": "Grammatik und Morphologie",
@@ -28,9 +31,23 @@ class Fund:
     wort_original: str = ""
 
 
+def strategie(kategorie_nr: str) -> str:
+    """Was zu dieser Kategorie geübt wird – knapp, für die Rückmeldung.
+    Rechtschreibung: die Strategie des Förderbereichs F1–F10; B–E: der
+    Fördern-Hinweis des Katalogs."""
+    nr = str(kategorie_nr)
+    fb = FOERDERBEREICHE.get(AREA_MAP.get(nr, ""))
+    if fb:
+        return fb["foerdern"]
+    k = grammatik.get(nr)
+    return k.foerdern if k else ""
+
+
 def feedback_erstellen(bereiche_geprueft: list[str], funde: list[Fund], reg,
                        hoechstens: int = 3) -> tuple[list[str], list[str]]:
-    """Liefert (gut, verbessern) als Listen kurzer, konkreter Sätze."""
+    """Liefert (gut, verbessern) als Listen kurzer, konkreter Sätze. Jeder
+    Übe-Punkt nennt die Zahl, ein Beispiel und die Strategie, mit der das Kind
+    sich selbst kontrollieren kann."""
     nach_bereich: dict[str, list[Fund]] = {b: [] for b in bereiche_geprueft}
     zaehler: dict[str, int] = {}
     beispiel: dict[str, Fund] = {}
@@ -56,5 +73,6 @@ def feedback_erstellen(bereiche_geprueft: list[str], funde: list[Fund], reg,
             if f.wort_schueler and f.wort_original and f.wort_schueler != f.wort_original
             else ""
         )
-        verbessern.append(f"{reg.label(nr)}: {anzahl}×{beispiel_text}")
+        tipp = strategie(nr)
+        verbessern.append(f"{reg.label(nr)}: {anzahl}×{beispiel_text}" + (f" → {tipp}" if tipp else ""))
     return gut, verbessern

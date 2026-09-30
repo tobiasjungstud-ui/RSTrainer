@@ -176,6 +176,14 @@ VORGABE_LEXIKON: dict[str, dict[str, Any]] = {
     "garage": {"fremd": [4], "vokale": ["kurz", "lang", "kurz"]}, "etage": {"fremd": [3]},
     "orange": {"fremd": [4]}, "blamage": {"fremd": [5]}, "courage": {"fremd": [0, 5]},
     "bagage": {"fremd": [4]}, "massage": {"fremd": [5]}, "passage": {"fremd": [5]},
+    "restaurant": {"fremd": [4]}, "computer": {"fremd": [0, 4]}, "cousin": {"fremd": [0, 1]},
+    "trottoir": {"fremd": [5]}, "chauffeur": {"fremd": [0, 6]}, "portemonnaie": {"fremd": [9]},
+    "ingenieur": {"fremd": [6]}, "friseur": {"fremd": [4]}, "coiffeur": {"fremd": [0, 1, 5]},
+    "journal": {"fremd": [0, 1]}, "jeans": {"fremd": [0, 1]}, "team": {"fremd": [1]},
+    "chance": {"fremd": [0, 4]}, "chef": {"fremd": [0]}, "tour": {"fremd": [1]}, "route": {"fremd": [1]},
+    "toilette": {"fremd": [1]}, "niveau": {"fremd": [3, 4]}, "mayonnaise": {"fremd": [2, 6]},
+    "sauce": {"fremd": [1, 4]}, "clown": {"fremd": [0, 2]}, "interview": {"fremd": [6, 8]},
+    "manager": {"fremd": [1, 3]}, "cool": {"fremd": [0, 1]}, "sandwich": {"fremd": [5]},
     "fuss": {"vokale": ["lang"]}, "strasse": {"vokale": ["lang", "kurz"]}, "gross": {"vokale": ["lang"]},
     "heissen": {"vokale": ["lang", "kurz"]}, "preise": {"vokale": ["lang", "kurz"]},
     "häuser": {"vokale": ["lang", "kurz"], "umlaut": True}, "müssen": {"vokale": ["kurz", "kurz"], "umlaut": True},
@@ -702,6 +710,8 @@ def segmentiere(wort: str) -> list[dict[str, Any]]:
     i = 0
     while i < len(w):
         treffer = next((g for g in MEHRGRAPHEME if w.startswith(g, i)), None) or w[i]
+        # Auch das silbentrennende h (ge|hen, ru|hig, Schu|he) bleibt Teil des
+        # Vokalgraphems: Original S. 21 wertet *seen für sehen als 09, nicht 29.
         aus.append({"g": treffer, "at": i})
         i += len(treffer)
     verschmolzen: list[dict[str, Any]] = []
@@ -734,6 +744,8 @@ def _verwandt(a: str, b: str) -> bool:
     if LAENGENMARKER.get(a, a) == LAENGENMARKER.get(b, b):
         return True
     if UMLAUT.get(a) == b or UMLAUT.get(b) == a:
+        return True
+    if UMSCHRIFT.get(a) == b or UMSCHRIFT.get(b) == a:
         return True
     if frozenset((a, b)) in VERWANDT_PAARE:
         return True
@@ -1384,6 +1396,29 @@ def klassifiziere_op(op: dict, t_seg: list[dict], ziel: str, lex: dict | None) -
         b["studentGrapheme"] = s
         b["reason"] = f"<{s}> für <{t}> (2/2): " + b["reason"] + " (Original S. 21: *Sag für Sack = 07 und 20.)"
         return [a, b]
+    if UMSCHRIFT.get(s) == t:
+        if s == "kw":
+            e = ereignis(studentGrapheme=s, targetGrapheme=t, kategorie="37")
+            e["reason"] = ("<kw> für <qu>: lautgetreue Schreibung des festen Graphems <qu> – wie *Schtein für Stein "
+                           "ein Fehler unter 37, nicht k für qu plus w zu viel.")
+            _excl(e, "33+30", "Eine Umschrift, keine zwei Fehler.")
+            return [e]
+        e = ereignis(studentGrapheme=s, targetGrapheme=t, kategorie="36")
+        e["reason"] = (f"<{s}> für <{t}>: Umlaut als Umschrift geschrieben (Tastatur ohne Umlaute) – "
+                       "Umlautbezeichnung 36, ein Fehler.")
+        _excl(e, "32", "Das <e> ist Teil der Umschrift, kein zugefügtes Vokalzeichen.")
+        return [e]
+    if s in VERDOPPELUNG and len(t) == 1 and STIMMLOS_FUER_STIMMHAFT.get(VERDOPPELUNG[s]) == t:
+        # *Geburtstack für Geburtstag, *Sack für Sag: Umkehrung von *Sag für
+        # Sack – ZWEI Fehler, 19 (k für g) und 08/11 (Verdoppelung zu viel).
+        einfach = VERDOPPELUNG[s]
+        a = konsonantersatz({**op, "s": einfach}, t_seg, lex)
+        a["studentGrapheme"] = s
+        a["reason"] = f"<{s}> für <{t}> (1/2): " + a["reason"]
+        b = verdoppelung_zuviel({**op, "t": einfach}, t_seg, ziel, lex)
+        b["targetGrapheme"] = t
+        b["reason"] = f"<{s}> für <{t}> (2/2): " + b["reason"] + " (Umkehrung von *Sag für Sack = 07 und 20, Original S. 21.)"
+        return [a, b]
     if t in VERDOPPELUNG and len(s) == 2 and s[0] == s[1] and VERDOPPELUNG[t] == s[0]:
         e = ereignis(studentGrapheme=s, targetGrapheme=t, kategorie="07")
         e["reason"] = (f"<{s}> für <{t}>: Die Verdoppelung wurde erkannt, aber mit dem Buchstabenpaar statt "
@@ -1463,6 +1498,12 @@ def _vokalpaar_auftrennen(s_seg: list[dict], ziel: str) -> list[dict]:
     return aus
 
 
+#: Umschriften, die das Kind für EIN Zielgraphem schreibt: <ue> für <ü>
+#: (Schweizer Tastatur, Original: Umlautbezeichnung 36), <kw> für <qu>
+#: (lautgetreu, wie *Schtein für Stein = 37). Sie werden zu einem Segment
+#: verschmolzen, damit sie als EIN Fehler zählen, nicht als zwei.
+UMSCHRIFT = {"ae": "ä", "oe": "ö", "ue": "ü", "aeu": "äu", "kw": "qu"}
+
 AUFTRENNBAR = {"sch": ["s", "ch"], "chs": ["ch", "s"], "ng": ["n", "g"],
                "ei": ["e", "i"], "ai": ["a", "i"], "au": ["a", "u"], "eu": ["e", "u"], "äu": ["ä", "u"], "oi": ["o", "i"]}
 
@@ -1476,6 +1517,24 @@ def _segmentvarianten(s_seg: list[dict], t_seg: list[dict]) -> list[list[dict]]:
     wenigsten Operationen, bei Gleichstand die ursprüngliche."""
     ziel_g = {x["g"] for x in t_seg}
     varianten = [s_seg]
+    # Umschriften verschmelzen: a,e → ae, wenn das Zielwort ein ä hat.
+    for umschrift, zielgraphem in UMSCHRIFT.items():
+        if zielgraphem not in ziel_g:
+            continue
+        teile = list(umschrift) if umschrift != "aeu" else ["a", "e", "u"]
+        v: list[dict] = []
+        i = 0
+        getroffen = False
+        while i < len(s_seg):
+            if [x["g"] for x in s_seg[i:i + len(teile)]] == teile:
+                v.append({"g": umschrift, "at": s_seg[i]["at"]})
+                i += len(teile)
+                getroffen = True
+            else:
+                v.append(s_seg[i])
+                i += 1
+        if getroffen:
+            varianten.append(v)
     for g, teile in AUFTRENNBAR.items():
         if g in ziel_g or not any(x["g"] == g for x in s_seg):
             continue
@@ -1985,7 +2044,7 @@ def analysiere_diktat(referenz: str, schuelertext: str, lexikon: dict | None = N
             setze(p["schuelerTok"], "fehler"); continue
         if art == "getrennt":
             for e in wortgrenzen_ergebnis(p["schuelerWoerter"], p["ziel"], lexikon):
-                fertig(e, p, p["ziel"])
+                fertig(e, {**p, "schueler": " ".join(p["schuelerWoerter"])}, p["ziel"])
             start = p["schuelerTok"]["index"]
             for t in tok_s[start:start + len(p["schuelerWoerter"])]:
                 setze(t, "fehler")

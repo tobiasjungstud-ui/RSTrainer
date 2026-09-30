@@ -79,6 +79,11 @@ def kategorienblock(nummern: list[str], liste: Kategorienliste,
             ergaenzung = f": {art.beschreibung}" if art.beschreibung else ""
             zeilen.append(f"- **{art.label}**{rolle}{ergaenzung}")
             continue
+        gk = grammatik.get(nr)
+        if gk is not None:
+            zeilen.append(f"- **{gk.id} – {gk.label}**{rolle}: {gk.beschreibung} Fördern: {gk.foerdern}"
+                          + (f" Typischer Fehler: {gk.beispiel}." if gk.beispiel else ""))
+            continue
         zeilen.append(f"- **{nr}** – (Kategorie nicht in der Liste gefunden)")
     return "\n".join(zeilen) if zeilen else "- (keine Kategorie gewählt)"
 

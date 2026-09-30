@@ -144,3 +144,65 @@ def test_blatt_mit_aufgaben_in_der_datenbank(con, schueler_id):
     bid = db.blatt_anlegen(con, schueler_id, "T", ["07"], "u", "t", "l", aufgaben=aufgaben)
     row = db.blatt_holen(con, bid)
     assert len(json.loads(row["aufgaben"])) == 3
+
+
+# --- Grammatik, Satzbau, Zeichensetzung, Text (B–E) auf dem Blatt -----------
+
+def test_katalogkennung_ist_ihr_eigener_bereich():
+    assert blatt.bereich_von("B:Kasus") == "B:Kasus"
+    assert blatt.bereich_von("07") == "F1"
+    assert blatt.bereich_von("X-unbekannt") is None
+    assert blatt.ist_grammatik("D:Komma Nebensatz") and not blatt.ist_grammatik("F3")
+
+
+def test_gemischter_plan_kennt_beide_formatwelten():
+    fehler = [
+        {"kategorie_nr": "07", "wort_original": "kommen", "wort_schueler": "komen"},
+        {"kategorie_nr": "B:Kasus", "wort_original": "mit dem Hund", "wort_schueler": "mit den Hund"},
+        {"kategorie_nr": "B:Kasus", "wort_original": "Ich helfe ihm", "wort_schueler": "Ich helfe ihn"},
+    ]
+    plan = blatt.foerderplan(["07", "B:Kasus"], fehler, 300, ebene="lautebene")
+    assert plan.bereiche == ["F1", "B:Kasus"]
+    assert plan.hat_grammatik and plan.hat_rechtschreibung
+    assert "umformen" in plan.formate and "gliedern" in plan.formate
+    assert plan.formate_fuer("B:Kasus") == blatt.GRAMMATIK_FORMATE
+    assert "fehlersuche" not in plan.formate_fuer("F1")          # Lautebene
+    assert [w.ziel for w in plan.lernwoerter["B:Kasus"]] == ["Ich helfe ihm", "mit dem Hund"]   # jüngste zuerst
+    block = blatt.foerderplan_block(plan)
+    assert "B:Kasus – Grammatik / Morphologie › Kasus" in block
+    assert "Lernstellen des Kindes" in block and "«mit den Hund» → «mit dem Hund»" in block
+    assert "Lernwörter des Kindes" in block and "kommen (1×, schrieb «komen»)" in block
+
+
+def test_reiner_grammatikplan_hat_keine_verbote_der_uebungsebene():
+    plan = blatt.foerderplan(["C:Wortstellung"], [], 0, ebene="lautebene")
+    assert plan.verboten == []
+    assert plan.formate == blatt.GRAMMATIK_FORMATE
+
+
+def test_pruefung_akzeptiert_grammatikformate_und_kennungen():
+    plan = blatt.foerderplan(["B:Kasus"], [], 0)
+    aufgaben, _ = blatt.aufgaben_lesen('''---JSON---
+{"aufgaben": [
+ {"nr": 1, "teil": "uebung", "bereich": "b:kasus", "format": "umformen", "aufgabe": "Setze in den Dativ.",
+  "material": "Ich helfe (der Hund).", "loesung": "Ich helfe dem Hund.", "punkte": 1, "woerter": ["dem Hund"]},
+ {"nr": 2, "teil": "uebung", "bereich": "B:Kasus", "format": "fehlersuche", "aufgabe": "Finde den Fehler.",
+  "material": "Ich helfe ihn.", "loesung": "ihm", "punkte": 1, "woerter": ["ihm"], "fehler": [{"falsch": "ihn", "richtig": "ihm"}]},
+ {"nr": 3, "teil": "uebung", "bereich": "B:Kasus", "format": "gliedern", "aufgabe": "Gliedere.", "material": "Hund", "loesung": "", "punkte": 1, "woerter": []},
+ {"nr": 1, "teil": "test", "bereich": "B:Kasus", "format": "luecke", "aufgabe": "Ergänze.", "material": "mit ___ Katze", "loesung": "der", "punkte": 1, "woerter": ["der"]}
+]}''')
+    assert aufgaben[0]["bereich"] == "B:Kasus"                   # Kennung normalisiert
+    befunde = blatt.aufgaben_pruefen(aufgaben, plan)
+    texte = [b["text"] for b in befunde]
+    assert not any("gehört nicht zu den gewählten" in t for t in texte)
+    assert not any("ist OLFA" in t for t in texte)               # kein Regelwerk-Abgleich für Grammatik
+    assert any("gliedern" in t and "Grammatik" in t for t in texte)
+
+
+def test_teilprompt_kennt_grammatikbereich():
+    plan = blatt.foerderplan(["D:Komma Nebensatz"], [], 0)
+    aufgabe = {"nr": 1, "teil": "uebung", "bereich": "D:Komma Nebensatz", "format": "luecke", "strategie": "",
+               "merksatz": "", "aufgabe": "Setze Kommas.", "material": "Ich glaube dass es regnet.",
+               "loesung": "Ich glaube, dass es regnet.", "punkte": 1, "woerter": [], "fehler": []}
+    _, text = blatt.teilprompt_bauen(aufgabe, plan, "austauschen")
+    assert "Komma zwischen Haupt- und Nebensatz" in text and "erlaubte Formate luecke, sortieren, umformen" in text

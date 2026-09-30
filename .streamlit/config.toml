@@ -1,0 +1,7 @@
+# Oberfläche für den Unterrichtsalltag: keine Streamlit-Werkzeugleiste
+# («Deploy», Menü) und keine Nutzungsstatistik.
+[client]
+toolbarMode = "minimal"
+
+[browser]
+gatherUsageStats = false

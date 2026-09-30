@@ -3,7 +3,7 @@ den Funden eines Analyse-Durchgangs, für alle drei Modi (Diktatmodus,
 Freitextmodus, Freies Diktat)."""
 from __future__ import annotations
 
-from rstrainer import feedback
+from rstrainer import feedback, kategorien
 from rstrainer.ui import gemeinsam as g
 
 
@@ -43,3 +43,12 @@ def test_hoechstens_begrenzt_die_verbessern_liste():
     funde = [feedback.Fund(nr) for nr in ["07", "08", "10", "20"] for _ in range(1)]
     gut, verbessern = feedback.feedback_erstellen(["A"], funde, reg, hoechstens=2)
     assert len(verbessern) == 2
+
+
+def test_jeder_uebe_punkt_nennt_die_strategie():
+    reg = kategorien.laden()
+    _, verbessern = feedback.feedback_erstellen(
+        ["A", "B"], [feedback.Fund("07", "komen", "kommen"), feedback.Fund("B:Kasus", "ihn", "ihm")], reg)
+    assert any("Kurzvokal hören" in z for z in verbessern)
+    assert any("Frageprobe" in z for z in verbessern)
+    assert feedback.strategie("X-unbekannt") == ""
